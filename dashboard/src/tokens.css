@@ -1,0 +1,51 @@
+/* Approved Studio market theme tokens; see the central AppCenter design. */
+    body,
+    body[data-theme=light] {
+      color-scheme: light;
+      --bg: #eef2ef;
+      --panel: #f7faf7;
+      --subtle: #fbfcfa;
+      --line: rgba(21, 35, 30, .13);
+      --line-strong: rgba(21, 35, 30, .22);
+      --ink: #18241f;
+      --muted: #69756e;
+      --muted-2: #8a968f;
+      --accent: #087e60;
+      --accent-glow: rgba(8, 126, 96, 0.2);
+      --blue: #5379ac;
+      --amber: #b58032;
+      --danger: #c95743;
+      --aside: rgba(229, 235, 229, .92);
+      --paper: #15231e;
+      --button-ink: #f2f5f0;
+      --shadow: 0 24px 100px rgba(21, 35, 30, .16);
+      --shell-panel: rgba(255, 255, 255, .62);
+      --shell-button: rgba(21, 35, 30, .055);
+      background: linear-gradient(140deg, #eef2ef, #e7ece7);
+      color: var(--ink);
+    }
+
+    body[data-theme=dark] {
+      color-scheme: dark;
+      --bg: #111310;
+      --panel: #1a1c19;
+      --subtle: #20231f;
+      --line: rgba(236, 241, 234, .095);
+      --line-strong: rgba(236, 241, 234, .18);
+      --ink: #f1f3ee;
+      --muted: #9a9f98;
+      --muted-2: #656b62;
+      --accent: #75c7ab;
+      --accent-glow: rgba(117, 199, 171, 0.25);
+      --blue: #9bb7df;
+      --amber: #e6b268;
+      --danger: #ff8068;
+      --aside: #141613;
+      --paper: #eef2ef;
+      --button-ink: #15231e;
+      --shadow: 0 34px 100px rgba(0, 0, 0, .55);
+      --shell-panel: rgba(239, 243, 237, 0.032);
+      --shell-button: rgba(239, 243, 237, 0.05);
+      background: var(--bg);
+      color: var(--ink);
+    }

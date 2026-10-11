@@ -1,0 +1,17 @@
+@import './tokens.css';
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #app { min-width: 0; width: 100%; margin: 0; }
+body { font: 14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background: transparent; }
+button,input,select,textarea { font: inherit; }
+button { cursor: pointer; color: var(--ink); border: 0; background: none; }
+button:disabled { cursor: not-allowed; opacity: .4; }
+a { color: inherit; text-decoration: none; }
+button:focus-visible,a:focus-visible,input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.main { margin: 0; padding: 28px 36px 48px; min-width: 0; }
+.workspace { width: 100%; margin: 0; }
+.heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 28px; }
+.heading-left h1 { font-size: 30px; font-weight: 600; letter-spacing: -.6px; line-height: 1.25; margin-top: 4px; color: var(--ink); }
+.heading-left p { color: var(--muted); margin-top: 6px; font-size: 13px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--shell-button); font-size: 12px; line-height: 1.5; }
+.btn.primary { color: var(--button-ink); background: var(--paper); border-color: var(--paper); font-weight: 650; }
+@media (max-width: 700px) { .main { padding: 20px 16px 40px; } .heading { flex-wrap: wrap; } }

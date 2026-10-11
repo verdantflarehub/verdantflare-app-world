@@ -1,0 +1,85 @@
+name: World App
+on:
+  push:
+    branches: [release]
+permissions:
+  contents: read
+concurrency:
+  group: world-release
+  cancel-in-progress: false
+env:
+  REGISTRY_ENDPOINT: ${{ secrets.REGISTRY_ENDPOINT_ALIYUN }}
+  IMAGE_NAME: wod/verdantflare-app
+jobs:
+  image:
+    name: Build and publish versioned application
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v3
+      - name: Configure release destination
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="${REGISTRY_ENDPOINT%/}"
+          version="$(tr -d '\r\n' < VERSION)"
+          [[ "$endpoint" =~ ^[a-zA-Z0-9.-]+(:[0-9]+)?$ ]] || exit 1
+          [[ "$version" =~ ^(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)$ ]] || exit 1
+          echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$endpoint/$IMAGE_NAME:world-v$version" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ steps.image.outputs.endpoint }}
+          username: ${{ secrets.REGISTRY_USER_ALIYUN }}
+          password: ${{ secrets.REGISTRY_PASSWORD_ALIYUN }}
+      - name: Refuse an existing release tag
+        env:
+          IMAGE: ${{ steps.image.outputs.tag }}
+        run: bash scripts/check-image-absent.sh
+      - name: Export compiled Dashboard and original metadata
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: dashboard-artifact
+          push: false
+          platforms: linux/amd64
+          outputs: type=local,dest=release/dashboard
+          cache-from: type=gha,scope=world
+          provenance: false
+          sbom: false
+      - name: Build and publish versioned image
+        id: publish
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.image.outputs.tag }}
+          build-args: APP_VERSION=${{ steps.image.outputs.version }}
+          cache-from: type=gha,scope=world
+          cache-to: type=gha,mode=max,scope=world
+          provenance: false
+          sbom: false
+      - name: Record delivery identity
+        env:
+          APP_VERSION: ${{ steps.image.outputs.version }}
+          IMAGE: ${{ steps.image.outputs.tag }}
+          IMAGE_DIGEST: ${{ steps.publish.outputs.digest }}
+        run: |
+          set -euo pipefail
+          jq -n --arg appId 'world' --arg appVersion "$APP_VERSION" \
+            --arg image "$IMAGE" --arg imageDigest "$IMAGE_DIGEST" \
+            --arg repository "$GITHUB_REPOSITORY" --arg revision "$GITHUB_SHA" \
+            '{schemaVersion:1,appId:$appId,appVersion:$appVersion,image:$image,imageDigest:$imageDigest,repository:$repository,revision:$revision}' > release/delivery.json
+      - name: Upload exact Dashboard delivery material
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-dashboard-${{ steps.image.outputs.version }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,22 @@
+{
+  "name": "@verdantflare/app-world-dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit",
+    "test": "node --experimental-transform-types --test tests/*.test.ts",
+    "build": "vite build && node scripts/prepare-dashboard.mjs world"
+  },
+  "dependencies": {
+    "vue": "3.5.30",
+    "vue-router": "4.6.4"
+  },
+  "devDependencies": {
+    "vite": "7.3.1",
+    "@vitejs/plugin-vue": "6.0.4",
+    "typescript": "5.9.3",
+    "vue-tsc": "3.2.5"
+  },
+  "packageManager": "pnpm@9.15.9"
+}
