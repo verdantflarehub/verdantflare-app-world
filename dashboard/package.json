@@ -1,7 +1,7 @@
 {
   "name": "@verdantflare/app-world-dashboard",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "scripts": {
     "typecheck": "vue-tsc --noEmit",
