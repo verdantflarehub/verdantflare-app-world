@@ -8,12 +8,12 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.uber.org/zap"
 )
 
 const Domain = "world"
@@ -129,7 +129,11 @@ func Start(ctx context.Context, address, registryEndpoints, version string, tool
 	if err != nil {
 		return nil, err
 	}
-	cli, err := clientv3.New(clientv3.Config{Endpoints: eps, DialTimeout: 5 * time.Second, Logger: zap.NewNop()})
+	config, err := registryClientConfig(eps, os.Getenv)
+	if err != nil {
+		return nil, err
+	}
+	cli, err := clientv3.New(config)
 	if err != nil {
 		return nil, errors.New("registry client unavailable")
 	}
