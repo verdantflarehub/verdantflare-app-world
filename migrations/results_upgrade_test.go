@@ -40,7 +40,7 @@ func TestResultUpgradePreservesTasksAndRunningPrompts(t *testing.T) {
 		`INSERT INTO studio.world_analysis_associations(organization_id,owner_id,task_id,request_sha256,request) VALUES($1,$1,$1,repeat('e',64),'{"synthetic_fixture":true}')`,
 		`UPDATE studio.world_analysis_associations SET state='dispatching',revision=2`,
 		`UPDATE studio.world_analysis_associations SET state='association_ready',revision=3,call_id='01900000-0000-7000-8000-000000000003',native_result='{}'`,
-		`INSERT INTO studio.world_analysis_prompt_batches(organization_id,owner_id,task_id,batch_key,batch_index,request_sha256,request) VALUES($1,$1,$1,'prompts-v1-0000',0,repeat('f',64),jsonb_build_object('task_id',$1::text,'batch',jsonb_build_object('batch_key','prompts-v1-0000','targets','[{"key":"synthetic"}]'::jsonb)))`,
+		`INSERT INTO studio.world_analysis_prompt_batches(organization_id,owner_id,task_id,batch_key,batch_index,request_sha256,request) VALUES($1,$1,$1,'prompts-v1-0000',0,repeat('f',64),jsonb_build_object('task_id',$1::uuid::text,'batch',jsonb_build_object('batch_key','prompts-v1-0000','targets','[{"key":"synthetic"}]'::jsonb)))`,
 		`UPDATE studio.world_analysis_prompt_batches SET state='dispatching',revision=2`,
 		`UPDATE studio.world_analysis_prompt_batches SET state='running',revision=3,call_id='01900000-0000-7000-8000-000000000004'`,
 		`UPDATE studio.world_handoff SET state='closed'`,
@@ -83,7 +83,7 @@ func TestResultUpgradePreservesTasksAndRunningPrompts(t *testing.T) {
 	if _, err = db.Exec(ctx, `UPDATE studio.world_analysis_tasks SET include_typed_results=true`); err == nil {
 		t.Fatal("legacy task mutated")
 	}
-	if _, err = db.Exec(ctx, `INSERT INTO studio.world_analysis_result_batches(organization_id,owner_id,task_id,batch_key,batch_index,request_sha256,request) VALUES($1,$1,$1,'results-v1-shot-0000',0,repeat('f',64),jsonb_build_object('task_id',$1::text,'batch',jsonb_build_object('batch_key','results-v1-shot-0000')))`, id); err == nil {
+	if _, err = db.Exec(ctx, `INSERT INTO studio.world_analysis_result_batches(organization_id,owner_id,task_id,batch_key,batch_index,request_sha256,request) VALUES($1,$1,$1,'results-v1-shot-0000',0,repeat('f',64),jsonb_build_object('task_id',$1::uuid::text,'batch',jsonb_build_object('batch_key','results-v1-shot-0000')))`, id); err == nil {
 		t.Fatal("legacy task accepted result work")
 	}
 	if err = Check(ctx, db); err != nil {
