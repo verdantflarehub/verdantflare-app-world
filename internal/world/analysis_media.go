@@ -18,6 +18,7 @@ type AnalysisExecution struct {
 	ModelID, AccountID, BudgetPerStep string
 	PromptTargets                     []analysis.PromptTarget
 	IncludeTypedResults               bool
+	SaveLearning                      bool
 }
 type analysisDownloader interface {
 	Download(context.Context, Principal, ContentRef, Access, io.Writer, int64) error
@@ -26,13 +27,13 @@ type analysisDownloader interface {
 // PrepareVideoAnalysis is an internal worker entry, not an HTTP/MCP accepting
 // endpoint. Complete learning orchestration must be available before admission.
 func (s *Service) PrepareVideoAnalysis(ctx context.Context, p Principal, taskID string, source AnalysisSource, execution AnalysisExecution, processor analysis.Preparer) (analysis.Task, error) {
-	if !p.Valid() || !ValidID(taskID) || !ValidID(source.DraftID) || !ValidID(source.RevisionID) || !ValidID(source.FileID) || analysis.ValidatePromptTargets(execution.PromptTargets) != nil {
+	if !p.Valid() || !ValidID(taskID) || !ValidID(source.DraftID) || !ValidID(source.RevisionID) || !ValidID(source.FileID) || analysis.ValidatePromptTargets(execution.PromptTargets) != nil || (execution.SaveLearning && !execution.IncludeTypedResults) {
 		return analysis.Task{}, ErrInvalid
 	}
 	store := analysis.PGStore{DB: s.db}
 	old, err := store.Task(ctx, p.OrganizationID, p.SubjectID, taskID)
 	if err == nil {
-		if old.DraftID != source.DraftID || old.RevisionID != source.RevisionID || old.FileID != source.FileID || !slices.Equal(old.PromptTargets, execution.PromptTargets) || old.IncludeTypedResults != execution.IncludeTypedResults {
+		if old.DraftID != source.DraftID || old.RevisionID != source.RevisionID || old.FileID != source.FileID || !slices.Equal(old.PromptTargets, execution.PromptTargets) || old.IncludeTypedResults != execution.IncludeTypedResults || old.SaveLearning != execution.SaveLearning {
 			return analysis.Task{}, ErrIdempotency
 		}
 		// Even a replay must still have access to the pinned collection.
@@ -62,7 +63,7 @@ func (s *Service) PrepareVideoAnalysis(ctx context.Context, p Principal, taskID 
 	if err != nil {
 		return analysis.Task{}, err
 	}
-	task := analysis.Task{OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: taskID, DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: source.FileID, Plan: plan, PromptTargets: append([]analysis.PromptTarget(nil), execution.PromptTargets...), IncludeTypedResults: execution.IncludeTypedResults}
+	task := analysis.Task{OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: taskID, DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: source.FileID, Plan: plan, PromptTargets: append([]analysis.PromptTarget(nil), execution.PromptTargets...), IncludeTypedResults: execution.IncludeTypedResults, SaveLearning: execution.SaveLearning}
 	requests := make([]analysis.FrozenRequest, 0, len(plan.Steps))
 	for _, step := range plan.Steps {
 		prepared, media, e := material.Prepare(ctx, step)

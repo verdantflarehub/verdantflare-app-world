@@ -197,7 +197,15 @@ func verifyResultExecution(t *testing.T, svc *Service, p Principal, b analysis.B
 		t.Fatal("complete candidates missing", len(drafts), err)
 	}
 	progress, err = store.Progress(ctx, p.OrganizationID, p.SubjectID, b.TaskID)
-	if err != nil || progress.ResultReady != 4 || progress.ResultInsufficient != 1 || progress.Stage != "results_need_evidence" {
+	storedTask, taskErr := store.Task(ctx, p.OrganizationID, p.SubjectID, b.TaskID)
+	if taskErr != nil {
+		t.Fatal(taskErr)
+	}
+	expectedStage := "results_need_evidence"
+	if storedTask.SaveLearning {
+		expectedStage = "saving_learning"
+	}
+	if err != nil || progress.ResultReady != 4 || progress.ResultInsufficient != 1 || progress.Stage != expectedStage {
 		t.Fatal("missing incomplete disposition", progress, err)
 	}
 	if drafts[1].State != "insufficient_evidence" || drafts[2].State != "not_applicable" || len(drafts[1].ContextUncertainties) == 0 {
@@ -205,8 +213,14 @@ func verifyResultExecution(t *testing.T, svc *Service, p Principal, b analysis.B
 	}
 	worker.Dispatch = false
 	due()
-	if worked, e := worker.Tick(ctx); worked || e != nil || c.submits != 4 {
-		t.Fatal("completed batch repeated", e)
+	task, e := store.Task(ctx, p.OrganizationID, p.SubjectID, b.TaskID)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if !task.SaveLearning {
+		if worked, e := worker.Tick(ctx); worked || e != nil || c.submits != 4 {
+			t.Fatal("completed batch repeated", e)
+		}
 	}
 	if _, err = svc.db.Exec(ctx, `UPDATE studio.world_analysis_result_batches SET revision=revision+1 WHERE task_id=$1`, b.TaskID); err == nil {
 		t.Fatal("terminal result mutable")

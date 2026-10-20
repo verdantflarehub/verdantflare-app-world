@@ -36,14 +36,22 @@ func readAnalysisConfig(get func(string) string, existingTokens map[string]bool)
 }
 
 func startAnalysisWorker(ctx context.Context, db *pgxpool.Pool, svc *world.Service, cfg analysisConfig) func() {
-	if cfg.channel == nil {
-		return func() {}
-	}
 	ctx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
 	worker := analysis.Scheduler{Queue: analysis.PGStore{DB: db}, Dispatch: cfg.dispatch,
 		Advance: func(ctx context.Context, w analysis.Work) (string, error) {
 			p := world.Principal{OrganizationID: w.OrganizationID, SubjectID: w.OwnerID, RequestID: w.LeaseID}
+			if w.StepKey == analysis.LearningSaveStepKey {
+				r, err := svc.SaveAnalysisLearning(ctx, p, w.TaskID)
+				state := r.State
+				if state == "conflict" {
+					state = "failed"
+				}
+				return state, err
+			}
+			if cfg.channel == nil {
+				return "", world.ErrDependency
+			}
 			if w.StepKey == analysis.AssociationStepKey {
 				r, err := svc.AdvanceAnalysisAssociation(ctx, p, w.TaskID, cfg.channel, cfg.dispatch)
 				return r.State, err

@@ -29,6 +29,17 @@ func testAnalysisBundle(t *testing.T, targets []analysis.PromptTarget, failPromp
 type bundleOptions struct {
 	targets                         []analysis.PromptTarget
 	failPrompts, typed, failResults bool
+	saveLearning                    bool
+	saveConflict                    bool
+	external                        Artifact
+	writeSource                     func(*testing.T, Principal, string) ContentVersion
+	verifySave                      func(*testing.T, *Service, Principal, analysis.Bundle)
+}
+
+// RunAnalysisSaveFixture is a test-only bridge for the external package to
+// exercise the production Artifact client without a world/artifactclient cycle.
+func RunAnalysisSaveFixture(t *testing.T, port Artifact, source func(*testing.T, Principal, string) ContentVersion, verify func(*testing.T, *Service, Principal, analysis.Bundle)) {
+	testAnalysisBundleOptions(t, bundleOptions{typed: true, saveLearning: true, external: port, writeSource: source, verifySave: verify})
 }
 
 func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
@@ -42,7 +53,16 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 		t.Fatal(err)
 	}
 	content := &draftTestArtifact{versions: map[ContentRef]ContentVersion{}, bytes: map[ContentRef][]byte{}, writes: map[string]ContentRef{}, retained: map[string][]ContentRef{}}
-	svc, err := NewService(ctx, db, content, integrationProject{}, 1, map[string]coordination.Peer{})
+	var port Artifact = content
+	var saveProxy *analysisSaveTestArtifact
+	if options.saveLearning {
+		saveProxy = &analysisSaveTestArtifact{draftTestArtifact: content}
+		port = saveProxy
+	}
+	if options.external != nil {
+		port = options.external
+	}
+	svc, err := NewService(ctx, db, port, integrationProject{}, 1, map[string]coordination.Peer{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,6 +78,10 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 	fileID := newID()
 	hash := strings.Repeat("a", 64)
 	content.versions[ref] = ContentVersion{ContentRef: ref, OrganizationID: p.OrganizationID, Source: Source{Kind: "user_import", WorldDraftID: initial.DraftID}, MIME: "video/mp4", Size: 10, SHA256: hash}
+	if options.writeSource != nil {
+		v := options.writeSource(t, p, initial.DraftID)
+		ref, hash = v.ContentRef, v.SHA256
+	}
 	manifest := initial.Manifest
 	manifest.Files = []File{{ID: fileID, Path: "reference.mp4", Role: "reference", Content: ref}}
 	raw, err = svc.WorldDraft(ctx, p, DraftRequest{Mode: "commit", DraftID: initial.DraftID, ExpectedRevisionID: initial.RevisionID, CommitID: newID(), Manifest: &manifest})
@@ -69,7 +93,7 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	task := analysis.Task{OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: newID(), DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: fileID, Plan: plan, PromptTargets: targets, IncludeTypedResults: options.typed}
+	task := analysis.Task{OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: newID(), DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: fileID, Plan: plan, PromptTargets: targets, IncludeTypedResults: options.typed, SaveLearning: options.saveLearning}
 	step := plan.Steps[0]
 	prepared := analysis.Prepared{SourceHash: hash, MediaHash: hash, MIME: "video/mp4", Range: step.Input}
 	request, err := analysis.Freeze(task.TaskID, "gemini-3.1-pro-preview", "", "1.00", step, prepared, 10)
@@ -164,6 +188,15 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 		} else {
 			t.Run("persistent typed results", func(t *testing.T) { verifyResultExecution(t, svc, p, bundle) })
 			t.Run("trusted learning assembly", func(t *testing.T) { verifyAnalysisLearningAssembly(t, svc, p, bundle) })
+			if options.saveLearning {
+				if options.verifySave != nil {
+					options.verifySave(t, svc, p, bundle)
+				} else if options.saveConflict {
+					t.Run("preserve user edit on conflict", func(t *testing.T) { verifyAnalysisSaveConflict(t, svc, p, bundle, saveProxy) })
+				} else {
+					t.Run("durable learning save", func(t *testing.T) { verifyAnalysisLearningSave(t, svc, p, bundle, saveProxy) })
+				}
+			}
 		}
 		if options.failPrompts || options.failResults {
 			if _, err := svc.AnalysisLearningDocument(ctx, p, task.TaskID); err == nil {
@@ -173,6 +206,11 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 	}
 	for _, actor := range []Principal{{}, {newID(), p.SubjectID, newID()}, {p.OrganizationID, newID(), newID()}} {
 		if options.typed {
+			if options.saveLearning {
+				if _, err := svc.SaveAnalysisLearning(ctx, actor, task.TaskID); err == nil {
+					t.Fatal("foreign save")
+				}
+			}
 			if _, err := svc.AnalysisLearningDocument(ctx, actor, task.TaskID); err == nil {
 				t.Fatal("foreign learning document read")
 			}
@@ -202,6 +240,9 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 		}
 	}
 	// Re-read current Artifact authority; the stored pass flag cannot grant access.
+	if options.external != nil {
+		return // Real-store revocation checks are performed by its verifier.
+	}
 	version := content.versions[ref]
 	version.OrganizationID = newID()
 	content.versions[ref] = version
@@ -217,6 +258,11 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 		}
 	}
 	if options.typed {
+		if options.saveLearning {
+			if _, err := svc.SaveAnalysisLearning(ctx, p, task.TaskID); err == nil {
+				t.Fatal("revoked save")
+			}
+		}
 		if _, err := svc.AnalysisLearningDocument(ctx, p, task.TaskID); err == nil {
 			t.Fatal("revoked learning source still readable")
 		}
@@ -233,4 +279,13 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 	if _, err := svc.AnalysisBundle(ctx, p, task.TaskID); !errors.Is(err, ErrNotReady) {
 		t.Fatal("changed source accepted", err)
 	}
+}
+
+func RestartAnalysisTestService(t *testing.T, svc *Service, port Artifact) *Service {
+	t.Helper()
+	rebuilt, err := NewService(t.Context(), svc.db, port, integrationProject{}, 1, map[string]coordination.Peer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rebuilt
 }

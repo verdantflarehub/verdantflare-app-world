@@ -130,6 +130,19 @@ func (c *Client) WriteAssetManifest(ctx context.Context, p world.Principal, asse
 func (c *Client) WriteDraftManifest(ctx context.Context, p world.Principal, draft, revision string, w world.TextWrite) (world.ContentVersion, error) {
 	return c.write(ctx, p, world.Source{Kind: "world_draft_manifest", WorldDraftID: draft, WorldDraftRevisionID: revision}, w)
 }
+
+// Internal only: World has authorized the fixed task and frozen the body before
+// invoking this byte writer. Artifact does not call back into World.
+func (c *Client) WriteAnalysisDocument(ctx context.Context, p world.Principal, task string, w world.TextWrite) (world.ContentVersion, error) {
+	if !world.ValidID(task) || !world.ValidID(w.WriteID) || !world.ValidID(w.FileID) || w.MIME != "application/json" || len(w.Text) == 0 || len(w.Text) > world.MaxManifestBytes {
+		return world.ContentVersion{}, world.ErrInvalid
+	}
+	v, err := c.write(ctx, p, world.Source{Kind: "task_output", ServiceID: "world", RunID: "analysis-v1:" + task, TaskID: task}, w)
+	if err == nil && v.CreatedBy != p.SubjectID {
+		return world.ContentVersion{}, world.ErrDependency
+	}
+	return v, err
+}
 func (c *Client) write(ctx context.Context, p world.Principal, source world.Source, w world.TextWrite) (world.ContentVersion, error) {
 	var v world.ContentVersion
 	sum := sha256.Sum256([]byte(w.Text))

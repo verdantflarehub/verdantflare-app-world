@@ -148,7 +148,9 @@ func (s *Service) checkDraftContents(ctx context.Context, p Principal, c draftCo
 			return nil, nil, ErrNotReady
 		}
 		if access == (Access{}) && !draftUserSource(v.Source, c.DraftID) {
-			return nil, nil, ErrForbidden
+			if err := s.checkAnalysisOutput(ctx, p, v); err != nil {
+				return nil, nil, err
+			}
 		}
 		if run, ok := draftNativeOutput(v.Source); ok {
 			outputs[run] = true
@@ -174,8 +176,8 @@ func (s *Service) checkDraftContents(ctx context.Context, p Principal, c draftCo
 	return refs, inputs.Grants, nil
 }
 
-// Artifact's internal producer authorization attests only the output's origin.
-// This does not attest execution state, model, prompt, or input bindings.
+// A source tag classifies the output; it does not attest execution state,
+// model, prompt, inputs or current permission. The caller verifies these.
 // TaskID and RunID are deliberately distinct and are never substituted.
 func draftNativeOutput(source Source) (RunRef, bool) {
 	run := RunRef{ServiceID: source.ServiceID, RunID: source.RunID}

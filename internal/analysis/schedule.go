@@ -12,6 +12,7 @@ import (
 const LeaseDuration = 25 * time.Minute
 const StepTimeout = 20 * time.Minute
 const PollInterval = 5 * time.Second
+const LearningSaveStepKey = "learning-save-v1"
 
 type Work struct {
 	OrganizationID, OwnerID, TaskID, StepKey, LeaseID string
@@ -92,6 +93,13 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
    AND (rb.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND rb.state='planned' AND NOT EXISTS(
     SELECT 1 FROM studio.world_analysis_result_batches other WHERE other.organization_id=q.organization_id AND other.owner_id=q.owner_id AND other.task_id=q.task_id
     AND other.state IN ('dispatching','running','acceptance_unknown','failed'))))
+  UNION ALL
+  SELECT 'learning-save-v1',7,0::bigint
+  FROM (SELECT 1) seed
+  LEFT JOIN studio.world_analysis_learning l ON l.organization_id=q.organization_id AND l.owner_id=q.owner_id AND l.task_id=q.task_id
+  WHERE t.save_learning AND t.include_typed_results AND COALESCE(l.state,'pending')='pending'
+   AND EXISTS(SELECT 1 FROM studio.world_analysis_result_batches rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id)
+   AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_result_batches rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id AND rb.state<>'result_ready')
   ) picked ORDER BY picked.priority,picked.position LIMIT 1
  ) step
  WHERE q.next_attempt_at<=now() AND (q.lease_until IS NULL OR q.lease_until<=now())
@@ -237,6 +245,8 @@ type Progress struct {
 	ResultFailed       int    `json:"result_failed"`
 	ResultTotal        int    `json:"result_total"`
 	ResultInsufficient int    `json:"result_insufficient_evidence"`
+	LearningState      string `json:"learning_state,omitempty"`
+	LearningError      string `json:"learning_error_code,omitempty"`
 }
 
 func (s PGStore) Progress(ctx context.Context, org, owner, task string) (Progress, error) {
@@ -320,9 +330,23 @@ func (s PGStore) Progress(ctx context.Context, org, owner, task string) (Progres
 			}
 		}
 	}
+	if t.SaveLearning {
+		err = s.DB.QueryRow(ctx, `SELECT state,COALESCE(error_code,'') FROM studio.world_analysis_learning WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, task).Scan(&p.LearningState, &p.LearningError)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return p, err
+		}
+	}
 	switch {
+	case p.LearningState == "conflict" || p.LearningState == "failed":
+		p.Stage = "learning_save_failed"
+	case p.LearningState == "saved" && p.ResultInsufficient > 0:
+		p.Stage = "learning_saved_need_evidence"
+	case p.LearningState == "saved":
+		p.Stage = "learning_saved"
 	case p.Failed > 0 || p.Unknown > 0 || p.LastErrorCode != "" || p.AssociationState == "failed" || p.AssociationState == "acceptance_unknown" || p.PromptFailed > 0 || p.PromptUnknown > 0 || p.ResultFailed > 0 || p.ResultUnknown > 0:
 		p.Stage = "needs_attention"
+	case t.SaveLearning && p.ResultTotal > 0 && p.ResultReady == p.ResultTotal:
+		p.Stage = "saving_learning"
 	case p.ResultTotal > 0 && p.ResultReady == p.ResultTotal && p.ResultInsufficient > 0:
 		p.Stage = "results_need_evidence"
 	case p.ResultTotal > 0 && p.ResultReady == p.ResultTotal:
