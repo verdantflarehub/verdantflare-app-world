@@ -10,6 +10,8 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/verdantflarehub/verdantflare-app-world/internal/strictjson"
 )
@@ -19,6 +21,34 @@ type Assets struct {
 	navigation         []byte
 	files              map[string][]byte
 }
+type navigationChild struct {
+	EntryID       string `json:"entryId"`
+	Title         string `json:"title"`
+	Route         string `json:"route"`
+	AccessRuleRef string `json:"accessRuleRef"`
+	Order         int    `json:"order"`
+}
+
+func validNavigationChildren(version int, children []navigationChild) bool {
+	if version == 1 {
+		return children == nil
+	}
+	if version != 2 || len(children) == 0 || len(children) > 32 {
+		return false
+	}
+	routes := map[string]bool{"/": true, "/character": true, "/scene": true, "/sound": true, "/music": true, "/shot": true, "/script": true, "/knowledge": true, "/collections": true, "/learn": true}
+	ids := map[string]bool{"main": true}
+	used := map[string]bool{}
+	for _, child := range children {
+		if !safeName.MatchString(child.EntryID) || strings.Contains(child.EntryID, "/") || len(child.EntryID) > 128 || ids[child.EntryID] || used[child.Route] || !routes[child.Route] || child.AccessRuleRef != "world-read" || child.Order < 0 || child.Order > 1000000 || strings.TrimSpace(child.Title) != child.Title || utf8.RuneCountInString(child.Title) < 1 || utf8.RuneCountInString(child.Title) > 128 || strings.ContainsAny(child.Title, "<>") || strings.ContainsFunc(child.Title, unicode.IsControl) {
+			return false
+		}
+		ids[child.EntryID] = true
+		used[child.Route] = true
+	}
+	return true
+}
+
 type declaration struct {
 	SchemaVersion int    `json:"schemaVersion"`
 	AppID         string `json:"appId"`
@@ -93,14 +123,15 @@ func Load(root, version string) (*Assets, error) {
 		AppVersion     string `json:"appVersion"`
 		ArtifactDigest string `json:"artifactDigest"`
 		Entry          struct {
-			EntryID       string `json:"entryId"`
-			Title         string `json:"title"`
-			IconRef       string `json:"iconRef"`
-			Route         string `json:"route"`
-			AccessRuleRef string `json:"accessRuleRef"`
+			Children      []navigationChild `json:"children,omitempty"`
+			EntryID       string            `json:"entryId"`
+			Title         string            `json:"title"`
+			IconRef       string            `json:"iconRef"`
+			Route         string            `json:"route"`
+			AccessRuleRef string            `json:"accessRuleRef"`
 		} `json:"entry"`
 	}
-	if strictjson.Decode(bytes.NewReader(navigation), 64<<10, &nav) != nil || nav.SchemaVersion != 1 || nav.AppID != metadata.AppID || nav.AppVersion != version || nav.ArtifactDigest != metadata.Dashboard.ArtifactDigest || nav.Entry.EntryID != "main" || nav.Entry.Title != "数字世界" || nav.Entry.IconRef != "globe" || nav.Entry.Route != "/" || nav.Entry.AccessRuleRef != "world-read" {
+	if strictjson.Decode(bytes.NewReader(navigation), 64<<10, &nav) != nil || !validNavigationChildren(nav.SchemaVersion, nav.Entry.Children) || nav.AppID != metadata.AppID || nav.AppVersion != version || nav.ArtifactDigest != metadata.Dashboard.ArtifactDigest || nav.Entry.EntryID != "main" || nav.Entry.Title != "数字世界" || nav.Entry.IconRef != "globe" || nav.Entry.Route != "/" || nav.Entry.AccessRuleRef != "world-read" {
 		return nil, errors.New("invalid navigation declaration")
 	}
 	a := &Assets{declaration: d, index: index, navigation: navigation, files: map[string][]byte{}}

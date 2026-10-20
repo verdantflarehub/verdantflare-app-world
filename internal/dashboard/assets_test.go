@@ -111,3 +111,32 @@ func TestPackageRejectsAssetAndNavigationTampering(t *testing.T) {
 		}
 	}
 }
+
+func TestNavigationChildrenStayWithinWorldRoutesAndPermissions(t *testing.T) {
+	valid := navigationChild{EntryID: "knowledge", Title: "知识", Route: "/knowledge", AccessRuleRef: "world-read", Order: 7}
+	if !validNavigationChildren(2, []navigationChild{valid}) || !validNavigationChildren(1, nil) {
+		t.Fatal("valid navigation rejected")
+	}
+	for _, version := range []int{0, 1, 3} {
+		if validNavigationChildren(version, []navigationChild{valid}) {
+			t.Fatal("children accepted under wrong version")
+		}
+	}
+	for _, mutate := range []func(*navigationChild){
+		func(c *navigationChild) { c.EntryID = "main" },
+		func(c *navigationChild) { c.Route = "/projects" },
+		func(c *navigationChild) { c.Route = "https://example.invalid" },
+		func(c *navigationChild) { c.AccessRuleRef = "project-read" },
+		func(c *navigationChild) { c.Title = "<script>" },
+		func(c *navigationChild) { c.Order = -1 },
+	} {
+		c := valid
+		mutate(&c)
+		if validNavigationChildren(2, []navigationChild{c}) {
+			t.Fatalf("invalid child accepted: %#v", c)
+		}
+	}
+	if validNavigationChildren(2, []navigationChild{valid, valid}) {
+		t.Fatal("duplicate navigation accepted")
+	}
+}
