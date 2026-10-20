@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import WorldBreadcrumb from '../components/WorldBreadcrumb.vue'
 import { useHost } from '../platform/host'
 import { createDraftAPI, draftError } from '../platform/draft-client'
 import { readDraft, readDraftList, readCollectionDocument, object, type DraftItem, type DraftRevision, type CollectionDocument } from '../platform/draft-model'
@@ -52,7 +51,7 @@ const stop=appSDK.lifecycle.subscribe(event=>{if(event==='hidden'||event==='disp
 const stopContext=appSDK.context.subscribe(()=>{if(publicationIdentity(appSDK.context.get())===identity)return;generation++;selection++;items.value=[];source.value=null;document.value=null;hidden=true;error.value='会话已变化，请重新打开数字世界。'})
 onBeforeUnmount(()=>{alive=false;generation++;selection++;api.dispose();stop();stopContext()})
 </script>
-<template><main class="main"><WorldBreadcrumb/><header class="heading"><div class="heading-left"><div class="eyebrow">WORLD · LEARN</div><h1>拆解作品</h1><p>整份作品、全部适用维度。拆解成果按类型留在数字世界。</p></div><RouterLink class="btn" to="/collections">管理收录内容</RouterLink></header>
+<template><main class="main"><header class="heading"><div class="heading-left"><div class="eyebrow">WORLD · LEARN</div><h1>拆解作品</h1><p>整份作品、全部适用维度。拆解成果按类型留在数字世界。</p></div><RouterLink class="btn" to="/collections">管理收录内容</RouterLink></header>
 <section class="panel"><div class="section-head"><h2>从收录内容选择作品</h2><span>无需项目</span></div><form class="searchbar" @submit.prevent="load()"><input v-model="search" maxlength="256" type="search" aria-label="搜索收录内容" placeholder="搜索已收录的名称或标签"><button class="btn" type="submit" :disabled="loading">搜索</button></form><p v-if="error" class="error" role="alert">{{error}}</p><p v-if="loading&&!items.length" class="muted" role="status">正在读取收录内容…</p><p v-else-if="!items.length&&!error" class="empty">没有找到收录内容。可以先在收录内容中保存作品或参考。</p>
 <div class="picker"><button v-for="item in items" :key="item.draft_id" class="option" :class="{selected:route.query.draft===item.draft_id}" :aria-pressed="route.query.draft===item.draft_id" :disabled="!item.has_content" @click="choose(item)"><strong>{{item.name}}</strong><span>{{item.has_content?'已保存来源 · 点击预览':'待添加内容'}}</span></button></div><button v-if="cursor" class="btn" :disabled="loading" @click="load(true)">加载更多</button>
 <div v-if="loadingSource" class="preview" role="status">正在读取所选固定版本…</div><section v-else-if="source" class="preview"><div class="section-head"><h3>{{source.manifest.name}}</h3><button class="btn" @click="router.replace('/learn')">更换来源</button></div><p class="muted">已固定来源版本；此后的收录编辑不会悄悄替换本次选择。</p><template v-for="item in document?.sources||[]" :key="String(item.key)"><pre v-if="textOf(item)">{{textOf(item)}}</pre><p v-else class="muted">{{item.acquisition_state==='declared'?'此项仅收录链接，原件尚未读取。':'作品保存在来源文件中。'}}</p></template><RouterLink class="btn" :to="{path:'/collections/'+source.draft_id,query:{revision:source.revision_id}}">查看来源内容</RouterLink></section>

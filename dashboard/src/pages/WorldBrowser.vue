@@ -6,7 +6,6 @@ import type { LearningResult } from '../platform/learning-results'
 import AssetResults from '../components/AssetResults.vue'
 import { publicationIdentity, publicationPrincipal } from '../platform/publication-client'
 import { rememberPosition, recalledPosition } from '../platform/route-memory'
-import WorldBreadcrumb from '../components/WorldBreadcrumb.vue'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { callTool } from '../platform/mcp'
@@ -114,7 +113,7 @@ void loadWorld()
 
 <template>
   <main class="main"><div class="workspace project-world-page">
-    <WorldBreadcrumb />
+
     <RouterLink v-if="detail" class="back-link" :to="listRoute">← 返回数字世界资产</RouterLink>
     <header class="heading"><div class="heading-left"><div class="eyebrow">WORLD</div><h1>{{detail ? selectedAsset?.manifest.name || '资产详情' : domain?domain.label+'资产':'数字世界'}}</h1><p>{{detail?'查看实际成果、适用条件和固定版本，可直接复制提示词配置。':'从灵感到资产，从资产到下一部作品。'}}</p></div><div class="heading-actions"><template v-if="!detail"><RouterLink class="btn primary" to="/collections">＋ 收录内容</RouterLink><RouterLink class="btn" to="/learn">拆解作品</RouterLink></template><button class="btn" :disabled="loading || detailLoading" @click="refresh">刷新</button></div></header>
     <div v-if="error" class="state error-state" role="alert"><strong>暂时无法读取</strong><span>{{error}}</span><button class="btn" @click="refresh">重试</button></div>
