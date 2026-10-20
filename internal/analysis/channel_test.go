@@ -99,3 +99,54 @@ func TestGoogleChannelRejectsUntrustedOrigins(t *testing.T) {
 		}
 	}
 }
+
+func TestGoogleAnalysisCapabilitiesUsesLiveVerifiedModels(t *testing.T) {
+	for _, scenario := range []string{"enabled", "disabled", "duplicate-model", "unknown-version", "wrong-channel", "missing-schema", "duplicate-json", "unsafe-model", "unavailable"} {
+		t.Run(scenario, func(t *testing.T) {
+			c, _ := NewGoogleChannel("https://channel.internal", strings.Repeat("x", 32), "")
+			v := Capabilities{SchemaVersion: 1, ChannelID: "google", Capability: "analysis", State: "enabled", Models: []string{"gemini-3.1-pro-preview"}, MIME: []string{"video/mp4", "audio/wav"}, MaxMediaBytes: MaxMediaBytes, SourceText: true, VideoRange: true, ResponseSchema: true}
+			switch scenario {
+			case "disabled":
+				v.State = "disabled"
+				v.Models = []string{}
+			case "duplicate-model":
+				v.Models = append(v.Models, v.Models[0])
+			case "unknown-version":
+				v.SchemaVersion = 2
+			case "wrong-channel":
+				v.ChannelID = "other"
+			case "missing-schema":
+				v.ResponseSchema = false
+			case "unsafe-model":
+				v.Models = []string{"bad/model"}
+			}
+			raw, _ := json.Marshal(v)
+			if scenario == "duplicate-json" {
+				raw = append([]byte(`{"execution_state":"disabled",`), raw[1:]...)
+			}
+			n := 0
+			c.http.Transport = analysisTransport(func(r *http.Request) (*http.Response, error) {
+				n++
+				if r.Method != "GET" || r.URL.Path != "/v1/analysis/capabilities" || r.Header.Get("X-Organization-Id") != execOrg {
+					t.Fatal("unscoped discovery")
+				}
+				status := 200
+				if scenario == "unavailable" {
+					status = 503
+				}
+				return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(string(raw)))}, nil
+			})
+			got, err := c.Capabilities(t.Context(), execOrg)
+			if scenario == "enabled" || scenario == "disabled" {
+				if err != nil || got.State != scenario {
+					t.Fatal("valid discovery rejected", err)
+				}
+			} else if !errors.Is(err, ErrUnavailable) {
+				t.Fatal("unsafe discovery accepted", err)
+			}
+			if n != 1 {
+				t.Fatal("discovery retried")
+			}
+		})
+	}
+}

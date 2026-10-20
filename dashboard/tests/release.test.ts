@@ -11,7 +11,7 @@ test('release metadata binds exact resource bytes, application and minimum SDK',
   assert.equal(index.files['assets/main.js'], createHash('sha256').update(entries[1].bytes).digest('hex'))
   assert.equal(declaration.dashboard.artifactDigest, 'sha256:' + createHash('sha256').update(a.index).digest('hex'))
   assert.equal(declaration.appId, 'world')
-  assert.equal(declaration.dashboard.appApiPolicyRef, 'world-learning-v1')
+  assert.equal(declaration.dashboard.appApiPolicyRef, 'world-analysis-v1')
   assert.deepEqual(declaration.dashboard.optionalCapabilities, ['artifact.read', 'artifact.write', 'navigation.openApp'])
   assert.equal(declaration.dashboard.minimumSdkVersion, '1.1.0')
   entries[1].bytes = Buffer.from('export const changed = true;')

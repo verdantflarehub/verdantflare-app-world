@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/verdantflarehub/verdantflare-app-world/internal/analysis"
 	"github.com/verdantflarehub/verdantflare-app-world/internal/artifactclient"
 	"github.com/verdantflarehub/verdantflare-app-world/internal/buildinfo"
 	"github.com/verdantflarehub/verdantflare-app-world/internal/coordination"
@@ -96,6 +97,9 @@ func run(ctx context.Context, args []string) error {
 	}
 	svc, err := world.NewService(startup, db, content, projects, wf, map[string]coordination.Peer{"project": peer})
 	if err != nil {
+		return err
+	}
+	if err = svc.ConfigureAnalysis(world.AnalysisRuntime{Enabled: analysisConfig.dispatch, Channel: analysisConfig.channel, Processor: analysis.Preparer{FFprobe: "/usr/bin/ffprobe", FFmpeg: "/usr/bin/ffmpeg"}}); err != nil {
 		return err
 	}
 	engine := svc.Coordination()

@@ -41,6 +41,9 @@ func startAnalysisWorker(ctx context.Context, db *pgxpool.Pool, svc *world.Servi
 	worker := analysis.Scheduler{Queue: analysis.PGStore{DB: db}, Dispatch: cfg.dispatch,
 		Advance: func(ctx context.Context, w analysis.Work) (string, error) {
 			p := world.Principal{OrganizationID: w.OrganizationID, SubjectID: w.OwnerID, RequestID: w.LeaseID}
+			if w.StepKey == analysis.SubmissionStepKey {
+				return svc.PrepareAnalysisSubmission(ctx, w)
+			}
 			if w.StepKey == analysis.LearningSaveStepKey {
 				r, err := svc.SaveAnalysisLearning(ctx, p, w.TaskID)
 				state := r.State

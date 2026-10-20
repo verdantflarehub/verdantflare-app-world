@@ -274,7 +274,7 @@ func (s PGStore) SwapResult(ctx context.Context, old, next ResultRecord) (bool, 
 	}
 	tag, err := s.DB.Exec(ctx, `UPDATE studio.world_analysis_result_batches SET revision=$1,state=$2,call_id=NULLIF($3,'')::uuid,native_result=$4,error_code=NULLIF($5,''),updated_at=now() WHERE organization_id=$6 AND owner_id=$7 AND task_id=$8 AND revision=$9 AND request_sha256=$10 AND batch_key=$11`, next.Revision, next.State, next.CallID, []byte(next.Result), next.ErrorCode, old.OrganizationID, old.OwnerID, old.Request.TaskID, old.Revision, old.RequestHash, old.Request.Batch.Key)
 	if err != nil {
-		return false, err
+		return false, budgetError(err)
 	}
 	return tag.RowsAffected() == 1, nil
 }

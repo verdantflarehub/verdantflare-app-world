@@ -60,7 +60,7 @@ for (const [name, bytes] of Object.entries({'index.html':html,'asset-index.json'
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, bytes.ReplaceAll(raw, []byte("world-learning-v1"), []byte("unknown-policy")), 0600); err != nil {
+	if err := os.WriteFile(path, bytes.ReplaceAll(raw, []byte("world-analysis-v1"), []byte("unknown-policy")), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Load(root, "0.1.6"); err == nil {

@@ -22,6 +22,7 @@ type Task struct {
 	PromptTargets       []PromptTarget `json:"prompt_targets,omitempty"`
 	IncludeTypedResults bool           `json:"include_typed_results,omitempty"`
 	SaveLearning        bool           `json:"save_learning,omitempty"`
+	TotalBudget         string         `json:"total_budget,omitempty"`
 }
 type PGStore struct{ DB *pgxpool.Pool }
 
@@ -31,6 +32,13 @@ func (s PGStore) Create(ctx context.Context, t Task, requests []FrozenRequest) e
 	}
 	if ValidatePromptTargets(t.PromptTargets) != nil || (t.SaveLearning && !t.IncludeTypedResults) {
 		return ErrInvalid
+	}
+	if t.TotalBudget != "" {
+		for _, r := range requests {
+			if ValidateBudget(t.TotalBudget, r.BudgetLimit) != nil {
+				return ErrInvalid
+			}
+		}
 	}
 	if len(t.PromptTargets) == 0 {
 		t.PromptTargets = nil // Preserve original task fingerprints on replay.
@@ -77,7 +85,7 @@ func (s PGStore) Create(ctx context.Context, t Task, requests []FrozenRequest) e
 	if !authorized {
 		return ErrMissing
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO studio.world_analysis_tasks(organization_id,owner_id,task_id,draft_id,revision_id,file_id,request_sha256,plan,prompt_targets,include_typed_results,save_learning) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(organization_id,owner_id,task_id) DO NOTHING`, t.OrganizationID, t.OwnerID, t.TaskID, t.DraftID, t.RevisionID, t.FileID, digest, plan, targets, t.IncludeTypedResults, t.SaveLearning)
+	_, err = tx.Exec(ctx, `INSERT INTO studio.world_analysis_tasks(organization_id,owner_id,task_id,draft_id,revision_id,file_id,request_sha256,plan,prompt_targets,include_typed_results,save_learning,total_budget) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(organization_id,owner_id,task_id) DO NOTHING`, t.OrganizationID, t.OwnerID, t.TaskID, t.DraftID, t.RevisionID, t.FileID, digest, plan, targets, t.IncludeTypedResults, t.SaveLearning, t.TotalBudget)
 	if err != nil {
 		return err
 	}
@@ -128,7 +136,7 @@ func (s PGStore) CompareAndSwap(ctx context.Context, old, next StepRecord) (bool
 	}
 	tag, err := s.DB.Exec(ctx, `UPDATE studio.world_analysis_steps SET revision=$1,state=$2,call_id=NULLIF($3,'')::uuid,native_result=$4,report=$5,error_code=NULLIF($6,''),updated_at=now() WHERE organization_id=$7 AND owner_id=$8 AND task_id=$9 AND step_key=$10 AND revision=$11 AND request_sha256=$12`, next.Revision, next.State, next.CallID, []byte(next.Result), report, next.ErrorCode, old.OrganizationID, old.OwnerID, old.Request.TaskID, old.Request.Step.Key, old.Revision, old.RequestHash)
 	if err != nil {
-		return false, err
+		return false, budgetError(err)
 	}
 	return tag.RowsAffected() == 1, nil
 }
@@ -139,7 +147,7 @@ func (s PGStore) Task(ctx context.Context, org, owner, id string) (Task, error) 
 		return t, ErrInvalid
 	}
 	var raw, targets []byte
-	err := s.DB.QueryRow(ctx, `SELECT draft_id::text,revision_id::text,file_id::text,plan,prompt_targets,include_typed_results,save_learning FROM studio.world_analysis_tasks WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, id).Scan(&t.DraftID, &t.RevisionID, &t.FileID, &raw, &targets, &t.IncludeTypedResults, &t.SaveLearning)
+	err := s.DB.QueryRow(ctx, `SELECT draft_id::text,revision_id::text,file_id::text,plan,prompt_targets,include_typed_results,save_learning,total_budget FROM studio.world_analysis_tasks WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, id).Scan(&t.DraftID, &t.RevisionID, &t.FileID, &raw, &targets, &t.IncludeTypedResults, &t.SaveLearning, &t.TotalBudget)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, ErrMissing
 	}

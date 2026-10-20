@@ -37,6 +37,9 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
 	if s.DB == nil {
 		return w, ErrInvalid
 	}
+	if prepared, e := s.claimSubmission(ctx); !errors.Is(e, ErrMissing) {
+		return prepared, e
+	}
 	var err error
 	w.LeaseID, err = newLeaseID()
 	if err != nil {
@@ -51,7 +54,7 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
   SELECT s.step_key,CASE WHEN s.state='planned' THEN 1 ELSE 0 END AS priority,p.position FROM jsonb_array_elements(t.plan->'steps') WITH ORDINALITY p(item,position)
   JOIN studio.world_analysis_steps s ON s.organization_id=q.organization_id AND s.owner_id=q.owner_id AND s.task_id=q.task_id AND s.step_key=p.item->>'key'
   WHERE s.state IN ('dispatching','running','acceptance_unknown') OR (
-   $1 AND s.state='planned' AND NOT EXISTS (
+   $1 AND q.last_error_code<>'budget_exhausted' AND s.state='planned' AND NOT EXISTS (
     SELECT 1 FROM studio.world_analysis_steps other
     WHERE other.organization_id=q.organization_id AND other.owner_id=q.owner_id AND other.task_id=q.task_id
     AND other.state IN ('dispatching','running','acceptance_unknown','failed')))
@@ -59,7 +62,7 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
   SELECT 'association-v1',2,0::bigint
   FROM (SELECT 1) seed
   LEFT JOIN studio.world_analysis_associations a ON a.organization_id=q.organization_id AND a.owner_id=q.owner_id AND a.task_id=q.task_id
-  WHERE (a.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND COALESCE(a.state,'planned')='planned'))
+  WHERE (a.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND q.last_error_code<>'budget_exhausted' AND COALESCE(a.state,'planned')='planned'))
    AND jsonb_array_length(t.plan->'steps')>0 AND NOT EXISTS (
     SELECT 1 FROM jsonb_array_elements(t.plan->'steps') p(item)
     LEFT JOIN studio.world_analysis_steps s ON s.organization_id=q.organization_id AND s.owner_id=q.owner_id AND s.task_id=q.task_id AND s.step_key=p.item->>'key'
@@ -74,7 +77,7 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
   SELECT pb.batch_key,CASE WHEN pb.state='planned' THEN 4 ELSE 3 END,pb.batch_index::bigint
   FROM studio.world_analysis_prompt_batches pb
   WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id
-   AND (pb.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND pb.state='planned' AND NOT EXISTS(
+   AND (pb.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND q.last_error_code<>'budget_exhausted' AND pb.state='planned' AND NOT EXISTS(
     SELECT 1 FROM studio.world_analysis_prompt_batches other WHERE other.organization_id=q.organization_id AND other.owner_id=q.owner_id AND other.task_id=q.task_id
     AND other.state IN ('dispatching','running','acceptance_unknown','failed'))))
   UNION ALL
@@ -90,7 +93,7 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
   SELECT rb.batch_key,CASE WHEN rb.state='planned' THEN 6 ELSE 5 END,rb.batch_index::bigint
   FROM studio.world_analysis_result_batches rb
   WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id
-   AND (rb.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND rb.state='planned' AND NOT EXISTS(
+   AND (rb.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND q.last_error_code<>'budget_exhausted' AND rb.state='planned' AND NOT EXISTS(
     SELECT 1 FROM studio.world_analysis_result_batches other WHERE other.organization_id=q.organization_id AND other.owner_id=q.owner_id AND other.task_id=q.task_id
     AND other.state IN ('dispatching','running','acceptance_unknown','failed'))))
   UNION ALL
@@ -127,8 +130,11 @@ func (s PGStore) Release(ctx context.Context, w Work, code string) error {
 	if s.DB == nil || !validUUID(w.OrganizationID) || !validUUID(w.OwnerID) || !validUUID(w.TaskID) || !validUUID(w.LeaseID) {
 		return ErrInvalid
 	}
+	if w.StepKey == SubmissionStepKey {
+		return s.releaseSubmission(ctx, w, code)
+	}
 	switch code {
-	case "", "dependency_unavailable", "acceptance_unknown", "source_unavailable", "invalid_observation", "step_failed", "interrupted":
+	case "budget_exhausted", "", "dependency_unavailable", "acceptance_unknown", "source_unavailable", "invalid_observation", "step_failed", "interrupted":
 	default:
 		return ErrInvalid
 	}
@@ -136,7 +142,7 @@ func (s PGStore) Release(ctx context.Context, w Work, code string) error {
 	if code != "" {
 		n = min(max(w.ConsecutiveErrors, 0)+1, 16)
 	}
-	tag, err := s.DB.Exec(ctx, `UPDATE studio.world_analysis_schedule SET lease_id=NULL,lease_until=NULL,next_attempt_at=now()+make_interval(secs=>$1),consecutive_errors=$2,last_error_code=$3 WHERE organization_id=$4 AND owner_id=$5 AND task_id=$6 AND lease_id=$7 AND lease_until>now()`, scheduleDelay(code, n).Seconds(), n, code, w.OrganizationID, w.OwnerID, w.TaskID, w.LeaseID)
+	tag, err := s.DB.Exec(ctx, `UPDATE studio.world_analysis_schedule SET lease_id=NULL,lease_until=NULL,next_attempt_at=now()+make_interval(secs=>$1),consecutive_errors=$2,last_error_code=CASE WHEN last_error_code='budget_exhausted' THEN last_error_code ELSE $3 END WHERE organization_id=$4 AND owner_id=$5 AND task_id=$6 AND lease_id=$7 AND lease_until>now()`, scheduleDelay(code, n).Seconds(), n, code, w.OrganizationID, w.OwnerID, w.TaskID, w.LeaseID)
 	if err != nil {
 		return err
 	}
@@ -157,6 +163,9 @@ type Scheduler struct {
 }
 
 func outcome(state string, err error) string {
+	if errors.Is(err, ErrBudgetExhausted) {
+		return "budget_exhausted"
+	}
 	if state == "failed" {
 		return "step_failed"
 	}

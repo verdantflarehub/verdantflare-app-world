@@ -25,7 +25,7 @@ function text(v:unknown,max=65536):v is string{return typeof v==='string'&&v.tri
 function list(v:unknown,max=10000):unknown[]{if(!Array.isArray(v)||v.length>max)fail();return v as unknown[]}
 function texts(v:unknown):string[]{const a=list(v,128);if(!a.every(x=>text(x)))fail();return a as string[]}
 export function readLearningResults(raw:string):LearningDocument {
-  const d=readCollectionDocument(raw),keys=new Set<string>()
+  const d=readCollectionDocument(raw,4 << 20),keys=new Set<string>()
   for(const value of list(d.results)){
     const r=object(value)
     for(const k of ['key','title','type_key','domain','basis','basis_note'])if(!text(r[k]))fail()

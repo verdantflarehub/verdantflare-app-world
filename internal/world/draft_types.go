@@ -44,7 +44,7 @@ var draftSchemas = sync.OnceValues(func() (map[string]*jsonschema.Schema, error)
 		}
 	}
 	out := map[string]*jsonschema.Schema{}
-	for _, name := range []string{"world-draft-request", "world-draft-manifest", "world-draft-response", "reference-learning"} {
+	for _, name := range []string{"world-analyze-request", "world-draft-request", "world-draft-manifest", "world-draft-response", "reference-learning"} {
 		s, err := c.Compile("station://contracts/v2/" + name)
 		if err != nil {
 			return nil, err

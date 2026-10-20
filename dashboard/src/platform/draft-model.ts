@@ -74,8 +74,8 @@ export function makeCollectionDocument(input: CollectionForm): CollectionDocumen
   if (value.url) source.source_url = value.url
   return { schema_version: 1, document_kind: 'reference-learning', origin: 'manual', sources: [source], coverage: [], results: [], relations: [], uses: [] }
 }
-export function readCollectionDocument(raw: string): CollectionDocument {
-  if (new TextEncoder().encode(raw).length > 1 << 20) invalid()
+export function readCollectionDocument(raw: string, maxBytes = 1 << 20): CollectionDocument {
+  if (new TextEncoder().encode(raw).length > maxBytes) invalid()
   const d = object(JSON.parse(raw))
   if (d.schema_version !== 1 || d.document_kind !== 'reference-learning' || !['manual','imported','generated'].includes(String(d.origin))) invalid()
   for (const key of ['sources','results','coverage','relations','uses']) if (!Array.isArray(d[key])) invalid()

@@ -54,7 +54,7 @@ func TestResultUpgradePreservesTasksAndRunningPrompts(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	const snapshot = `SELECT jsonb_build_object('tasks',(SELECT jsonb_agg(to_jsonb(t)-'save_learning'-'include_typed_results') FROM studio.world_analysis_tasks t),'steps',(SELECT jsonb_agg(to_jsonb(s)) FROM studio.world_analysis_steps s),'associations',(SELECT jsonb_agg(to_jsonb(a)) FROM studio.world_analysis_associations a),'prompts',(SELECT jsonb_agg(to_jsonb(p)) FROM studio.world_analysis_prompt_batches p),'schedule',(SELECT jsonb_agg(to_jsonb(q)) FROM studio.world_analysis_schedule q),'gate',(SELECT to_jsonb(g) FROM studio.world_handoff g),'history',(SELECT jsonb_agg(to_jsonb(h) ORDER BY version) FROM studio.world_schema_history h WHERE version<=9))::text`
+	const snapshot = `SELECT jsonb_build_object('tasks',(SELECT jsonb_agg(to_jsonb(t)-'total_budget'-'save_learning'-'include_typed_results') FROM studio.world_analysis_tasks t),'steps',(SELECT jsonb_agg(to_jsonb(s)) FROM studio.world_analysis_steps s),'associations',(SELECT jsonb_agg(to_jsonb(a)) FROM studio.world_analysis_associations a),'prompts',(SELECT jsonb_agg(to_jsonb(p)) FROM studio.world_analysis_prompt_batches p),'schedule',(SELECT jsonb_agg(to_jsonb(q)) FROM studio.world_analysis_schedule q),'gate',(SELECT to_jsonb(g) FROM studio.world_handoff g),'history',(SELECT jsonb_agg(to_jsonb(h) ORDER BY version) FROM studio.world_schema_history h WHERE version<=9))::text`
 	var before, after string
 	if err = db.QueryRow(ctx, snapshot).Scan(&before); err != nil {
 		t.Fatal(err)

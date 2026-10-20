@@ -67,6 +67,13 @@ func (s *Service) HTTPHandler(serviceToken string, _ ...string) (http.Handler, e
 			path = "/internal/v1/world/" + strings.TrimPrefix(path, "/api/v1/world/")
 		}
 		switch path {
+		case "/internal/v1/world/analyze":
+			request, decodeErr := DecodeAnalyzeRequest(data)
+			if decodeErr != nil {
+				httpError(w, p, decodeErr)
+				return
+			}
+			result, err = s.WorldAnalyze(r.Context(), p, request)
 		case "/internal/v1/world/draft":
 			request, decodeErr := DecodeDraftRequest(data)
 			if decodeErr != nil {

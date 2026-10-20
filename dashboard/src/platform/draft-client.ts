@@ -16,24 +16,26 @@ export function createDraftAPI(sdk: AppSDK) {
   function dispose() { if (disposed) return; disposed = true; controllers.forEach((_read,c) => c.abort()); controllers.clear(); stops.splice(0).forEach(s => s()) }
   stops.push(sdk.context.subscribe(() => { if (publicationIdentity(sdk.context.get()) !== identity) dispose() }))
   stops.push(sdk.lifecycle.subscribe(event => { if (event === 'dispose') dispose(); else { hidden = event === 'hidden'; if (hidden) controllers.forEach((read,c) => { if (read) c.abort() }) } }))
-  async function request(input: Record<string, unknown>, capability?: 'artifact.read' | 'artifact.write', assetMode?: 'register' | 'status' | 'get'): Promise<unknown> {
+  async function request(input: Record<string, unknown>, capability?: 'artifact.read' | 'artifact.write', assetMode?: 'register' | 'status' | 'get', analyze = false): Promise<unknown> {
     live(); if (hidden) throw new DraftError('DASHBOARD_HIDDEN')
-    if (!capability && !assetMode && !['list','get','status','create','commit'].includes(String(input.mode))) throw new DraftError('INVALID_ARGUMENT')
+    if (!capability && !assetMode && !analyze && !['list','get','status','create','commit'].includes(String(input.mode))) throw new DraftError('INVALID_ARGUMENT')
     if (['organization_id','user_id','subject_id','token','endpoint','project_id'].some(k => k in input)) throw new DraftError('INVALID_ARGUMENT')
+    if (analyze && !['capabilities','submit','get','list'].includes(String(input.mode))) throw new DraftError('INVALID_ARGUMENT')
     if (assetMode && !['register','status','get'].includes(assetMode)) throw new DraftError('INVALID_ARGUMENT')
-    const read = capability ? capability === 'artifact.read' : assetMode ? assetMode !== 'register' : ['list','get','status'].includes(String(input.mode))
+    const read = analyze ? input.mode !== 'submit' : capability ? capability === 'artifact.read' : assetMode ? assetMode !== 'register' : ['list','get','status'].includes(String(input.mode))
     const controller = new AbortController(); controllers.set(controller,read)
     try {
       const serialized = JSON.stringify(input)
       if (!capability && new TextEncoder().encode(serialized).byteLength > 1024*1024) throw new DraftError('REQUEST_TOO_LARGE')
       const body = JSON.parse(serialized) as Json
       const reply = capability ? { status:200, data:await sdk.capabilities.call(capability,body,{signal:controller.signal}) }
-        : await sdk.app.request({method:'POST',path:assetMode ? '/api/v1/world/'+(assetMode==='status'?'commit_status':assetMode) : '/api/v1/world/draft',body},{signal:controller.signal})
+        : await sdk.app.request({method:'POST',path:analyze ? '/api/v1/world/analyze' : assetMode ? '/api/v1/world/'+(assetMode==='status'?'commit_status':assetMode) : '/api/v1/world/draft',body},{signal:controller.signal})
       live(); if (controller.signal.aborted || hidden && read) throw new DraftError('DASHBOARD_HIDDEN')
       if (reply.status !== 200) { let code='DEPENDENCY_UNAVAILABLE'; try { code=String(object(reply.data).code || code) } catch {} throw new DraftError(code) }
       return reply.data
     } finally { controllers.delete(controller) }
   }
   return { request:(input:Record<string,unknown>,capability?:'artifact.read'|'artifact.write')=>request(input,capability),
+    analyzeRequest:(input:Record<string,unknown>)=>request(input,undefined,undefined,true),
     assetRequest:(mode:'register'|'status'|'get',input:Record<string,unknown>)=>request(input,undefined,mode),dispose,live }
 }

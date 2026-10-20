@@ -193,3 +193,37 @@ func (c *GoogleChannel) Result(ctx context.Context, org, id string) ([]byte, err
 	}
 	return c.request(ctx, org, "GET", "/v1/calls/"+id+"/result", nil)
 }
+
+// Capabilities is a live admission snapshot, never provider credentials or a
+// cached authorization to submit later.
+type Capabilities struct {
+	SchemaVersion  int      `json:"schema_version"`
+	ChannelID      string   `json:"channel_id"`
+	Capability     string   `json:"capability"`
+	State          string   `json:"execution_state"`
+	Models         []string `json:"models"`
+	MIME           []string `json:"input_mime_types"`
+	MaxMediaBytes  int64    `json:"max_media_bytes"`
+	SourceText     bool     `json:"supports_source_text"`
+	VideoRange     bool     `json:"supports_video_range"`
+	ResponseSchema bool     `json:"supports_response_schema"`
+}
+
+func (c *GoogleChannel) Capabilities(ctx context.Context, org string) (Capabilities, error) {
+	data, err := c.request(ctx, org, "GET", "/v1/analysis/capabilities", nil)
+	if err != nil {
+		return Capabilities{}, err
+	}
+	var v Capabilities
+	if json.Unmarshal(data, &v) != nil || v.SchemaVersion != 1 || v.ChannelID != "google" || v.Capability != "analysis" || (v.State != "enabled" && v.State != "disabled") || len(v.Models) > 128 || v.MaxMediaBytes < 1 || !v.SourceText || !v.VideoRange || !v.ResponseSchema {
+		return Capabilities{}, ErrUnavailable
+	}
+	seen := map[string]bool{}
+	for _, m := range v.Models {
+		if !identifier.MatchString(m) || seen[m] {
+			return Capabilities{}, ErrUnavailable
+		}
+		seen[m] = true
+	}
+	return v, nil
+}

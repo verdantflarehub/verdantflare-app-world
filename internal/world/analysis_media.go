@@ -19,6 +19,7 @@ type AnalysisExecution struct {
 	PromptTargets                     []analysis.PromptTarget
 	IncludeTypedResults               bool
 	SaveLearning                      bool
+	TotalBudget                       string
 }
 type analysisDownloader interface {
 	Download(context.Context, Principal, ContentRef, Access, io.Writer, int64) error
@@ -33,7 +34,7 @@ func (s *Service) PrepareVideoAnalysis(ctx context.Context, p Principal, taskID 
 	store := analysis.PGStore{DB: s.db}
 	old, err := store.Task(ctx, p.OrganizationID, p.SubjectID, taskID)
 	if err == nil {
-		if old.DraftID != source.DraftID || old.RevisionID != source.RevisionID || old.FileID != source.FileID || !slices.Equal(old.PromptTargets, execution.PromptTargets) || old.IncludeTypedResults != execution.IncludeTypedResults || old.SaveLearning != execution.SaveLearning {
+		if old.DraftID != source.DraftID || old.RevisionID != source.RevisionID || old.FileID != source.FileID || !slices.Equal(old.PromptTargets, execution.PromptTargets) || old.IncludeTypedResults != execution.IncludeTypedResults || old.SaveLearning != execution.SaveLearning || old.TotalBudget != execution.TotalBudget {
 			return analysis.Task{}, ErrIdempotency
 		}
 		// Even a replay must still have access to the pinned collection.
@@ -63,7 +64,7 @@ func (s *Service) PrepareVideoAnalysis(ctx context.Context, p Principal, taskID 
 	if err != nil {
 		return analysis.Task{}, err
 	}
-	task := analysis.Task{OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: taskID, DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: source.FileID, Plan: plan, PromptTargets: append([]analysis.PromptTarget(nil), execution.PromptTargets...), IncludeTypedResults: execution.IncludeTypedResults, SaveLearning: execution.SaveLearning}
+	task := analysis.Task{OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: taskID, DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: source.FileID, Plan: plan, PromptTargets: append([]analysis.PromptTarget(nil), execution.PromptTargets...), IncludeTypedResults: execution.IncludeTypedResults, SaveLearning: execution.SaveLearning, TotalBudget: execution.TotalBudget}
 	requests := make([]analysis.FrozenRequest, 0, len(plan.Steps))
 	for _, step := range plan.Steps {
 		prepared, media, e := material.Prepare(ctx, step)
