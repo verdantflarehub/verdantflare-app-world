@@ -23,9 +23,11 @@ RUN test -n "$APP_VERSION" && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tr
 
 FROM build AS integration-build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test -c -tags integration -o /out/world-integration.test ./internal/world
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test -c -tags integration -o /out/world-migrations.test ./migrations
 
 FROM scratch AS integration-artifact
 COPY --from=integration-build /out/world-integration.test /
+COPY --from=integration-build /out/world-migrations.test /
 COPY --from=integration-build /src/internal/world/testdata /testdata
 
 FROM gcr.io/distroless/static-debian12:nonroot
