@@ -82,6 +82,9 @@ func (s PGStore) Create(ctx context.Context, t Task, requests []FrozenRequest) e
 			return err
 		}
 	}
+	if _, err = tx.Exec(ctx, `INSERT INTO studio.world_analysis_schedule(organization_id,owner_id,task_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`, t.OrganizationID, t.OwnerID, t.TaskID); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }
 func (s PGStore) Load(ctx context.Context, org, owner, task, key string) (StepRecord, error) {

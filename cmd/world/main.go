@@ -78,6 +78,10 @@ func run(ctx context.Context, args []string) error {
 		}
 		seen[token] = true
 	}
+	analysisConfig, err := readAnalysisConfig(os.Getenv, seen)
+	if err != nil {
+		return err
+	}
 	content, err := artifactclient.NewWithCA(os.Getenv("ARTIFACT_URL"), os.Getenv("ARTIFACT_SERVICE_TOKEN"), os.Getenv("ARTIFACT_CA_FILE"))
 	if err != nil {
 		return err
@@ -205,6 +209,8 @@ func run(ctx context.Context, args []string) error {
 	worker, cancelWorker := context.WithCancel(ctx)
 	defer cancelWorker()
 	go svc.RunRecovery(worker)
+	stopAnalysis := startAnalysisWorker(worker, db, svc, analysisConfig)
+	defer stopAnalysis()
 	select {
 	case err = <-done:
 		if errors.Is(err, http.ErrServerClosed) {

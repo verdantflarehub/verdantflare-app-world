@@ -27,6 +27,14 @@ var draftAssetSQL string
 //go:embed 0006_analysis_steps.sql
 var analysisSQL string
 
+//go:embed 0007_analysis_schedule.sql
+var scheduleSQL string
+
+func scheduleDigest() string {
+	s := sha256.Sum256([]byte(scheduleSQL))
+	return hex.EncodeToString(s[:])
+}
+
 func analysisDigest() string {
 	s := sha256.Sum256([]byte(analysisSQL))
 	return hex.EncodeToString(s[:])
@@ -54,7 +62,7 @@ func applyGate(ctx context.Context, tx pgx.Tx) error {
 	for _, step := range []struct {
 		version     int
 		sql, digest string
-	}{{2, gateSQL, gateDigest()}, {3, fenceSQL, fenceDigest()}, {4, draftSQL, draftDigest()}, {5, draftAssetSQL, draftAssetDigest()}, {6, analysisSQL, analysisDigest()}} {
+	}{{2, gateSQL, gateDigest()}, {3, fenceSQL, fenceDigest()}, {4, draftSQL, draftDigest()}, {5, draftAssetSQL, draftAssetDigest()}, {6, analysisSQL, analysisDigest()}, {7, scheduleSQL, scheduleDigest()}} {
 		var hash string
 		err := tx.QueryRow(ctx, "SELECT "+gateHashColumn+" FROM "+gateHistory+" WHERE version=$1", step.version).Scan(&hash)
 		if err == nil {
@@ -99,7 +107,7 @@ func UpgradeGates(ctx context.Context, db *pgxpool.Pool) error {
 	if err = tx.QueryRow(ctx, "SELECT count(*) FROM "+gateHistory).Scan(&count); err != nil {
 		return err
 	}
-	if count != 2 && count != 3 && count != 4 && count != 5 && count != 6 {
+	if count != 2 && count != 3 && count != 4 && count != 5 && count != 6 && count != 7 {
 		return errors.New("unsupported gate upgrade source")
 	}
 	var owner bool
@@ -125,7 +133,7 @@ func CheckGate(ctx context.Context, q gateQuery) error {
 	if e := q.QueryRow(ctx, "SELECT count(*) FROM "+gateHistory).Scan(&count); e != nil {
 		return e
 	}
-	if hash != gateDigest() || count != 6 {
+	if hash != gateDigest() || count != 7 {
 		return errors.New("handoff migration mismatch")
 	}
 	if e := q.QueryRow(ctx, "SELECT "+gateHashColumn+" FROM "+gateHistory+" WHERE version=3").Scan(&hash); e != nil {
@@ -151,6 +159,12 @@ func CheckGate(ctx context.Context, q gateQuery) error {
 	}
 	if hash != analysisDigest() {
 		return errors.New("analysis migration mismatch")
+	}
+	if e := q.QueryRow(ctx, "SELECT "+gateHashColumn+" FROM "+gateHistory+" WHERE version=7").Scan(&hash); e != nil {
+		return e
+	}
+	if hash != scheduleDigest() {
+		return errors.New("analysis schedule migration mismatch")
 	}
 	_, body, ok := strings.Cut(gateSQL, "SET search_path=pg_catalog AS $$")
 	if !ok {
@@ -195,7 +209,7 @@ func CheckGate(ctx context.Context, q gateQuery) error {
 	if !valid {
 		return errors.New("runtime readiness guard changed")
 	}
-	for _, match := range regexp.MustCompile(`ON studio\.([a-z_]+) FOR EACH STATEMENT`).FindAllStringSubmatch(gateSQL+"\n"+draftSQL+"\n"+analysisSQL, -1) {
+	for _, match := range regexp.MustCompile(`ON studio\.([a-z_]+) FOR EACH STATEMENT`).FindAllStringSubmatch(gateSQL+"\n"+draftSQL+"\n"+analysisSQL+"\n"+scheduleSQL, -1) {
 		if e := q.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=$1::regclass AND tgname=$2 AND tgenabled='A' AND NOT tgisinternal AND tgtype=62 AND tgnargs=0 AND tgqual IS NULL AND tgfoid=$3::regprocedure)`, "studio."+match[1], gateDomain+"_handoff_gate", "studio."+gateDomain+"_check_writer()").Scan(&valid); e != nil {
 			return e
 		}
@@ -222,7 +236,7 @@ func ActivateFresh(ctx context.Context, db *pgxpool.Pool) error {
 	if !owner || !unused || (mode != "closed" && mode != "active") {
 		return errors.New("fresh activation denied")
 	}
-	for _, match := range regexp.MustCompile(`ON studio\.([a-z_]+) FOR EACH STATEMENT`).FindAllStringSubmatch(gateSQL+"\n"+draftSQL+"\n"+analysisSQL, -1) {
+	for _, match := range regexp.MustCompile(`ON studio\.([a-z_]+) FOR EACH STATEMENT`).FindAllStringSubmatch(gateSQL+"\n"+draftSQL+"\n"+analysisSQL+"\n"+scheduleSQL, -1) {
 		var occupied bool
 		if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM studio."+match[1]+")").Scan(&occupied); e != nil {
 			return e
