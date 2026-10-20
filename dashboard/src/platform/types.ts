@@ -6,6 +6,7 @@ export type Unsubscribe = () => void
 export interface Context { userId: string; organizationId: string; stationId: string; projectId: string | null; appId: string; installationId: string; contextRevision: string }
 export interface AppSDK {
   readonly version: string
+  readonly media?: { preview(input: { bytes: ArrayBuffer; mime: string; title: string }): Promise<void>; close(): void }
   readonly context: { get(): Readonly<Context>; subscribe(listener: (value: Readonly<Context>) => void): Unsubscribe }
   readonly lifecycle: { subscribe(listener: (value: Lifecycle) => void): Unsubscribe }
   readonly theme: { get(): 'light' | 'dark'; subscribe(listener: (theme: 'light' | 'dark') => void): Unsubscribe }

@@ -1,7 +1,7 @@
 [
   {
     "name": "world.register",
-    "description": "Publish selected files from a saved project revision as a reusable asset.",
+    "description": "Publish explicitly selected files from a fixed project or private World draft revision as a reusable asset.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "WorldRegisterRequest",
@@ -9,7 +9,6 @@
       "additionalProperties": false,
       "required": [
         "commit_id",
-        "source_project_id",
         "source_revision_id",
         "file_ids",
         "name",
@@ -104,6 +103,10 @@
             }
           },
           "maxItems": 10000
+        },
+        "source_draft_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
         }
       },
       "dependentRequired": {
@@ -113,7 +116,29 @@
         "expected_asset_version_id": [
           "asset_id"
         ]
-      }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "source_project_id"
+          ],
+          "not": {
+            "required": [
+              "source_draft_id"
+            ]
+          }
+        },
+        {
+          "required": [
+            "source_draft_id"
+          ],
+          "not": {
+            "required": [
+              "source_project_id"
+            ]
+          }
+        }
+      ]
     }
   },
   {
@@ -173,14 +198,13 @@
   },
   {
     "name": "world.commit_status",
-    "description": "Read the outcome of an existing asset publication.",
+    "description": "Read a publication outcome; omit asset_id only to recover the authenticated creator’s initial registration by commit_id.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "WorldStatusRequest",
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "asset_id",
         "commit_id"
       ],
       "properties": {
@@ -248,6 +272,470 @@
           "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
         }
       }
+    }
+  },
+  {
+    "name": "world.draft",
+    "description": "Create, list, read, commit or recover private World references and editable learning/creation drafts without a project. Native-run verification depends on available service support.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "WorldDraftRequest",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "commit_id",
+            "name",
+            "purpose",
+            "subjects"
+          ],
+          "properties": {
+            "mode": {
+              "const": "create"
+            },
+            "commit_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "purpose": {
+              "enum": [
+                "collection",
+                "learning",
+                "creation"
+              ]
+            },
+            "subjects": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "maxItems": 256
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode"
+          ],
+          "properties": {
+            "mode": {
+              "const": "list"
+            },
+            "purpose": {
+              "enum": [
+                "collection",
+                "learning",
+                "creation"
+              ]
+            },
+            "q": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "draft_id"
+          ],
+          "properties": {
+            "mode": {
+              "const": "get"
+            },
+            "draft_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "revision_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "draft_id",
+            "expected_revision_id",
+            "commit_id",
+            "manifest"
+          ],
+          "properties": {
+            "mode": {
+              "const": "commit"
+            },
+            "draft_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "expected_revision_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "commit_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "manifest": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "title": "WorldDraftManifest",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schema_version",
+                "kind",
+                "draft_id",
+                "purpose",
+                "name",
+                "subjects",
+                "files",
+                "domain_documents",
+                "source_refs",
+                "asset_refs",
+                "run_refs"
+              ],
+              "properties": {
+                "schema_version": {
+                  "const": 1
+                },
+                "kind": {
+                  "const": "world-draft"
+                },
+                "draft_id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "purpose": {
+                  "enum": [
+                    "collection",
+                    "learning",
+                    "creation"
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "subjects": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "maxItems": 256
+                },
+                "files": {
+                  "type": "array",
+                  "minItems": 0,
+                  "maxItems": 10000,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "file_id",
+                      "path",
+                      "role",
+                      "content_ref"
+                    ],
+                    "properties": {
+                      "file_id": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                      },
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1024,
+                        "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!\\.vf(?:/|$))(?!.*[. ](?:/|$))(?!.*\\/$)[^\\u0000-\\u001f\\u007f\\\\<>:\"|?*]+$"
+                      },
+                      "role": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                      },
+                      "content_ref": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "title": "ContentRef",
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "store_id",
+                          "artifact_id",
+                          "version_id"
+                        ],
+                        "properties": {
+                          "store_id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          },
+                          "artifact_id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          },
+                          "version_id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "domain_documents": {
+                  "type": "array",
+                  "minItems": 0,
+                  "maxItems": 256,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "document_type",
+                      "file_id"
+                    ],
+                    "properties": {
+                      "document_type": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                      },
+                      "file_id": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                      }
+                    }
+                  }
+                },
+                "source_refs": {
+                  "type": "array",
+                  "minItems": 0,
+                  "maxItems": 1000,
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind",
+                          "draft_id",
+                          "revision_id",
+                          "file_id",
+                          "purpose"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "const": "world_draft"
+                          },
+                          "draft_id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          },
+                          "revision_id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          },
+                          "file_id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256
+                          },
+                          "object_key": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind",
+                          "project_id",
+                          "revision_id",
+                          "file_id",
+                          "purpose"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "const": "project"
+                          },
+                          "project_id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          },
+                          "revision_id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          },
+                          "file_id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256
+                          },
+                          "object_key": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind",
+                          "asset_id",
+                          "asset_version_id",
+                          "file_id",
+                          "purpose"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "const": "asset"
+                          },
+                          "asset_id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          },
+                          "asset_version_id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          },
+                          "file_id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256
+                          },
+                          "object_key": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "asset_refs": {
+                  "type": "array",
+                  "minItems": 0,
+                  "maxItems": 10000,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "asset_id",
+                      "asset_version_id",
+                      "purpose"
+                    ],
+                    "properties": {
+                      "asset_id": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                      },
+                      "asset_version_id": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                      },
+                      "purpose": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      }
+                    }
+                  }
+                },
+                "run_refs": {
+                  "type": "array",
+                  "minItems": 0,
+                  "maxItems": 1000,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "service_id",
+                      "run_id"
+                    ],
+                    "properties": {
+                      "service_id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                      },
+                      "run_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "commit_id"
+          ],
+          "properties": {
+            "mode": {
+              "const": "status"
+            },
+            "commit_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          }
+        }
+      ],
+      "type": "object"
     }
   }
 ]

@@ -122,14 +122,16 @@ type ListResult struct {
 }
 
 type Source struct {
-	Kind           string       `json:"kind"`
-	ProjectID      string       `json:"project_id,omitempty"`
-	ServiceID      string       `json:"service_id,omitempty"`
-	RunID          string       `json:"run_id,omitempty"`
-	TaskID         string       `json:"task_id,omitempty"`
-	Original       *OriginalRef `json:"original_ref,omitempty"`
-	AssetID        string       `json:"asset_id,omitempty"`
-	AssetVersionID string       `json:"asset_version_id,omitempty"`
+	WorldDraftID         string       `json:"world_draft_id,omitempty"`
+	WorldDraftRevisionID string       `json:"world_draft_revision_id,omitempty"`
+	Kind                 string       `json:"kind"`
+	ProjectID            string       `json:"project_id,omitempty"`
+	ServiceID            string       `json:"service_id,omitempty"`
+	RunID                string       `json:"run_id,omitempty"`
+	TaskID               string       `json:"task_id,omitempty"`
+	Original             *OriginalRef `json:"original_ref,omitempty"`
+	AssetID              string       `json:"asset_id,omitempty"`
+	AssetVersionID       string       `json:"asset_version_id,omitempty"`
 }
 type OriginalRef struct {
 	ServiceID  string `json:"service_id"`
@@ -150,10 +152,12 @@ type ContentVersion struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 type Access struct {
-	ProjectID      string `json:"project_id,omitempty"`
-	RevisionID     string `json:"project_revision_id,omitempty"`
-	AssetID        string `json:"asset_id,omitempty"`
-	AssetVersionID string `json:"asset_version_id,omitempty"`
+	WorldDraftID         string `json:"world_draft_id,omitempty"`
+	WorldDraftRevisionID string `json:"world_draft_revision_id,omitempty"`
+	ProjectID            string `json:"project_id,omitempty"`
+	RevisionID           string `json:"project_revision_id,omitempty"`
+	AssetID              string `json:"asset_id,omitempty"`
+	AssetVersionID       string `json:"asset_version_id,omitempty"`
 }
 type RetentionOwner struct {
 	Kind     string `json:"owner_kind"`

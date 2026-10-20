@@ -23,8 +23,8 @@ export function metadata(appId, version, entries) {
     entryRef: 'dashboard/index.html', artifactDigest: 'sha256:' + hash(index),
     adapter: 'wujie', sdkMajor: 1, minimumSdkVersion: '1.1.0',
     requiredCapabilities: ['app.request', 'navigation.request'],
-    optionalCapabilities: appId === 'project' ? ['artifact.read', 'navigation.openApp'] : ['navigation.openApp'],
-    appApiPolicyRef: appId === 'project' ? 'project-dashboard-v1' : 'world-browser-v1', keepAlive: true,
+    optionalCapabilities: appId === 'project' ? ['artifact.read', 'navigation.openApp'] : ['artifact.read', 'artifact.write', 'navigation.openApp'],
+    appApiPolicyRef: appId === 'project' ? 'project-dashboard-v1' : 'world-learning-v1', keepAlive: true,
   } }))
   const navigation = Buffer.from(JSON.stringify({ schemaVersion: 1, appId, appVersion: version, artifactDigest: 'sha256:' + hash(index), entry: {
     entryId: 'main', title: appId === 'project' ? '项目' : '数字世界', iconRef: appId === 'project' ? 'folder' : 'globe', route: '/', accessRuleRef: appId + '-read',

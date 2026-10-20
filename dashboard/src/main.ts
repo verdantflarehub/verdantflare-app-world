@@ -1,6 +1,8 @@
 import { createApp, h } from 'vue'
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 import Browser from './pages/WorldBrowser.vue'
+import CollectionsPage from './pages/CollectionsPage.vue'
+import LearnPage from './pages/LearnPage.vue'
 import PublicationPage from './pages/PublicationPage.vue'
 import { connectHost, disconnectHost } from './platform/host'
 import { canonicalRoute } from './platform/route-links'
@@ -13,6 +15,9 @@ async function mount() {
   const router = createRouter({ history: createMemoryHistory(), routes: [
     { path: '/', component: Browser },
     { path: '/publish', component: PublicationPage },
+    { path: '/collections', component: CollectionsPage },
+    { path: '/collections/:draftId', component: CollectionsPage },
+    { path: '/learn', component: LearnPage },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ] })
   const app = createApp({ render: () => h(RouterView) }).use(router)

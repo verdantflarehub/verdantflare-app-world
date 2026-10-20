@@ -1,12 +1,17 @@
 export interface AssetItem {
   asset_id: string; head_asset_version_id: string; name: string; asset_type: string; subjects: string[]; created_at: string
 }
+export type AssetSource =
+  | { kind?: never; project_id: string; project_revision_id: string; relation: string }
+  | { kind: 'world_draft'; draft_id: string; draft_revision_id: string; relation: string }
 export interface AssetOpen {
   asset_id: string; asset_version_id: string
   manifest: {
+    schema_version: 1 | 2; kind: 'asset-version'; asset_id: string
     name: string; asset_type: string; subjects: string[]
-    files: Array<{ file_id: string; path: string; role: string }>
-    source: { project_id: string; project_revision_id: string; relation: string }
+    files: Array<{ file_id: string; path: string; role: string; content_ref: { store_id: string; artifact_id: string; version_id: string } }>
+    source: AssetSource
+    domain_documents?: Array<{ document_type: string; file_id: string }>
     depends_on: Array<{ asset_id: string; asset_version_id: string; purpose: string }>
   }
 }
@@ -30,14 +35,28 @@ export function readAssetList(value: unknown): { items: AssetItem[]; next_cursor
 }
 export function readAsset(value: unknown, assetID: string, versionID: string): AssetOpen {
   const data = object(value), manifest = object(data.manifest), source = object(manifest.source)
-  if (!isID(assetID) || !isID(versionID) || data.asset_id !== assetID || data.asset_version_id !== versionID || !text(manifest.name) || !text(manifest.asset_type) || !strings(manifest.subjects)) throw new Error('资产返回版本与所选固定版本不一致。')
-  if (!isID(source.project_id) || !isID(source.project_revision_id) || !['produced_in', 'curated_in'].includes(String(source.relation))) throw new Error('资产来源信息不正确。')
+  if (!isID(assetID) || !isID(versionID) || data.asset_id !== assetID || data.asset_version_id !== versionID || manifest.asset_id !== assetID || manifest.kind !== 'asset-version' || !text(manifest.name) || !text(manifest.asset_type) || !strings(manifest.subjects)) throw new Error('资产返回版本与所选固定版本不一致。')
+  const projectSource = manifest.schema_version === 1 && isID(source.project_id) && isID(source.project_revision_id)
+    && !('kind' in source) && !('draft_id' in source) && !('draft_revision_id' in source) && !('domain_documents' in manifest)
+  const draftSource = manifest.schema_version === 2 && source.kind === 'world_draft' && isID(source.draft_id) && isID(source.draft_revision_id)
+    && !('project_id' in source) && !('project_revision_id' in source) && Array.isArray(manifest.domain_documents) && manifest.domain_documents.length <= 256
+  if ((!projectSource && !draftSource) || !['produced_in', 'curated_in'].includes(String(source.relation))) throw new Error('资产来源信息不正确。')
   if (!Array.isArray(manifest.files) || !manifest.files.length || manifest.files.length > 10000 || !Array.isArray(manifest.depends_on) || manifest.depends_on.length > 10000) throw new Error('资产文件清单不正确。')
   const seen = new Set<string>()
   for (const value of manifest.files) {
     const file = object(value)
     if (!isID(file.file_id) || !text(file.path) || !text(file.role) || seen.has(file.file_id)) throw new Error('资产文件清单不正确。')
+    const ref = object(file.content_ref)
+    if (!isID(ref.store_id) || !isID(ref.artifact_id) || !isID(ref.version_id)) throw new Error('资产文件缺少固定内容引用。')
     seen.add(file.file_id)
+  }
+  if (draftSource) {
+    const domains = new Set<string>()
+    for (const value of manifest.domain_documents as unknown[]) {
+      const document = object(value)
+      if (!text(document.document_type) || !/^[a-z][a-z0-9_-]{0,63}$/.test(document.document_type) || !isID(document.file_id) || !seen.has(document.file_id) || domains.has(document.document_type)) throw new Error('资产领域文件不正确。')
+      domains.add(document.document_type)
+    }
   }
   for (const value of manifest.depends_on) {
     const reference = object(value)

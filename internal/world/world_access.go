@@ -98,7 +98,7 @@ func assetReferences(ctx context.Context, q queryer, p Principal, a AssetRef, lo
 	return refs, nil
 }
 func (s *Service) authorizeAssetRead(ctx context.Context, p Principal, v ContentVersion, a Access) error {
-	if a.ProjectID != "" || a.RevisionID != "" || !ValidID(a.AssetID) || !ValidID(a.AssetVersionID) || v.OrganizationID != p.OrganizationID || !v.ContentRef.Valid() {
+	if a.WorldDraftID != "" || a.WorldDraftRevisionID != "" || a.ProjectID != "" || a.RevisionID != "" || !ValidID(a.AssetID) || !ValidID(a.AssetVersionID) || v.OrganizationID != p.OrganizationID || !v.ContentRef.Valid() {
 		return ErrForbidden
 	}
 	if _, e := assetRole(ctx, s.db, p, a.AssetID); e != nil {
@@ -119,7 +119,7 @@ func (s *Service) authorizeAssetRead(ctx context.Context, p Principal, v Content
 	return ErrForbidden
 }
 func (s *Service) authorizeWorldWrite(ctx context.Context, p Principal, source Source) error {
-	if source.Kind != "asset_manifest" || !ValidID(source.AssetID) || !ValidID(source.AssetVersionID) || source.ProjectID != "" || source.ServiceID != "" || source.RunID != "" || source.TaskID != "" || source.Original != nil {
+	if source.WorldDraftID != "" || source.WorldDraftRevisionID != "" || source.Kind != "asset_manifest" || !ValidID(source.AssetID) || !ValidID(source.AssetVersionID) || source.ProjectID != "" || source.ServiceID != "" || source.RunID != "" || source.TaskID != "" || source.Original != nil {
 		return ErrForbidden
 	}
 	if e := assetWritable(ctx, s.db, p, source.AssetID); e != nil {
@@ -139,6 +139,10 @@ func (s *Service) authorizeWorldWrite(ctx context.Context, p Principal, source S
 	}
 	if c.Actor != p.SubjectID || (c.State != "preparing" && c.State != "committed") {
 		return ErrForbidden
+	}
+	if c.Plan.Manifest.SchemaVersion == 2 {
+		_, _, e = draftOwner(ctx, s.db, p, c.Plan.Manifest.Source.DraftID)
+		return e
 	}
 	_, e = s.Open(ctx, p, c.Plan.Manifest.Source.ProjectID, c.Plan.Manifest.Source.RevisionID)
 	return e
@@ -209,7 +213,7 @@ func (s *Service) authorizeWorldRetention(ctx context.Context, p Principal, perm
 	}
 	if ref == *c.Plan.ManifestRef {
 		source := permission.Version.Source
-		if source.Kind != "asset_manifest" || source.AssetID != asset || source.AssetVersionID != c.Version {
+		if source.WorldDraftID != "" || source.WorldDraftRevisionID != "" || source.Kind != "asset_manifest" || source.AssetID != asset || source.AssetVersionID != c.Version {
 			return ErrForbidden
 		}
 		return nil
@@ -221,7 +225,10 @@ func (s *Service) authorizeWorldRetention(ctx context.Context, p Principal, perm
 		}
 	}
 	if isSource {
-		a := Access{ProjectID: c.Plan.Manifest.Source.ProjectID, RevisionID: c.Plan.Manifest.Source.RevisionID}
+		a := c.Plan.Manifest.Source.access()
+		if c.Plan.Manifest.SchemaVersion == 2 {
+			return s.authorizeDraftRead(ctx, p, *permission.Version, a)
+		}
 		return s.projects.Authorize(ctx, p, Permission{Action: "read", Version: permission.Version, Access: &a})
 	}
 	return s.authorizeDependencyContent(ctx, p, c.Plan.Manifest.DependsOn, ref)

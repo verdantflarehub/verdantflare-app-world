@@ -34,8 +34,19 @@ func NewService(ctx context.Context, db *pgxpool.Pool, content Artifact, project
 	s := &Service{db: db, content: content, projects: projects, workers: make(chan struct{}, 8)}
 	store, err := coordination.NewStore(db, "world", fence, func(ctx context.Context, tx pgx.Tx, o coordination.Operation, g coordination.Grant) error {
 		p := Principal{OrganizationID: o.OrganizationID, SubjectID: o.SubjectID, RequestID: o.CommitID}
+		var owner string
+		err := tx.QueryRow(ctx, "SELECT owner_id::text FROM studio.world_drafts WHERE organization_id=$1 AND draft_id=$2 FOR SHARE", p.OrganizationID, g.ResourceID).Scan(&owner)
+		if err == nil {
+			if owner != p.SubjectID {
+				return coordination.ErrDenied
+			}
+			return nil
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
 		var role string
-		err := tx.QueryRow(ctx, "SELECT role FROM studio.world_asset_grants WHERE organization_id=$1 AND asset_id=$2 AND subject_id=$3 FOR SHARE", p.OrganizationID, g.ResourceID, p.SubjectID).Scan(&role)
+		err = tx.QueryRow(ctx, "SELECT role FROM studio.world_asset_grants WHERE organization_id=$1 AND asset_id=$2 AND subject_id=$3 FOR SHARE", p.OrganizationID, g.ResourceID, p.SubjectID).Scan(&role)
 		if errors.Is(err, pgx.ErrNoRows) || err == nil && (g.Write && role != "owner" && role != "editor") {
 			return coordination.ErrDenied
 		}
@@ -116,6 +127,14 @@ func coordinationError(err error) error {
 	return ErrDependency
 }
 func (s *Service) authorizationPlan(ctx context.Context, p Principal, c worldCommit) (coordination.Plan, error) {
+	if c.Plan.Manifest.SchemaVersion == 2 {
+		_, plan, err := s.draftPublicationContents(ctx, p, c.Plan)
+		if err != nil {
+			return nil, err
+		}
+		plan["world"] = append(plan["world"], coordination.Grant{ResourceID: c.AssetID, Write: true})
+		return coordination.Normalize(plan)
+	}
 	grants := map[string]bool{c.AssetID: true}
 	for _, asset := range c.Plan.Manifest.DependsOn {
 		closure, err := s.ReferencesWithGrants(ctx, p, asset)
@@ -172,6 +191,9 @@ func (s *Service) Recover(ctx context.Context) error {
 		}
 	}
 	if err = s.coord.Deliver(ctx); err != nil {
+		failures = append(failures, err)
+	}
+	if err = s.recoverDrafts(ctx); err != nil {
 		failures = append(failures, err)
 	}
 	return errors.Join(failures...)

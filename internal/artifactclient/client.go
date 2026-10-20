@@ -127,6 +127,9 @@ func (c *Client) Write(ctx context.Context, p world.Principal, projectID string,
 func (c *Client) WriteAssetManifest(ctx context.Context, p world.Principal, assetID, versionID string, w world.TextWrite) (world.ContentVersion, error) {
 	return c.write(ctx, p, world.Source{Kind: "asset_manifest", AssetID: assetID, AssetVersionID: versionID}, w)
 }
+func (c *Client) WriteDraftManifest(ctx context.Context, p world.Principal, draft, revision string, w world.TextWrite) (world.ContentVersion, error) {
+	return c.write(ctx, p, world.Source{Kind: "world_draft_manifest", WorldDraftID: draft, WorldDraftRevisionID: revision}, w)
+}
 func (c *Client) write(ctx context.Context, p world.Principal, source world.Source, w world.TextWrite) (world.ContentVersion, error) {
 	var v world.ContentVersion
 	sum := sha256.Sum256([]byte(w.Text))
@@ -187,6 +190,12 @@ func path(ref world.ContentRef, a world.Access, content bool) string {
 	}
 	if a.AssetVersionID != "" {
 		q.Set("asset_version_id", a.AssetVersionID)
+	}
+	if a.WorldDraftID != "" {
+		q.Set("world_draft_id", a.WorldDraftID)
+	}
+	if a.WorldDraftRevisionID != "" {
+		q.Set("world_draft_revision_id", a.WorldDraftRevisionID)
 	}
 	suffix := ""
 	if content {

@@ -73,7 +73,7 @@ func loadWorldCommit(ctx context.Context, q queryer, org, asset, commit string) 
 	return c, e
 }
 func normalizeWorld(r WorldRegisterRequest) (WorldRegisterRequest, error) {
-	if !ValidID(r.CommitID) || !ValidID(r.SourceProjectID) || !ValidID(r.SourceRevisionID) || !validText(r.Name) || !tokenPattern.MatchString(r.AssetType) || r.Subjects == nil || len(r.Subjects) > 256 || len(r.FileIDs) == 0 || len(r.FileIDs) > MaxFiles || (r.Relation != "produced_in" && r.Relation != "curated_in") {
+	if !ValidID(r.CommitID) || !validPublicationSource(r) || !ValidID(r.SourceRevisionID) || !validText(r.Name) || !tokenPattern.MatchString(r.AssetType) || r.Subjects == nil || len(r.Subjects) > 256 || len(r.FileIDs) == 0 || len(r.FileIDs) > MaxFiles || (r.Relation != "produced_in" && r.Relation != "curated_in") {
 		return r, ErrInvalid
 	}
 	if (r.AssetID == "") != (r.ExpectedVersionID == "") || (r.AssetID != "" && (!ValidID(r.AssetID) || !ValidID(r.ExpectedVersionID))) || (r.ReviewFileID != "" && !ValidID(r.ReviewFileID)) {
@@ -192,7 +192,7 @@ func (s *Service) WorldRegister(ctx context.Context, p Principal, input WorldReg
 			return WorldResult{}, err
 		}
 	}
-	opened, e := s.Open(ctx, p, r.SourceProjectID, r.SourceRevisionID)
+	opened, e := s.openPublicationSource(ctx, p, r)
 	if e != nil {
 		return WorldResult{}, e
 	}
@@ -264,7 +264,7 @@ func (s *Service) WorldRegister(ctx context.Context, p Principal, input WorldReg
 			return WorldResult{}, e
 		}
 	}
-	plan, e := prepareWorld(r, asset, opened)
+	plan, e := preparePublication(r, asset, opened)
 	if e != nil {
 		return WorldResult{}, e
 	}
@@ -292,6 +292,13 @@ func (s *Service) saveWorldPlan(ctx context.Context, p Principal, c worldCommit)
 	return e
 }
 func (s *Service) worldTerminal(ctx context.Context, p Principal, c worldCommit, state string, cause error) (WorldResult, error) {
+	code := cause.Error()
+	for _, known := range []error{ErrInvalid, ErrNotFound, ErrForbidden, ErrNotReady, ErrConflict} {
+		if errors.Is(cause, known) {
+			code = known.Error()
+			break
+		}
+	}
 	tx, e := s.db.Begin(ctx)
 	if e != nil {
 		return WorldResult{}, e
@@ -313,7 +320,7 @@ func (s *Service) worldTerminal(ctx context.Context, p Principal, c worldCommit,
 			return WorldResult{}, e
 		}
 	}
-	if _, e = tx.Exec(ctx, "UPDATE studio.world_commits SET state=$1,error_code=$2,updated_at=now() WHERE organization_id=$3 AND asset_id=$4 AND commit_id=$5 AND state='preparing'", state, cause.Error(), p.OrganizationID, c.AssetID, c.CommitID); e != nil {
+	if _, e = tx.Exec(ctx, "UPDATE studio.world_commits SET state=$1,error_code=$2,updated_at=now() WHERE organization_id=$3 AND asset_id=$4 AND commit_id=$5 AND state='preparing'", state, code, p.OrganizationID, c.AssetID, c.CommitID); e != nil {
 		return WorldResult{}, e
 	}
 	if e = audit(ctx, tx, p, "world."+state, c.Version); e != nil {
@@ -429,6 +436,10 @@ func (s *Service) resumeWorld(ctx context.Context, p Principal, asset, commit st
 	return s.publishWorld(ctx, p, c)
 }
 func (s *Service) checkWorldContents(ctx context.Context, p Principal, plan worldPlan) ([]ContentRef, error) {
+	if plan.Manifest.SchemaVersion == 2 {
+		refs, _, err := s.draftPublicationContents(ctx, p, plan)
+		return refs, err
+	}
 	m := plan.Manifest
 	if m.Validate() != nil {
 		return nil, ErrInvalid
@@ -503,7 +514,7 @@ func (s *Service) publishWorld(ctx context.Context, p Principal, c worldCommit) 
 	data, _ := json.Marshal(result)
 	subjects, _ := json.Marshal(result.Manifest.Subjects)
 	sourceRef, _ := json.Marshal(c.Plan.SourceRef)
-	_, e = tx.Exec(ctx, `INSERT INTO studio.world_asset_versions(version_id,organization_id,asset_id,parent_version_id,source_project_id,source_revision_id,manifest_ref,manifest_json,created_by,commit_id,source_manifest_ref) VALUES($1,$2,$3,NULLIF($4,'')::uuid,$5,$6,$7,$8,$9,$10,$11)`, c.Version, p.OrganizationID, c.AssetID, c.Expected, c.Plan.Manifest.Source.ProjectID, c.Plan.Manifest.Source.RevisionID, ref, manifest, p.SubjectID, c.CommitID, sourceRef)
+	_, e = tx.Exec(ctx, `INSERT INTO studio.world_asset_versions(version_id,organization_id,asset_id,parent_version_id,source_project_id,source_revision_id,manifest_ref,manifest_json,created_by,commit_id,source_manifest_ref,source_draft_id) VALUES($1,$2,$3,NULLIF($4,'')::uuid,NULLIF($5,'')::uuid,$6,$7,$8,$9,$10,$11,NULLIF($12,'')::uuid)`, c.Version, p.OrganizationID, c.AssetID, c.Expected, c.Plan.Manifest.Source.ProjectID, publicationRevision(c.Plan.Manifest.Source), ref, manifest, p.SubjectID, c.CommitID, sourceRef, c.Plan.Manifest.Source.DraftID)
 	if e != nil {
 		return WorldResult{}, e
 	}
@@ -591,8 +602,20 @@ func (s *Service) WorldList(ctx context.Context, p Principal, r WorldListRequest
 	return out, nil
 }
 func (s *Service) WorldCommitStatus(ctx context.Context, p Principal, r WorldStatusRequest) (WorldStatus, error) {
+	if !p.Valid() {
+		return WorldStatus{}, ErrForbidden
+	}
 	if !ValidID(r.CommitID) {
 		return WorldStatus{}, ErrInvalid
+	}
+	if r.AssetID == "" {
+		err := s.db.QueryRow(ctx, "SELECT asset_id::text FROM studio.world_create_requests WHERE organization_id=$1 AND subject_id=$2 AND commit_id=$3", p.OrganizationID, p.SubjectID, r.CommitID).Scan(&r.AssetID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return WorldStatus{}, ErrNotFound
+		}
+		if err != nil {
+			return WorldStatus{}, err
+		}
 	}
 	member, e := assetRole(ctx, s.db, p, r.AssetID)
 	if e != nil {

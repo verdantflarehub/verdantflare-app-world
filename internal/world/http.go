@@ -75,6 +75,13 @@ func (s *Service) HTTPHandler(serviceToken, authorityToken string) (http.Handler
 			path = "/internal/v1/world/" + strings.TrimPrefix(path, "/api/v1/world/")
 		}
 		switch path {
+		case "/internal/v1/world/draft":
+			request, decodeErr := DecodeDraftRequest(data)
+			if decodeErr != nil {
+				httpError(w, p, decodeErr)
+				return
+			}
+			result, err = s.WorldDraft(r.Context(), p, request)
 		case "/internal/v1/world/publication_source":
 			var request PublicationSourceRequest
 			if !decode(&request) {
@@ -136,7 +143,7 @@ func (s *Service) HTTPHandler(serviceToken, authorityToken string) (http.Handler
 			if !decode(&request) {
 				return
 			}
-			if !ValidID(request.CommitID) {
+			if !ValidID(request.CommitID) || !ValidID(request.AssetID) {
 				err = ErrInvalid
 				break
 			}
@@ -178,6 +185,14 @@ func httpError(w http.ResponseWriter, p Principal, err error) {
 	var contentErr *contentValidationError
 	if errors.As(err, &contentErr) {
 		details = map[string]string{"document_type": "project-content", "path": contentErr.Path, "reason": contentErr.Reason}
+	}
+	var learningErr *learningValidationError
+	if errors.As(err, &learningErr) {
+		details = map[string]string{"document_type": "reference-learning", "path": learningErr.Path, "reason": learningErr.Reason}
+	}
+	var draftConflict *ConflictError
+	if errors.As(err, &draftConflict) {
+		details = map[string]string{"current_revision_id": draftConflict.CurrentRevisionID}
 	}
 	var conflict *WorldConflictError
 	if errors.As(err, &conflict) {

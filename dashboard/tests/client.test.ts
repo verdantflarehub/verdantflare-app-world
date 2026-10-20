@@ -80,3 +80,21 @@ test('a different installation app cannot bind this consumer', () => {
   f.sdk.context.get = () => ({ userId: 'user', organizationId: 'org', stationId: 'station', projectId: null, appId: 'foreign', installationId: 'foreign', contextRevision: 'v1' })
   assert.throws(() => createReadClient(f.sdk, domain), /身份/)
 })
+
+test('World artifact reads use the host capability and reject late private content after hiding', async () => {
+  const f=fixture(),client=createReadClient(f.sdk,domain)
+  let finish!:(value:Json)=>void,signal:AbortSignal|undefined,calls=0
+  f.sdk.capabilities.call=async(name,input,options)=>{
+    calls++;assert.equal(name,'artifact.read');assert.deepEqual(input,{mode:'text'})
+    signal=options?.signal;return new Promise(resolve=>{finish=resolve})
+  }
+  const pending=client.call('artifact.read',{mode:'text'})
+  f.emit('hidden');assert.equal(signal?.aborted,true)
+  finish({text:'old private content'})
+  await assert.rejects(pending,{name:'AbortError'})
+  assert.equal(f.requests.length,0);assert.equal(calls,1)
+  f.emit('active')
+  await assert.rejects(client.call('artifact.write',{mode:'text'}))
+  await assert.rejects(client.call('artifact.read',{mode:'prepare'}))
+  assert.equal(calls,1);client.dispose()
+})

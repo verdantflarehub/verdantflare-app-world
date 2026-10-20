@@ -1,0 +1,4144 @@
+[
+  {
+    "case": "test_all_sixteen_payloads_have_distinct_legal_examples",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "music_structure",
+          "title": "Test fixture",
+          "domain": "music",
+          "type_key": "music_structure",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "section_kind": "chorus",
+            "instrument_layers": []
+          }
+        },
+        {
+          "key": "script_unit",
+          "title": "Test fixture",
+          "domain": "script",
+          "type_key": "script_unit",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "unit_kind": "scene",
+            "text": "A character returns a key."
+          }
+        },
+        {
+          "key": "shot",
+          "title": "Test fixture",
+          "domain": "shot",
+          "type_key": "shot",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "segment_kind": "generation_segment",
+            "scope": {
+              "kind": "time",
+              "start_tick": 0,
+              "end_tick": 30,
+              "timebase_num": 1,
+              "timebase_den": 30
+            },
+            "composition": "Centered",
+            "action_beats": []
+          }
+        },
+        {
+          "key": "character",
+          "title": "Test fixture",
+          "domain": "character",
+          "type_key": "character",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "character_kind": "fictional",
+            "identity_notes": "New fictional character"
+          }
+        },
+        {
+          "key": "scene",
+          "title": "Test fixture",
+          "domain": "scene",
+          "type_key": "scene",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "setting": "Workshop",
+            "spatial_layout": "Door at left"
+          }
+        },
+        {
+          "key": "prop",
+          "title": "Test fixture",
+          "domain": "scene",
+          "type_key": "prop",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "description": "Key",
+            "function": "Unlock door",
+            "state": "intact"
+          }
+        },
+        {
+          "key": "sound_cue",
+          "title": "Test fixture",
+          "domain": "sound",
+          "type_key": "sound_cue",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "sound_kind": "sfx",
+            "description": "Key turns"
+          }
+        },
+        {
+          "key": "prompt",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "style",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "style",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "scope_note": "Lighting only",
+            "rules": [
+              {
+                "key": "light",
+                "domain": "scene",
+                "instruction": "Soft side light",
+                "evidence_refs": []
+              }
+            ],
+            "positive_examples": [],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "creative_system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": []
+              }
+            ],
+            "coordination_rules": [],
+            "exceptions": [],
+            "validation_case_refs": []
+          }
+        },
+        {
+          "key": "skill_candidate",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "skill_candidate",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "Candidate only",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "dependencies": [],
+            "outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "checks": [
+              "Validate result"
+            ],
+            "validation_refs": []
+          }
+        },
+        {
+          "key": "file_asset",
+          "title": "Test fixture",
+          "domain": "music",
+          "type_key": "file_asset",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "file_kind": "midi",
+            "files": [
+              {
+                "kind": "file",
+                "file_id": "01900000-0000-7000-8000-000000000001"
+              }
+            ],
+            "format": "midi",
+            "intended_use": "Edit notes",
+            "dependencies": [],
+            "verification": []
+          }
+        },
+        {
+          "key": "blender_scene",
+          "title": "Test fixture",
+          "domain": "scene",
+          "type_key": "blender_scene",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "engineering_ref": {
+              "kind": "file",
+              "file_id": "01900000-0000-7000-8000-000000000001"
+            },
+            "units": "m",
+            "coordinate_system": {
+              "handedness": "right",
+              "up_axis": "Z",
+              "forward_axis": "-Y"
+            },
+            "scene_key": "scene",
+            "object_bindings": [
+              {
+                "object_key": "prop",
+                "purpose": "Key prop"
+              }
+            ],
+            "reconstruction_basis": {
+              "source_refs": [],
+              "observations": [],
+              "assumptions": [
+                "Original design"
+              ],
+              "unresolved": [],
+              "scale_basis": "Design choice"
+            },
+            "dependency_refs": [],
+            "verification": []
+          }
+        },
+        {
+          "key": "camera_animation",
+          "title": "Test fixture",
+          "domain": "shot",
+          "type_key": "camera_animation",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "engineering_ref": {
+              "kind": "file",
+              "file_id": "01900000-0000-7000-8000-000000000001"
+            },
+            "scene_key": "scene",
+            "camera_key": "camera",
+            "frame_start": 0,
+            "frame_end": 30,
+            "fps_num": 30,
+            "fps_den": 1,
+            "animation_ref": {
+              "kind": "file",
+              "file_id": "01900000-0000-7000-8000-000000000001"
+            },
+            "dependency_refs": [],
+            "verification": []
+          }
+        },
+        {
+          "key": "comfyui_workflow",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "comfyui_workflow",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "workflow_ui_ref": {
+              "kind": "file",
+              "file_id": "01900000-0000-7000-8000-000000000001"
+            },
+            "dependency_lock_ref": {
+              "kind": "file",
+              "file_id": "01900000-0000-7000-8000-000000000001"
+            },
+            "input_bindings": [],
+            "verification": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_applied_rule_must_resolve_and_produce_a_recorded_output",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [
+              {
+                "key": "keep",
+                "condition": "Always",
+                "effect": "Keep direction"
+              }
+            ],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": [
+        {
+          "key": "use",
+          "input_refs": [
+            {
+              "kind": "result",
+              "key": "method"
+            }
+          ],
+          "brief": "Apply method",
+          "mode": "method",
+          "target_context": "project",
+          "target_project_id": "01900000-0000-7000-8000-000000000001",
+          "base_revision_id": "01900000-0000-7000-8000-000000000001",
+          "run_refs": [],
+          "output_refs": [],
+          "rule_effects": [
+            {
+              "method_ref": {
+                "kind": "result",
+                "key": "method"
+              },
+              "rule_key": "keep",
+              "disposition": "applied",
+              "output_refs": [
+                {
+                  "kind": "result",
+                  "key": "prompt1"
+                }
+              ],
+              "reason": "Changed prompt"
+            }
+          ]
+        }
+      ]
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_applied_rule_must_resolve_and_produce_a_recorded_output",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [
+              {
+                "key": "keep",
+                "condition": "Always",
+                "effect": "Keep direction"
+              }
+            ],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": [
+        {
+          "key": "use",
+          "input_refs": [
+            {
+              "kind": "result",
+              "key": "method"
+            }
+          ],
+          "brief": "Apply method",
+          "mode": "method",
+          "target_context": "project",
+          "target_project_id": "01900000-0000-7000-8000-000000000001",
+          "base_revision_id": "01900000-0000-7000-8000-000000000001",
+          "run_refs": [],
+          "output_refs": [
+            {
+              "kind": "result",
+              "key": "prompt1"
+            }
+          ],
+          "rule_effects": [
+            {
+              "method_ref": {
+                "kind": "result",
+                "key": "method"
+              },
+              "rule_key": "keep",
+              "disposition": "applied",
+              "output_refs": [
+                {
+                  "kind": "result",
+                  "key": "prompt1"
+                }
+              ],
+              "reason": "Changed prompt"
+            }
+          ]
+        }
+      ]
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_applied_rule_must_resolve_and_produce_a_recorded_output",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [
+              {
+                "key": "keep",
+                "condition": "Always",
+                "effect": "Keep direction"
+              }
+            ],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": [
+        {
+          "key": "use",
+          "input_refs": [
+            {
+              "kind": "result",
+              "key": "method"
+            }
+          ],
+          "brief": "Apply method",
+          "mode": "method",
+          "target_context": "project",
+          "target_project_id": "01900000-0000-7000-8000-000000000001",
+          "base_revision_id": "01900000-0000-7000-8000-000000000001",
+          "run_refs": [],
+          "output_refs": [
+            {
+              "kind": "result",
+              "key": "prompt1"
+            }
+          ],
+          "rule_effects": [
+            {
+              "method_ref": {
+                "kind": "result",
+                "key": "method"
+              },
+              "rule_key": "unknown",
+              "disposition": "applied",
+              "output_refs": [
+                {
+                  "kind": "result",
+                  "key": "prompt1"
+                }
+              ],
+              "reason": "Changed prompt"
+            }
+          ]
+        }
+      ]
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_collected_url_is_not_acquired_media",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [
+        {
+          "key": "s",
+          "title": "Reference URL",
+          "media_kind": "video",
+          "role": "original",
+          "acquisition_state": "declared",
+          "source_url": "https://example.com/reference"
+        }
+      ],
+      "results": [],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_collected_url_is_not_acquired_media",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [
+        {
+          "key": "s",
+          "title": "Reference URL",
+          "media_kind": "video",
+          "role": "original",
+          "acquisition_state": "ready",
+          "source_url": "https://example.com/reference"
+        }
+      ],
+      "results": [],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_collected_url_is_not_acquired_media",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [
+        {
+          "key": "s",
+          "title": "Reference URL",
+          "media_kind": "video",
+          "role": "original",
+          "acquisition_state": "ready",
+          "source_url": "https://example.com/reference",
+          "content": {
+            "kind": "result",
+            "key": "self"
+          }
+        }
+      ],
+      "results": [],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_complete_video_coverage_cannot_hide_gaps_or_timebase",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [
+        {
+          "source_key": "s",
+          "dimension": "picture",
+          "state": "complete",
+          "requested_scope": {
+            "kind": "time",
+            "start_tick": 0,
+            "end_tick": 30,
+            "timebase_num": 1,
+            "timebase_den": 30
+          },
+          "covered_scopes": [
+            {
+              "kind": "time",
+              "start_tick": 0,
+              "end_tick": 10,
+              "timebase_num": 1,
+              "timebase_den": 30
+            }
+          ],
+          "note": "Fixture"
+        }
+      ],
+      "sources": [
+        {
+          "key": "s",
+          "title": "Video",
+          "media_kind": "video",
+          "role": "original",
+          "acquisition_state": "ready",
+          "content": {
+            "kind": "file",
+            "file_id": "01900000-0000-7000-8000-000000000001"
+          }
+        }
+      ],
+      "results": [],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_complete_video_coverage_cannot_hide_gaps_or_timebase",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [
+        {
+          "source_key": "s",
+          "dimension": "picture",
+          "state": "complete",
+          "requested_scope": {
+            "kind": "time",
+            "start_tick": 0,
+            "end_tick": 30,
+            "timebase_num": 1,
+            "timebase_den": 30
+          },
+          "covered_scopes": [
+            {
+              "kind": "time",
+              "start_tick": 0,
+              "end_tick": 10,
+              "timebase_num": 1,
+              "timebase_den": 30
+            },
+            {
+              "kind": "time",
+              "start_tick": 10,
+              "end_tick": 30,
+              "timebase_num": 1,
+              "timebase_den": 30
+            }
+          ],
+          "note": "Fixture"
+        }
+      ],
+      "sources": [
+        {
+          "key": "s",
+          "title": "Video",
+          "media_kind": "video",
+          "role": "original",
+          "acquisition_state": "ready",
+          "content": {
+            "kind": "file",
+            "file_id": "01900000-0000-7000-8000-000000000001"
+          }
+        }
+      ],
+      "results": [],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_complete_video_coverage_cannot_hide_gaps_or_timebase",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [
+        {
+          "source_key": "s",
+          "dimension": "picture",
+          "state": "complete",
+          "requested_scope": {
+            "kind": "time",
+            "start_tick": 0,
+            "end_tick": 30,
+            "timebase_num": 1,
+            "timebase_den": 30
+          },
+          "covered_scopes": [
+            {
+              "kind": "time",
+              "start_tick": 0,
+              "end_tick": 10,
+              "timebase_num": 1,
+              "timebase_den": 30
+            },
+            {
+              "kind": "time",
+              "start_tick": 10,
+              "end_tick": 30,
+              "timebase_num": 1,
+              "timebase_den": 60
+            }
+          ],
+          "note": "Fixture"
+        }
+      ],
+      "sources": [
+        {
+          "key": "s",
+          "title": "Video",
+          "media_kind": "video",
+          "role": "original",
+          "acquisition_state": "ready",
+          "content": {
+            "kind": "file",
+            "file_id": "01900000-0000-7000-8000-000000000001"
+          }
+        }
+      ],
+      "results": [],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_complete_video_coverage_cannot_hide_gaps_or_timebase",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [
+        {
+          "source_key": "s",
+          "dimension": "picture",
+          "state": "pending",
+          "requested_scope": {
+            "kind": "time",
+            "start_tick": 0,
+            "end_tick": 30,
+            "timebase_num": 1,
+            "timebase_den": 30
+          },
+          "covered_scopes": [
+            {
+              "kind": "time",
+              "start_tick": 0,
+              "end_tick": 10,
+              "timebase_num": 1,
+              "timebase_den": 30
+            },
+            {
+              "kind": "time",
+              "start_tick": 10,
+              "end_tick": 30,
+              "timebase_num": 1,
+              "timebase_den": 60
+            }
+          ],
+          "note": "Fixture"
+        }
+      ],
+      "sources": [
+        {
+          "key": "s",
+          "title": "Video",
+          "media_kind": "video",
+          "role": "original",
+          "acquisition_state": "ready",
+          "content": {
+            "kind": "file",
+            "file_id": "01900000-0000-7000-8000-000000000001"
+          }
+        }
+      ],
+      "results": [],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_complete_video_coverage_cannot_hide_gaps_or_timebase",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [
+        {
+          "source_key": "s",
+          "dimension": "picture",
+          "state": "pending",
+          "requested_scope": {
+            "kind": "time",
+            "start_tick": 0,
+            "end_tick": 30,
+            "timebase_num": 1,
+            "timebase_den": 30
+          },
+          "covered_scopes": [
+            {
+              "kind": "time",
+              "start_tick": 0,
+              "end_tick": 10,
+              "timebase_num": 1,
+              "timebase_den": 30
+            },
+            {
+              "kind": "time",
+              "start_tick": 10,
+              "end_tick": 10,
+              "timebase_num": 1,
+              "timebase_den": 60
+            }
+          ],
+          "note": "Fixture"
+        }
+      ],
+      "sources": [
+        {
+          "key": "s",
+          "title": "Video",
+          "media_kind": "video",
+          "role": "original",
+          "acquisition_state": "ready",
+          "content": {
+            "kind": "file",
+            "file_id": "01900000-0000-7000-8000-000000000001"
+          }
+        }
+      ],
+      "results": [],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_copy_and_generation_have_distinct_availability",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            },
+            {
+              "mode": "direct",
+              "purpose": "generate_video",
+              "availability": "missing",
+              "required_inputs": [
+                "Model binding"
+              ],
+              "missing_items": [
+                "Unresolved model"
+              ]
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_copy_and_generation_have_distinct_availability",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            },
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "missing",
+              "required_inputs": [
+                "Model binding"
+              ],
+              "missing_items": [
+                "Unresolved model"
+              ]
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_engineering_needs_file_and_proven_verification",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "r",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "comfyui_workflow",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "workflow_ui_ref": {
+              "kind": "file",
+              "file_id": "01900000-0000-7000-8000-000000000001"
+            },
+            "dependency_lock_ref": {
+              "kind": "file",
+              "file_id": "01900000-0000-7000-8000-000000000001"
+            },
+            "input_bindings": [],
+            "verification": [
+              {
+                "check": "run",
+                "status": "passed",
+                "evidence_refs": [],
+                "note": "No evidence"
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_engineering_needs_file_and_proven_verification",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "r",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "comfyui_workflow",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "workflow_ui_ref": {
+              "kind": "file",
+              "file_id": "01900000-0000-7000-8000-000000000001"
+            },
+            "dependency_lock_ref": {
+              "kind": "file",
+              "file_id": "01900000-0000-7000-8000-000000000001"
+            },
+            "input_bindings": [],
+            "verification": [
+              {
+                "check": "run",
+                "status": "unverified",
+                "evidence_refs": [],
+                "note": "No evidence"
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_engineering_needs_file_and_proven_verification",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "r",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "comfyui_workflow",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "workflow_ui_ref": {
+              "kind": "result",
+              "key": "r"
+            },
+            "dependency_lock_ref": {
+              "kind": "file",
+              "file_id": "01900000-0000-7000-8000-000000000001"
+            },
+            "input_bindings": [],
+            "verification": [
+              {
+                "check": "run",
+                "status": "unverified",
+                "evidence_refs": [],
+                "note": "No evidence"
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_full_text_coverage_cannot_skip_lines",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [
+        {
+          "source_key": "s",
+          "dimension": "text",
+          "state": "complete",
+          "requested_scope": {
+            "kind": "lines",
+            "start_line": 1,
+            "end_line": 3
+          },
+          "covered_scopes": [
+            {
+              "kind": "lines",
+              "start_line": 1,
+              "end_line": 1
+            },
+            {
+              "kind": "lines",
+              "start_line": 3,
+              "end_line": 3
+            }
+          ],
+          "note": "Fixture"
+        }
+      ],
+      "sources": [
+        {
+          "key": "s",
+          "title": "Text",
+          "media_kind": "text",
+          "role": "original",
+          "acquisition_state": "ready",
+          "content": {
+            "kind": "inline",
+            "text": "a\nb\nc"
+          }
+        }
+      ],
+      "results": [],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_full_text_coverage_cannot_skip_lines",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [
+        {
+          "source_key": "s",
+          "dimension": "text",
+          "state": "complete",
+          "requested_scope": {
+            "kind": "lines",
+            "start_line": 1,
+            "end_line": 3
+          },
+          "covered_scopes": [
+            {
+              "kind": "lines",
+              "start_line": 1,
+              "end_line": 3
+            }
+          ],
+          "note": "Fixture"
+        }
+      ],
+      "sources": [
+        {
+          "key": "s",
+          "title": "Text",
+          "media_kind": "text",
+          "role": "original",
+          "acquisition_state": "ready",
+          "content": {
+            "kind": "inline",
+            "text": "a\nb\nc"
+          }
+        }
+      ],
+      "results": [],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_media_file_cannot_be_relabelled_as_other_domain",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "r",
+          "title": "Test fixture",
+          "domain": "sound",
+          "type_key": "file_asset",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "file_kind": "midi",
+            "files": [
+              {
+                "kind": "file",
+                "file_id": "01900000-0000-7000-8000-000000000001"
+              }
+            ],
+            "format": "midi",
+            "intended_use": "Edit",
+            "dependencies": [],
+            "verification": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_media_file_cannot_be_relabelled_as_other_domain",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "r",
+          "title": "Test fixture",
+          "domain": "music",
+          "type_key": "file_asset",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "file_kind": "midi",
+            "files": [
+              {
+                "kind": "file",
+                "file_id": "01900000-0000-7000-8000-000000000001"
+              }
+            ],
+            "format": "midi",
+            "intended_use": "Edit",
+            "dependencies": [],
+            "verification": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_method_requires_executable_data_flow_not_future_inputs",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "r",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_method_requires_executable_data_flow_not_future_inputs",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "r",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "future"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_method_requires_executable_data_flow_not_future_inputs",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "r",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": []
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_method_requires_executable_data_flow_not_future_inputs",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "r",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "unknown_type",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_model_label_is_not_model_compatibility",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "schema_checked",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_model_label_is_not_model_compatibility",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "schema_checked",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                },
+                "model_id": "real-id-from-catalog",
+                "capability_ref": {
+                  "kind": "file",
+                  "file_id": "01900000-0000-7000-8000-000000000001"
+                },
+                "capability_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_model_label_is_not_model_compatibility",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "reference_bindings": [],
+                "compatibility": "schema_checked",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                },
+                "model_id": "real-id-from-catalog",
+                "capability_ref": {
+                  "kind": "file",
+                  "file_id": "01900000-0000-7000-8000-000000000001"
+                },
+                "capability_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_module_cycles_and_research_without_corpus_are_rejected",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Test",
+            "modules": [
+              {
+                "key": "module",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [
+                  "module"
+                ]
+              }
+            ],
+            "coordination_rules": [],
+            "exceptions": [],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_module_cycles_and_research_without_corpus_are_rejected",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Test",
+            "modules": [
+              {
+                "key": "module",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": []
+              }
+            ],
+            "coordination_rules": [],
+            "exceptions": [],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_module_cycles_and_research_without_corpus_are_rejected",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [
+              "Research subject"
+            ],
+            "corpus_refs": [],
+            "scope_note": "Test",
+            "modules": [
+              {
+                "key": "module",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": []
+              }
+            ],
+            "coordination_rules": [],
+            "exceptions": [],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_module_cycles_and_research_without_corpus_are_rejected",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Test",
+            "modules": [
+              {
+                "key": "module",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": []
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Always",
+                "effect": "Apply",
+                "target_module_keys": [
+                  "missing"
+                ]
+              }
+            ],
+            "exceptions": [],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_observation_requires_evidence_and_valid_local_reference",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "observed",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_observation_requires_evidence_and_valid_local_reference",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "observed",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [
+            {
+              "key": "e",
+              "source_ref": {
+                "kind": "source",
+                "key": "s"
+              },
+              "locator": {
+                "kind": "whole"
+              },
+              "note": "Fixture observation"
+            }
+          ],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_observation_requires_evidence_and_valid_local_reference",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [
+        {
+          "key": "s",
+          "title": "Source",
+          "media_kind": "text",
+          "role": "original",
+          "acquisition_state": "ready",
+          "content": {
+            "kind": "inline",
+            "text": "Observed text"
+          }
+        }
+      ],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "observed",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [
+            {
+              "key": "e",
+              "source_ref": {
+                "kind": "source",
+                "key": "s"
+              },
+              "locator": {
+                "kind": "whole"
+              },
+              "note": "Fixture observation"
+            }
+          ],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_observation_requires_evidence_and_valid_local_reference",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [
+        {
+          "key": "s",
+          "title": "Source",
+          "media_kind": "text",
+          "role": "original",
+          "acquisition_state": "declared",
+          "content": {
+            "kind": "inline",
+            "text": "Observed text"
+          }
+        }
+      ],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "observed",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [
+            {
+              "key": "e",
+              "source_ref": {
+                "kind": "source",
+                "key": "s"
+              },
+              "locator": {
+                "kind": "whole"
+              },
+              "note": "Fixture observation"
+            }
+          ],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_opaque_model_parameters_are_not_local_refs",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                },
+                "parameters": {
+                  "kind": "file",
+                  "model_options": {
+                    "kind": "time"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_original_prompt_needs_no_project_or_source",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_original_prompt_needs_no_project_or_source",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": [],
+      "project_id": "01900000-0000-7000-8000-000000000001"
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_parent_cycle_duplicate_keys_and_dangling_file_rejected",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          },
+          "parent_key": "prompt1"
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_parent_cycle_duplicate_keys_and_dangling_file_rejected",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_parent_cycle_duplicate_keys_and_dangling_file_rejected",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [
+            {
+              "kind": "file",
+              "file_id": "01900000-0000-7000-8000-000000000001"
+            }
+          ],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_parent_cycle_duplicate_keys_and_dangling_file_rejected",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [
+            {
+              "kind": "file",
+              "file_id": "01900000-0000-7000-8000-000000000001"
+            }
+          ],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": [
+      "01900000-0000-7000-8000-000000000001"
+    ]
+  },
+  {
+    "case": "test_prompt_execution_needs_output_and_cannot_install_skills",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [
+                  {
+                    "run_ref": {
+                      "service_id": "video",
+                      "run_id": "native:123"
+                    },
+                    "model_id": "model",
+                    "route": "route",
+                    "prompt_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "input_refs": [],
+                    "output_refs": [],
+                    "state": "succeeded",
+                    "note": "Fixture"
+                  }
+                ],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_prompt_execution_needs_output_and_cannot_install_skills",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [
+                  {
+                    "run_ref": {
+                      "service_id": "video",
+                      "run_id": "native:123"
+                    },
+                    "model_id": "model",
+                    "route": "route",
+                    "prompt_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "input_refs": [],
+                    "output_refs": [],
+                    "state": "failed",
+                    "note": "Fixture"
+                  }
+                ],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_prompt_execution_needs_output_and_cannot_install_skills",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [
+                  {
+                    "run_ref": {
+                      "service_id": "video",
+                      "run_id": "native:123"
+                    },
+                    "model_id": "model",
+                    "route": "route",
+                    "prompt_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "input_refs": [],
+                    "output_refs": [],
+                    "state": "failed",
+                    "note": "Fixture"
+                  }
+                ],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                },
+                "install_skill": true
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_reference_variable_default_is_typed_and_resolved",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [
+              {
+                "key": "subject",
+                "value_type": "number",
+                "required": true,
+                "description": "Test",
+                "default": "not-a-number"
+              }
+            ],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_reference_variable_default_is_typed_and_resolved",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [
+              {
+                "key": "subject",
+                "value_type": "ref",
+                "required": true,
+                "description": "Test",
+                "default": {
+                  "kind": "result",
+                  "key": "missing"
+                }
+              }
+            ],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_unknown_type_or_wrong_domain_does_not_become_prompt",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "music",
+          "type_key": "prompt",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_unknown_type_or_wrong_domain_does_not_become_prompt",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "mystery",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_unknown_type_or_wrong_domain_does_not_become_prompt",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "prompt1",
+          "title": "过滤装置分镜提示",
+          "domain": "knowledge",
+          "type_key": "prompt",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "原创任务提示，模型身份待解析。",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "direct",
+              "purpose": "copy_prompt_text",
+              "availability": "ready",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "creative_intent": "将过滤路径讲清楚。",
+            "variables": [],
+            "variants": [
+              {
+                "key": "text",
+                "revision": 1,
+                "requested_label": "ChatGPT",
+                "task_type": "text_planning",
+                "input_mode": "text",
+                "prompt_text": "为透明过滤装置编排 8 秒分镜，明确左进右出和中部滤芯。",
+                "reference_bindings": [],
+                "compatibility": "unresolved",
+                "execution_evidence": [],
+                "quality_review": {
+                  "state": "unreviewed",
+                  "note": "尚未执行模型调用。"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_whole_scope_cannot_be_complete_from_sampled_frames",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [
+        {
+          "source_key": "s",
+          "dimension": "picture",
+          "state": "complete",
+          "requested_scope": {
+            "kind": "whole"
+          },
+          "covered_scopes": [
+            {
+              "kind": "time",
+              "start_tick": 0,
+              "end_tick": 30,
+              "timebase_num": 1,
+              "timebase_den": 30
+            }
+          ],
+          "note": "Sparse samples"
+        }
+      ],
+      "sources": [
+        {
+          "key": "s",
+          "title": "Source",
+          "media_kind": "video",
+          "role": "original",
+          "acquisition_state": "declared"
+        }
+      ],
+      "results": [],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  }
+]

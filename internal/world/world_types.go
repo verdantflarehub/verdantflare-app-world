@@ -12,26 +12,31 @@ import (
 )
 
 type AssetSource struct {
-	ProjectID    string `json:"project_id"`
-	RevisionID   string `json:"project_revision_id"`
-	Relation     string `json:"relation"`
-	ReviewFileID string `json:"review_file_id,omitempty"`
+	Kind            string `json:"kind,omitempty"`
+	DraftID         string `json:"draft_id,omitempty"`
+	DraftRevisionID string `json:"draft_revision_id,omitempty"`
+	ProjectID       string `json:"project_id,omitempty"`
+	RevisionID      string `json:"project_revision_id,omitempty"`
+	Relation        string `json:"relation"`
+	ReviewFileID    string `json:"review_file_id,omitempty"`
 }
 type AssetManifest struct {
-	SchemaVersion int                        `json:"schema_version"`
-	Kind          string                     `json:"kind"`
-	AssetID       string                     `json:"asset_id"`
-	Name          string                     `json:"name"`
-	AssetType     string                     `json:"asset_type"`
-	Subjects      []string                   `json:"subjects"`
-	Files         []File                     `json:"files"`
-	Source        AssetSource                `json:"source"`
-	DependsOn     []AssetRef                 `json:"depends_on"`
-	Extensions    map[string]json.RawMessage `json:"extensions,omitempty"`
+	DomainDocuments *[]DomainDocument          `json:"domain_documents,omitempty"`
+	SchemaVersion   int                        `json:"schema_version"`
+	Kind            string                     `json:"kind"`
+	AssetID         string                     `json:"asset_id"`
+	Name            string                     `json:"name"`
+	AssetType       string                     `json:"asset_type"`
+	Subjects        []string                   `json:"subjects"`
+	Files           []File                     `json:"files"`
+	Source          AssetSource                `json:"source"`
+	DependsOn       []AssetRef                 `json:"depends_on"`
+	Extensions      map[string]json.RawMessage `json:"extensions,omitempty"`
 }
 type WorldRegisterRequest struct {
 	CommitID          string      `json:"commit_id"`
-	SourceProjectID   string      `json:"source_project_id"`
+	SourceProjectID   string      `json:"source_project_id,omitempty"`
+	SourceDraftID     string      `json:"source_draft_id,omitempty"`
 	SourceRevisionID  string      `json:"source_revision_id"`
 	FileIDs           []string    `json:"file_ids"`
 	Name              string      `json:"name"`
@@ -72,7 +77,7 @@ type WorldListResult struct {
 	NextCursor string          `json:"next_cursor"`
 }
 type WorldStatusRequest struct {
-	AssetID  string `json:"asset_id"`
+	AssetID  string `json:"asset_id,omitempty"`
 	CommitID string `json:"commit_id"`
 }
 type WorldStatus struct {
@@ -120,11 +125,21 @@ type worldPlan struct {
 }
 
 func (m AssetManifest) Validate() error {
-	if m.SchemaVersion != 1 || m.Kind != "asset-version" || !ValidID(m.AssetID) || !validText(m.Name) || !tokenPattern.MatchString(m.AssetType) || m.Subjects == nil || m.DependsOn == nil || len(m.DependsOn) > MaxFiles || len(m.Subjects) > 256 || len(m.Files) == 0 || len(m.Files) > MaxFiles {
+	if (m.SchemaVersion != 1 && m.SchemaVersion != 2) || m.Kind != "asset-version" || !ValidID(m.AssetID) || !validText(m.Name) || !tokenPattern.MatchString(m.AssetType) || m.Subjects == nil || m.DependsOn == nil || len(m.DependsOn) > MaxFiles || len(m.Subjects) > 256 || len(m.Files) == 0 || len(m.Files) > MaxFiles {
 		return ErrInvalid
 	}
-	if !ValidID(m.Source.ProjectID) || !ValidID(m.Source.RevisionID) || (m.Source.Relation != "produced_in" && m.Source.Relation != "curated_in") || (m.Source.ReviewFileID != "" && !ValidID(m.Source.ReviewFileID)) {
+	if (m.Source.Relation != "produced_in" && m.Source.Relation != "curated_in") || (m.Source.ReviewFileID != "" && !ValidID(m.Source.ReviewFileID)) {
 		return ErrInvalid
+	}
+	switch m.SchemaVersion {
+	case 1:
+		if !ValidID(m.Source.ProjectID) || !ValidID(m.Source.RevisionID) || m.Source.Kind != "" || m.Source.DraftID != "" || m.Source.DraftRevisionID != "" || m.DomainDocuments != nil {
+			return ErrInvalid
+		}
+	case 2:
+		if m.Source.Kind != "world_draft" || !ValidID(m.Source.DraftID) || !ValidID(m.Source.DraftRevisionID) || m.Source.ProjectID != "" || m.Source.RevisionID != "" || m.DomainDocuments == nil || *m.DomainDocuments == nil || len(*m.DomainDocuments) > 256 {
+			return ErrInvalid
+		}
 	}
 	subjects := map[string]bool{}
 	for _, v := range m.Subjects {
@@ -141,6 +156,15 @@ func (m AssetManifest) Validate() error {
 		}
 		ids[f.ID] = true
 		paths[key] = true
+	}
+	if m.DomainDocuments != nil {
+		docs := map[string]bool{}
+		for _, d := range *m.DomainDocuments {
+			if !ids[d.FileID] || !tokenPattern.MatchString(d.Type) || docs[d.Type] {
+				return ErrInvalid
+			}
+			docs[d.Type] = true
+		}
 	}
 	seen := map[AssetRef]bool{}
 	for _, a := range m.DependsOn {

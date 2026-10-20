@@ -28,7 +28,7 @@ export function createReadClient(sdk: AppSDK, domain: 'project' | 'world') {
     const routes: Record<string, string> = domain === 'project'
       ? { 'project.list': '/api/v1/project/list', 'project.open': '/api/v1/project/open' }
       : { 'world.list': '/api/v1/world/list', 'world.get': '/api/v1/world/get' }
-    const artifact = domain === 'project' && name === 'artifact.read'
+    const artifact = name === 'artifact.read'
     if (!artifact && !Object.hasOwn(routes, name)) throw new Error('当前页面不支持此操作。')
     if (artifact && !['text', 'metadata', 'download'].includes(String(args.mode))) throw new Error('内容读取方式无效。')
     for (const key of ['organization_id', 'subject_id', 'user_id', 'token', 'endpoint']) {

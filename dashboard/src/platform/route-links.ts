@@ -31,8 +31,9 @@ export function canonicalRoute(domain: Domain, path: string): string {
     if (files) url.pathname = uuid.test(url.searchParams.get('project') || '') ? '/workspace' : '/projects'
     else if (url.pathname === '/') url.pathname = '/projects'
   } else {
-    if (!['/', '/world', '/projects', '/publish'].includes(url.pathname) || (mode && mode !== 'world') || (url.pathname === '/projects' && mode !== 'world')) invalid()
-    if (url.pathname !== '/publish') url.pathname = '/'
+    const collectionDetail = url.pathname.startsWith('/collections/') && uuid.test(url.pathname.slice('/collections/'.length))
+    if ((!['/', '/world', '/projects', '/publish', '/collections', '/learn'].includes(url.pathname) && !collectionDetail) || (mode && mode !== 'world') || (url.pathname === '/projects' && mode !== 'world')) invalid()
+    if (['/', '/world', '/projects'].includes(url.pathname)) url.pathname = '/'
   }
   url.searchParams.delete('mode')
   if (files) url.searchParams.delete('view')
