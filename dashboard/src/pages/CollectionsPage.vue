@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
-import WorldLinks from '../components/WorldLinks.vue'
+import WorldBreadcrumb from '../components/WorldBreadcrumb.vue'
 import { useHost } from '../platform/host'
 import { createDraftAPI, draftError } from '../platform/draft-client'
 import { createCollectionSave } from '../platform/collection-save'
@@ -112,7 +112,7 @@ onBeforeUnmount(()=>{savePosition();alive=false;generation++;api.dispose();saver
 </script>
 <template>
 <main class="main"><div class="workspace">
-  <WorldLinks />
+  <WorldBreadcrumb />
   <RouterLink v-if="detail" class="back-link" :to="listPath">← 返回收录内容</RouterLink>
   <header class="heading"><div class="heading-left"><div class="eyebrow">WORLD · COLLECTION</div><h1>{{ detail ? selected?.manifest.name || '收录详情' : '收录内容' }}</h1><p>{{detail?'保存来源和想法，需要时再拆解或整理为资产。':'看到值得留下的内容就收录。独立于项目，也不会混入成果资产。'}}</p></div><div class="actions"><button class="btn" :disabled="loading" @click="load()">刷新</button><button class="btn primary" @click="capture()">收录内容</button></div></header>
   <section v-if="pending" class="notice"><div><strong>有一份保存等待确认</strong><p>{{pending.form.name}} · 保留原操作，不会重复新建。</p></div><button class="btn" @click="capture()">{{pending.failure?'核对未保存内容':'恢复保存'}}</button></section>

@@ -26,8 +26,15 @@ export function metadata(appId, version, entries) {
     optionalCapabilities: appId === 'project' ? ['artifact.read', 'navigation.openApp'] : ['artifact.read', 'artifact.write', 'navigation.openApp'],
     appApiPolicyRef: appId === 'project' ? 'project-dashboard-v1' : 'world-learning-v1', keepAlive: true,
   } }))
-  const navigation = Buffer.from(JSON.stringify({ schemaVersion: 1, appId, appVersion: version, artifactDigest: 'sha256:' + hash(index), entry: {
-    entryId: 'main', title: appId === 'project' ? '项目' : '数字世界', iconRef: appId === 'project' ? 'folder' : 'globe', route: '/', accessRuleRef: appId + '-read',
+  const children = appId === 'world' ? [
+    ['overview', '资产总览', '/'],
+    ['character', '人物', '/character'], ['scene', '场景', '/scene'],
+    ['sound', '声音', '/sound'], ['music', '音乐', '/music'],
+    ['shot', '镜头', '/shot'], ['script', '剧本', '/script'], ['knowledge', '知识', '/knowledge'],
+    ['collections', '收录内容', '/collections'], ['learn', '拆解作品', '/learn'],
+  ].map(([entryId, title, route], order) => ({ entryId, title, route, accessRuleRef: 'world-read', order })) : undefined
+  const navigation = Buffer.from(JSON.stringify({ schemaVersion: children ? 2 : 1, appId, appVersion: version, artifactDigest: 'sha256:' + hash(index), entry: {
+    entryId: 'main', title: appId === 'project' ? '项目' : '数字世界', iconRef: appId === 'project' ? 'folder' : 'globe', route: '/', accessRuleRef: appId + '-read', ...(children ? { children } : {}),
   } }))
   return { index, declaration, navigation }
 }

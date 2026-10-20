@@ -1,2 +1,0 @@
-<template><nav class="world-links" aria-label="数字世界"><RouterLink to="/">资产总览</RouterLink><RouterLink to="/collections">收录内容</RouterLink><RouterLink to="/learn">拆解作品</RouterLink></nav></template>
-<style scoped>.world-links{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}.world-links a{padding:7px 12px;border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--muted)}.world-links a.router-link-exact-active{color:var(--accent);border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}</style>

@@ -36,3 +36,22 @@ test('navigation binds the same app release and digest without entering the fron
     assert.equal(Object.hasOwn(JSON.parse(result.index.toString()).files, 'navigation-declaration.json'), false)
   }
 })
+test('World publishes the approved sidebar with an explicit overview and authorized pure paths', async () => {
+  const navigation = JSON.parse(metadata('world', '0.1.10', fixture()).navigation.toString())
+  assert.equal(navigation.schemaVersion, 2)
+  assert.deepEqual(navigation.entry.children.map(({ title, route }) => [title, route]), [
+    ['资产总览', '/'], ['人物', '/character'], ['场景', '/scene'], ['声音', '/sound'],
+    ['音乐', '/music'], ['镜头', '/shot'], ['剧本', '/script'], ['知识', '/knowledge'],
+    ['收录内容', '/collections'], ['拆解作品', '/learn'],
+  ])
+  const { canonicalRoute } = await import('../src/platform/route-links.ts')
+  for (const [order, child] of navigation.entry.children.entries()) {
+    assert.equal(child.accessRuleRef, navigation.entry.accessRuleRef)
+    assert.equal(child.order, order)
+    assert.equal(canonicalRoute('world', child.route), child.route)
+  }
+  assert.equal(new Set(navigation.entry.children.map(child => child.entryId)).size, 10)
+  const project = JSON.parse(metadata('project', '0.1.10', fixture()).navigation.toString())
+  assert.equal(project.schemaVersion, 1)
+  assert.equal(Object.hasOwn(project.entry, 'children'), false)
+})
