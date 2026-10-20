@@ -152,6 +152,9 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 		}
 	}
 	if options.typed {
+		if _, err := svc.AnalysisLearningDocument(ctx, p, task.TaskID); err == nil {
+			t.Fatal("learning document available before typed results")
+		}
 		if options.failPrompts {
 			if err := svc.PrepareAnalysisResults(ctx, p, bundle.TaskID, true); err == nil {
 				t.Fatal("results started after prompt failure")
@@ -160,10 +163,19 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 			t.Run("result failure stops spending", func(t *testing.T) { verifyResultFailure(t, svc, p, bundle) })
 		} else {
 			t.Run("persistent typed results", func(t *testing.T) { verifyResultExecution(t, svc, p, bundle) })
+			t.Run("trusted learning assembly", func(t *testing.T) { verifyAnalysisLearningAssembly(t, svc, p, bundle) })
+		}
+		if options.failPrompts || options.failResults {
+			if _, err := svc.AnalysisLearningDocument(ctx, p, task.TaskID); err == nil {
+				t.Fatal("failed batch promoted to learning document")
+			}
 		}
 	}
 	for _, actor := range []Principal{{}, {newID(), p.SubjectID, newID()}, {p.OrganizationID, newID(), newID()}} {
 		if options.typed {
+			if _, err := svc.AnalysisLearningDocument(ctx, actor, task.TaskID); err == nil {
+				t.Fatal("foreign learning document read")
+			}
 			if err := svc.PrepareAnalysisResults(ctx, actor, task.TaskID, true); err == nil {
 				t.Fatal("foreign result preparation")
 			}
@@ -205,6 +217,9 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 		}
 	}
 	if options.typed {
+		if _, err := svc.AnalysisLearningDocument(ctx, p, task.TaskID); err == nil {
+			t.Fatal("revoked learning source still readable")
+		}
 		if _, err := svc.AnalysisResultDrafts(ctx, p, task.TaskID); err == nil {
 			t.Fatal("revoked results readable")
 		}

@@ -61,10 +61,12 @@ func (s *Service) checkLearningBindings(ctx context.Context, p Principal, doc Le
 			return learningError("references", "fixed reference is absent from manifest source_refs")
 		}
 	}
-	// The native task resolver is not connected yet. Imported execution statements
-	// may be retained as source external_declaration, not as verified native runs.
+	// Only a fully reconstructed, currently authorized World analysis document
+	// may claim native provenance. Other execution statements remain untrusted.
 	if len(doc.RunRefs) > 0 {
-		return ErrNotReady
+		if err := s.checkAnalysisLearning(ctx, p, doc); err != nil {
+			return err
+		}
 	}
 	for _, r := range doc.Results {
 		if str(r["type_key"]) != "creative_system" {
