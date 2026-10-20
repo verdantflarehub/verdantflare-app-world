@@ -8,6 +8,7 @@ import { publicationIdentity } from '../platform/publication-client'
 import { isID } from '../platform/world-model'
 import { createAnalysisSubmission, readAvailability, readTask, promptTargets, taskLabel, shouldPoll, type AnalysisTask, type AnalysisAvailability } from '../platform/analysis-task'
 import { readLearningResults, type LearningDocument } from '../platform/learning-results'
+import { sampleContentPath, readSampleBytes } from '../platform/prompt-samples'
 import AnalysisResults from '../components/AnalysisResults.vue'
 const { appSDK }=useHost(),api=createDraftAPI(appSDK),route=useRoute(),router=useRouter()
 const identity=publicationIdentity(appSDK.context.get())
@@ -70,9 +71,12 @@ async function loadTask(){
  if(t.learning?.state==='saved'&&t.learning.revision&&learningRevision.value?.revision_id!==t.learning.revision.revision_id){
  const d=t.learning.revision,entry=d.manifest.domain_documents.find(x=>x.document_type==='reference-learning'),f=d.manifest.files.find(x=>x.file_id===entry?.file_id)
  if(!f)throw Error('已保存记录中缺少学习正文。')
- const raw=object(await api.request({mode:'text',content_ref:f.content_ref,access:{world_draft_id:d.draft_id,world_draft_revision_id:d.revision_id}},'artifact.read')),v=object(raw.version)
- if(raw.mode!=='text'||typeof raw.text!=='string'||v.store_id!==f.content_ref.store_id||v.artifact_id!==f.content_ref.artifact_id||v.version_id!==f.content_ref.version_id)throw Error('学习正文与固定保存版本不一致。')
- const parsed=readLearningResults(raw.text);if(!live()||current!==taskGeneration)return
+ const raw=object(await api.request({mode:'download',content_ref:f.content_ref,access:{world_draft_id:d.draft_id,world_draft_revision_id:d.revision_id}},'artifact.read')),v=object(raw.version)
+ if(raw.mode!=='download'||v.store_id!==f.content_ref.store_id||v.artifact_id!==f.content_ref.artifact_id||v.version_id!==f.content_ref.version_id||typeof v.mime!=='string'||!Number.isSafeInteger(v.size)||Number(v.size)<0||typeof v.sha256!=='string'||!/^[a-f0-9]{64}$/.test(v.sha256))throw Error('学习正文与固定保存版本不一致。')
+ const ctrl=new AbortController(),stopAbort=appSDK.lifecycle.subscribe(e=>{if(e==='hidden'||e==='dispose')ctrl.abort()})
+ let text=''
+ try{text=await (await readSampleBytes({path:sampleContentPath(raw.content_path),mime:v.mime.split(';')[0].trim().toLowerCase(),size:Number(v.size),sha256:v.sha256},ctrl.signal)).text()}finally{stopAbort()}
+ const parsed=readLearningResults(text);if(!live()||current!==taskGeneration)return
  learning.value=parsed;learningRevision.value=d
  }
  if(shouldPoll(t))timer=setTimeout(()=>void loadTask(),5000)
