@@ -30,9 +30,20 @@ COPY --from=integration-build /out/world-integration.test /
 COPY --from=integration-build /out/world-migrations.test /
 COPY --from=integration-build /src/internal/world/testdata /testdata
 
+FROM debian:bookworm-slim AS media
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+# Keep the service distroless; copy only the actual tool dependency closure.
+RUN mkdir -p /runtime/usr/bin /runtime/usr/share/doc && \
+    cp /usr/bin/ffmpeg /usr/bin/ffprobe /runtime/usr/bin/ && \
+    ldd /usr/bin/ffmpeg /usr/bin/ffprobe | awk '/=> \// {print $3} $1 ~ /^\// {print $1}' | sort -u > /tmp/media-libraries && \
+    while IFS= read -r library; do cp -L --parents "$library" /runtime/; done < /tmp/media-libraries && \
+    cp -a /usr/share/doc/. /runtime/usr/share/doc/ && \
+    dpkg-query -W -f='${Package} ${Version}\n' > /runtime/usr/share/doc/world-media-packages.txt
+
 FROM gcr.io/distroless/static-debian12:nonroot
 ARG APP_VERSION
 LABEL org.opencontainers.image.version=$APP_VERSION
+COPY --from=media /runtime/ /
 COPY --from=build /out/world /app/world
 COPY --from=dashboard /src/dashboard/dist /app/dashboard
 ENV WORLD_LISTEN=0.0.0.0:8092

@@ -116,3 +116,26 @@ func (s PGStore) CompareAndSwap(ctx context.Context, old, next StepRecord) (bool
 	}
 	return tag.RowsAffected() == 1, nil
 }
+
+func (s PGStore) Task(ctx context.Context, org, owner, id string) (Task, error) {
+	t := Task{OrganizationID: org, OwnerID: owner, TaskID: id}
+	if s.DB == nil || !validUUID(org) || !validUUID(owner) || !validUUID(id) {
+		return t, ErrInvalid
+	}
+	var raw []byte
+	err := s.DB.QueryRow(ctx, `SELECT draft_id::text,revision_id::text,file_id::text,plan FROM studio.world_analysis_tasks WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, id).Scan(&t.DraftID, &t.RevisionID, &t.FileID, &raw)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return t, ErrMissing
+	}
+	if err != nil {
+		return t, err
+	}
+	if json.Unmarshal(raw, &t.Plan) != nil {
+		return t, ErrInvalid
+	}
+	expected, err := PlanVideo(t.Plan.Source)
+	if err != nil || canonicalHash(t.Plan) != canonicalHash(expected) {
+		return t, ErrInvalid
+	}
+	return t, nil
+}
