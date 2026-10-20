@@ -37,6 +37,11 @@ func TestReleaseProducerMetadataLoadsInRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Track the producer as a test-process input so Go invalidates its cache
+	// when only the external JavaScript release producer changes.
+	if _, err := os.ReadFile(producer); err != nil {
+		t.Fatal(err)
+	}
 	script := `import {pathToFileURL} from 'node:url';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
