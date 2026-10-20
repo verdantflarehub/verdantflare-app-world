@@ -5,7 +5,20 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
+
+func TestSchedulerLeaseCanIdentifyWorldRequest(t *testing.T) {
+	id, err := newLeaseID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, err := uuid.Parse(id)
+	if err != nil || u.Version() != 7 || u.Variant() != uuid.RFC4122 {
+		t.Fatal("lease cannot serve as a World request identity")
+	}
+}
 
 type memoryQueue struct {
 	work     Work

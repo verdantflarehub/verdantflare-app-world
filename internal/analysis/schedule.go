@@ -18,6 +18,16 @@ type Work struct {
 	ConsecutiveErrors                                 int
 }
 
+// A lease also identifies the internal World request; World uses UUID v7 for
+// every request identity. Do not relax the owner/source authorization boundary.
+func newLeaseID() (string, error) {
+	id, err := uuid.NewV7()
+	if err != nil {
+		return "", ErrUnavailable
+	}
+	return id.String(), nil
+}
+
 // Claim selects one task, then one step in its original plan. A task with a
 // failed observation cannot spend on new steps, but sent calls still recover.
 // No transaction/connection is held during media preparation or channel I/O.
@@ -26,8 +36,12 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
 	if s.DB == nil {
 		return w, ErrInvalid
 	}
-	w.LeaseID = uuid.NewString()
-	err := s.DB.QueryRow(ctx, `WITH candidate AS (
+	var err error
+	w.LeaseID, err = newLeaseID()
+	if err != nil {
+		return Work{}, err
+	}
+	err = s.DB.QueryRow(ctx, `WITH candidate AS (
  SELECT q.organization_id,q.owner_id,q.task_id,step.step_key
  FROM studio.world_analysis_schedule q
  JOIN studio.world_analysis_tasks t USING(organization_id,owner_id,task_id)
