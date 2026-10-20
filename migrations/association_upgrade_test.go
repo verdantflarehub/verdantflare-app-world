@@ -53,7 +53,7 @@ func TestAssociationUpgradePreservesObservationAndScheduleState(t *testing.T) {
 	if _, err = db.Exec(ctx, "INSERT INTO studio.world_schema_history VALUES(7,$1)", scheduleDigest()); err != nil {
 		t.Fatal(err)
 	}
-	const snapshot = `SELECT jsonb_build_object('tasks',(SELECT jsonb_agg(to_jsonb(t)) FROM studio.world_analysis_tasks t),'steps',(SELECT jsonb_agg(to_jsonb(s)) FROM studio.world_analysis_steps s),'schedule',(SELECT jsonb_agg(to_jsonb(q)) FROM studio.world_analysis_schedule q),'gate',(SELECT to_jsonb(g) FROM studio.world_handoff g),'history',(SELECT jsonb_agg(to_jsonb(h) ORDER BY version) FROM studio.world_schema_history h WHERE version<=7))::text`
+	const snapshot = `SELECT jsonb_build_object('tasks',(SELECT jsonb_agg(to_jsonb(t)-'prompt_targets') FROM studio.world_analysis_tasks t),'steps',(SELECT jsonb_agg(to_jsonb(s)) FROM studio.world_analysis_steps s),'schedule',(SELECT jsonb_agg(to_jsonb(q)) FROM studio.world_analysis_schedule q),'gate',(SELECT to_jsonb(g) FROM studio.world_handoff g),'history',(SELECT jsonb_agg(to_jsonb(h) ORDER BY version) FROM studio.world_schema_history h WHERE version<=7))::text`
 	var before, after string
 	if err = db.QueryRow(ctx, snapshot).Scan(&before); err != nil {
 		t.Fatal(err)

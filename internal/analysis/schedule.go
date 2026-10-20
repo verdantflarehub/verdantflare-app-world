@@ -63,6 +63,19 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
     SELECT 1 FROM jsonb_array_elements(t.plan->'steps') p(item)
     LEFT JOIN studio.world_analysis_steps s ON s.organization_id=q.organization_id AND s.owner_id=q.owner_id AND s.task_id=q.task_id AND s.step_key=p.item->>'key'
     WHERE s.state IS DISTINCT FROM 'observation_ready')
+  UNION ALL
+  SELECT 'prompts-prepare-v1',3,0::bigint
+  FROM studio.world_analysis_associations a
+  WHERE $1 AND a.organization_id=q.organization_id AND a.owner_id=q.owner_id AND a.task_id=q.task_id
+   AND a.state='association_ready' AND jsonb_array_length(t.prompt_targets)>0
+   AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_prompt_batches pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id)
+  UNION ALL
+  SELECT pb.batch_key,CASE WHEN pb.state='planned' THEN 4 ELSE 3 END,pb.batch_index::bigint
+  FROM studio.world_analysis_prompt_batches pb
+  WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id
+   AND (pb.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND pb.state='planned' AND NOT EXISTS(
+    SELECT 1 FROM studio.world_analysis_prompt_batches other WHERE other.organization_id=q.organization_id AND other.owner_id=q.owner_id AND other.task_id=q.task_id
+    AND other.state IN ('dispatching','running','acceptance_unknown','failed'))))
   ) picked ORDER BY picked.priority,picked.position LIMIT 1
  ) step
  WHERE q.next_attempt_at<=now() AND (q.lease_until IS NULL OR q.lease_until<=now())
@@ -195,6 +208,12 @@ type Progress struct {
 	Failed           int    `json:"failed"`
 	LastErrorCode    string `json:"last_error_code,omitempty"`
 	AssociationState string `json:"association_state,omitempty"`
+	PromptPlanned    int    `json:"prompt_planned"`
+	PromptRunning    int    `json:"prompt_running"`
+	PromptUnknown    int    `json:"prompt_acceptance_unknown"`
+	PromptReady      int    `json:"prompt_ready"`
+	PromptFailed     int    `json:"prompt_failed"`
+	PromptTotal      int    `json:"prompt_total"`
 }
 
 func (s PGStore) Progress(ctx context.Context, org, owner, task string) (Progress, error) {
@@ -221,9 +240,36 @@ func (s PGStore) Progress(ctx context.Context, org, owner, task string) (Progres
 	if associationErr == nil {
 		p.AssociationState = association.State
 	}
+	if len(t.PromptTargets) > 0 && p.AssociationState == "association_ready" {
+		records, err := s.PromptRecords(ctx, org, owner, task)
+		if err != nil && !errors.Is(err, ErrMissing) {
+			return p, err
+		}
+		for _, r := range records {
+			p.PromptTotal++
+			switch r.State {
+			case "planned":
+				p.PromptPlanned++
+			case "dispatching", "running":
+				p.PromptRunning++
+			case "acceptance_unknown":
+				p.PromptUnknown++
+			case "prompt_ready":
+				p.PromptReady++
+			case "failed":
+				p.PromptFailed++
+			}
+		}
+	}
 	switch {
-	case p.Failed > 0 || p.Unknown > 0 || p.LastErrorCode != "" || p.AssociationState == "failed" || p.AssociationState == "acceptance_unknown":
+	case p.Failed > 0 || p.Unknown > 0 || p.LastErrorCode != "" || p.AssociationState == "failed" || p.AssociationState == "acceptance_unknown" || p.PromptFailed > 0 || p.PromptUnknown > 0:
 		p.Stage = "needs_attention"
+	case p.PromptTotal > 0 && p.PromptReady == p.PromptTotal:
+		p.Stage = "prompts_ready"
+	case p.PromptTotal > 0:
+		p.Stage = "producing_prompts"
+	case p.AssociationState == "association_ready" && len(t.PromptTargets) > 0:
+		p.Stage = "preparing_prompts"
 	case p.AssociationState == "association_ready":
 		p.Stage = "associations_ready"
 	case p.AssociationState != "":

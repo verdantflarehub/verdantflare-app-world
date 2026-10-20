@@ -48,6 +48,13 @@ func startAnalysisWorker(ctx context.Context, db *pgxpool.Pool, svc *world.Servi
 				r, err := svc.AdvanceAnalysisAssociation(ctx, p, w.TaskID, cfg.channel, cfg.dispatch)
 				return r.State, err
 			}
+			if w.StepKey == analysis.PromptSetupStepKey {
+				return "prompts_planned", svc.PrepareAnalysisPrompts(ctx, p, w.TaskID, cfg.dispatch)
+			}
+			if analysis.IsPromptBatchKey(w.StepKey) {
+				r, err := svc.AdvanceAnalysisPrompt(ctx, p, w.TaskID, w.StepKey, cfg.channel, cfg.dispatch)
+				return r.State, err
+			}
 			r, err := svc.AdvanceAnalysisStep(ctx, p, w.TaskID, w.StepKey, analysis.Preparer{FFprobe: "/usr/bin/ffprobe", FFmpeg: "/usr/bin/ffmpeg"}, cfg.channel)
 			return r.State, err
 		},

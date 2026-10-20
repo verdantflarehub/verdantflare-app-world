@@ -17,7 +17,8 @@ import (
 
 // Actual PostgreSQL and World permission checks, with synthetic native output.
 // This is not a real model call or a completed learning asset.
-func TestAnalysisBundleFixedSourceAndCurrentPermission(t *testing.T) {
+func TestAnalysisBundleFixedSourceAndCurrentPermission(t *testing.T) { testAnalysisBundle(t, nil) }
+func testAnalysisBundle(t *testing.T, targets []analysis.PromptTarget, failPrompts ...bool) {
 	ctx := t.Context()
 	db := testdb.New(t)
 	if err := migrations.ApplyFresh(ctx, db, 1, 1); err != nil {
@@ -54,7 +55,7 @@ func TestAnalysisBundleFixedSourceAndCurrentPermission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	task := analysis.Task{OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: newID(), DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: fileID, Plan: plan}
+	task := analysis.Task{OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: newID(), DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: fileID, Plan: plan, PromptTargets: targets}
 	step := plan.Steps[0]
 	prepared := analysis.Prepared{SourceHash: hash, MediaHash: hash, MIME: "video/mp4", Range: step.Input}
 	request, err := analysis.Freeze(task.TaskID, "gemini-3.1-pro-preview", "", "1.00", step, prepared, 10)
@@ -129,6 +130,13 @@ func TestAnalysisBundleFixedSourceAndCurrentPermission(t *testing.T) {
 		t.Fatal("head edit changed fixed evidence", err)
 	}
 	t.Run("persistent association recovery", func(t *testing.T) { verifyAssociationExecution(t, svc, p, bundle) })
+	if len(targets) > 0 {
+		if len(failPrompts) > 0 && failPrompts[0] {
+			t.Run("failed prompt stops new spending", func(t *testing.T) { verifyPromptFailure(t, svc, p, bundle) })
+		} else {
+			t.Run("persistent prompt recovery", func(t *testing.T) { verifyPromptExecution(t, svc, p, bundle) })
+		}
+	}
 	for _, actor := range []Principal{{}, {newID(), p.SubjectID, newID()}, {p.OrganizationID, newID(), newID()}} {
 		b, err := svc.AnalysisBundle(ctx, actor, task.TaskID)
 		if err == nil || len(b.Nodes) > 0 {
@@ -136,6 +144,13 @@ func TestAnalysisBundleFixedSourceAndCurrentPermission(t *testing.T) {
 		}
 		if _, err := svc.AnalysisAssociation(ctx, actor, task.TaskID); err == nil {
 			t.Fatal("foreign association leaked")
+		}
+	}
+	if len(targets) > 0 {
+		for _, actor := range []Principal{{}, {newID(), p.SubjectID, newID()}, {p.OrganizationID, newID(), newID()}} {
+			if _, err := svc.AnalysisPromptDrafts(ctx, actor, task.TaskID); err == nil {
+				t.Fatal("foreign prompt content leaked")
+			}
 		}
 	}
 	// Re-read current Artifact authority; the stored pass flag cannot grant access.
@@ -147,6 +162,11 @@ func TestAnalysisBundleFixedSourceAndCurrentPermission(t *testing.T) {
 	}
 	if _, err := svc.AnalysisAssociation(ctx, p, task.TaskID); err == nil {
 		t.Fatal("revoked association still readable")
+	}
+	if len(targets) > 0 {
+		if _, err := svc.AnalysisPromptDrafts(ctx, p, task.TaskID); err == nil {
+			t.Fatal("revoked prompt source still readable")
+		}
 	}
 	version.OrganizationID = p.OrganizationID
 	version.SHA256 = strings.Repeat("b", 64)

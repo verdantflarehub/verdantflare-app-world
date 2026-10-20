@@ -122,7 +122,15 @@ func verifyAssociationExecution(t *testing.T, svc *Service, p Principal, b analy
 		t.Fatal("fixed association unreadable", err)
 	}
 	progress, err := store.Progress(ctx, p.OrganizationID, p.SubjectID, b.TaskID)
-	if err != nil || progress.Stage != "associations_ready" || progress.AssociationState != "association_ready" {
+	task, taskErr := store.Task(ctx, p.OrganizationID, p.SubjectID, b.TaskID)
+	if taskErr != nil {
+		t.Fatal(taskErr)
+	}
+	expectedStage := "associations_ready"
+	if len(task.PromptTargets) > 0 {
+		expectedStage = "preparing_prompts"
+	}
+	if err != nil || progress.Stage != expectedStage || progress.AssociationState != "association_ready" {
 		t.Fatal("phase progress", progress, err)
 	}
 	due()

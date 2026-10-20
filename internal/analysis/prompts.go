@@ -40,6 +40,36 @@ type PromptBatch struct {
 	Pairs           []PromptPair   `json:"pairs"`
 }
 
+func ValidatePromptTargets(targets []PromptTarget) error {
+	if len(targets) > 16 {
+		return ErrInvalid
+	}
+	seen := map[string]bool{}
+	for _, target := range targets {
+		if !groupKey.MatchString(target.Key) || seen[target.Key] || !nonblank(target.RequestedLabel, 256) || !nonblank(target.TaskType, 128) || !nonblank(target.InputMode, 128) || !nonblank(target.Guidance, 4096) || target.ModelID != "" && !identifier.MatchString(target.ModelID) {
+			return ErrInvalid
+		}
+		seen[target.Key] = true
+	}
+	return nil
+}
+
+// AllPromptScopes is the automatic whole-work selection. This is not a
+// representative sample; every associated entity, shot and voice is retained.
+func AllPromptScopes(a Association) []string {
+	keys := []string{"whole"}
+	for _, group := range a.Entities {
+		keys = append(keys, group.Kind+"."+group.Key)
+	}
+	for _, group := range a.Shots {
+		keys = append(keys, "shot."+group.Key)
+	}
+	for _, group := range a.Voices {
+		keys = append(keys, "voice."+group.Key)
+	}
+	return keys
+}
+
 func promptScopes(b Bundle, a Association) (map[string]PromptScope, error) {
 	raw, err := json.Marshal(a)
 	if err != nil {
