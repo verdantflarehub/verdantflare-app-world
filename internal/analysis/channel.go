@@ -158,6 +158,23 @@ func (c *GoogleChannel) SubmitPrompts(ctx context.Context, org string, f PromptR
 	}
 	return decodeCall(c.request(ctx, org, "POST", "/v1/calls", body))
 }
+
+// SubmitResults sends one frozen typed-result request. The caller must persist
+// sending intent first and recover an unknown response via the original key.
+func (c *GoogleChannel) SubmitResults(ctx context.Context, org string, f ResultRequest) (Call, error) {
+	if f.Validate() != nil {
+		return Call{}, ErrInvalid
+	}
+	request := map[string]any{"idempotency_key": f.OperationID, "task_id": f.TaskID, "model_id": f.ModelID, "capability": "analysis", "payload": f.Payload, "budget_limit": f.BudgetLimit}
+	if f.AccountID != "" {
+		request["account_id"] = f.AccountID
+	}
+	body, err := json.Marshal(request)
+	if err != nil {
+		return Call{}, ErrInvalid
+	}
+	return decodeCall(c.request(ctx, org, "POST", "/v1/calls", body))
+}
 func (c *GoogleChannel) Lookup(ctx context.Context, org, operation string) (Call, error) {
 	if !identifier.MatchString(operation) {
 		return Call{}, ErrInvalid
