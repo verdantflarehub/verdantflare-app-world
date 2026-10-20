@@ -3,7 +3,6 @@
 .env*
 **/node_modules
 **/dist
-**/*_test.go
 **/tests
 **/*.md
 .tmp
