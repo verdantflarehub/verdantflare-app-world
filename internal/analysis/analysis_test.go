@@ -130,7 +130,7 @@ func attested(t *testing.T, step Step, doc any) (Prepared, Receipt, []byte) {
 		t.Fatal(err)
 	}
 	digest := sha256.Sum256(data)
-	receipt := Receipt{CallID: "fc8b033d-78ca-4f49-a818-5d2802b5f94d", State: "completed", Accepted: true,
+	receipt := Receipt{CallID: "10000000-0000-4000-8000-000000000001", State: "completed", Accepted: true,
 		Integrity: true, SchemaVerified: true, MediaHash: prepared.MediaHash, MIME: prepared.MIME,
 		SchemaHash: schemaHash, OutputHash: hex.EncodeToString(digest[:])}
 	if step.Kind == "visual" {
@@ -258,5 +258,36 @@ func TestGenuineSilenceAndExplicitUnintelligibilityDoNotFabricateWords(t *testin
 		if report := Verify(step, p, receipt, data); !report.Passed {
 			t.Fatalf("valid qualified observation rejected: %+v", report)
 		}
+	}
+}
+
+func TestNativeResultMustMatchOriginalStepCallTaskModelAndText(t *testing.T) {
+	step := plan(t).Steps[0]
+	prepared, receipt, text := attested(t, step, visualFixture())
+	binding := Binding{CallID: receipt.CallID, TaskID: "synthetic-world-task", ModelID: "synthetic-model"}
+	fixture := func() map[string]any {
+		return map[string]any{"schema_version": 1, "call_id": binding.CallID, "task_id": binding.TaskID, "model_id": binding.ModelID,
+			"media": "analysis", "operation": "analyze", "state": "completed", "accepted": true,
+			"analysis": map[string]any{"model_id": binding.ModelID, "finish_reason": "STOP", "text": string(text), "document": json.RawMessage(text), "response_schema_verified": true,
+				"input": map[string]any{"media": map[string]any{"mime_type": prepared.MIME, "sha256": prepared.MediaHash}, "video_range": step.Input,
+					"provider_file_integrity_verified": true, "response_schema_sha256": receipt.SchemaHash}}}
+	}
+	data, _ := json.Marshal(fixture())
+	if report := VerifyNative(step, prepared, binding, data); !report.Passed {
+		t.Fatalf("valid synthetic native envelope: %+v", report)
+	}
+	for _, field := range []string{"call_id", "task_id", "model_id", "media", "operation"} {
+		value := fixture()
+		value[field] = "different"
+		data, _ := json.Marshal(value)
+		if report := VerifyNative(step, prepared, binding, data); report.Passed || !hasIssue(report, "native_binding_mismatch") {
+			t.Fatalf("accepted mismatched %s: %+v", field, report)
+		}
+	}
+	value := fixture()
+	value["analysis"].(map[string]any)["document"] = map[string]any{"different": "result"}
+	data, _ = json.Marshal(value)
+	if report := VerifyNative(step, prepared, binding, data); report.Passed || !hasIssue(report, "native_document_mismatch") {
+		t.Fatalf("native text/document mismatch accepted: %+v", report)
 	}
 }

@@ -13,7 +13,7 @@ import (
 
 func main() {
 	if len(os.Args) != 2 {
-		fail("usage: world-analysis-check plan|verify < input.json", 2)
+		fail("usage: world-analysis-check plan|verify|verify-native < input.json", 2)
 	}
 	var output any
 	switch os.Args[1] {
@@ -38,6 +38,22 @@ func main() {
 			Plan     analysis.Plan  `json:"plan"`
 			Payloads map[string]any `json:"payloads"`
 		}{plan, payloads}
+	case "verify-native":
+		var input struct {
+			Step     analysis.Step     `json:"step"`
+			Prepared analysis.Prepared `json:"prepared"`
+			Binding  analysis.Binding  `json:"binding"`
+			Result   json.RawMessage   `json:"result"`
+		}
+		if strictjson.Decode(os.Stdin, 8*1024*1024, &input) != nil {
+			fail("invalid native audit input", 2)
+		}
+		report := analysis.VerifyNative(input.Step, input.Prepared, input.Binding, input.Result)
+		write(report)
+		if !report.Passed {
+			os.Exit(1)
+		}
+		return
 	case "verify":
 		var input struct {
 			Step     analysis.Step     `json:"step"`
