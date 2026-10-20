@@ -141,6 +141,23 @@ func (c *GoogleChannel) SubmitAssociation(ctx context.Context, org string, f Ass
 	}
 	return decodeCall(c.request(ctx, org, "POST", "/v1/calls", body))
 }
+
+// SubmitPrompts has the same persist-before-send requirement as observations.
+// No retries or model selection happen inside this transport adapter.
+func (c *GoogleChannel) SubmitPrompts(ctx context.Context, org string, f PromptRequest) (Call, error) {
+	if f.Validate() != nil {
+		return Call{}, ErrInvalid
+	}
+	request := map[string]any{"idempotency_key": f.OperationID, "task_id": f.TaskID, "model_id": f.ModelID, "capability": "analysis", "payload": f.Payload, "budget_limit": f.BudgetLimit}
+	if f.AccountID != "" {
+		request["account_id"] = f.AccountID
+	}
+	body, err := json.Marshal(request)
+	if err != nil {
+		return Call{}, ErrInvalid
+	}
+	return decodeCall(c.request(ctx, org, "POST", "/v1/calls", body))
+}
 func (c *GoogleChannel) Lookup(ctx context.Context, org, operation string) (Call, error) {
 	if !identifier.MatchString(operation) {
 		return Call{}, ErrInvalid

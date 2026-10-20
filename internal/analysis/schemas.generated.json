@@ -855,5 +855,144 @@
       "uncertainties"
     ],
     "additionalProperties": false
+  },
+  "prompts": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "schema_version": {
+        "type": "integer",
+        "enum": [
+          1
+        ]
+      },
+      "batch_key": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scope_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "target_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "creative_intent": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "prompt_text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "adaptation_note": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "variables": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "required": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "key",
+                  "description",
+                  "required"
+                ]
+              },
+              "minItems": 0,
+              "maxItems": 128
+            },
+            "evidence_keys": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "minItems": 1,
+              "maxItems": 1000
+            },
+            "missing_inputs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              "minItems": 0,
+              "maxItems": 256
+            },
+            "uncertainties": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              "minItems": 0,
+              "maxItems": 256
+            },
+            "negative_prompt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            }
+          },
+          "required": [
+            "scope_key",
+            "target_key",
+            "title",
+            "creative_intent",
+            "prompt_text",
+            "adaptation_note",
+            "variables",
+            "evidence_keys",
+            "missing_inputs",
+            "uncertainties"
+          ]
+        },
+        "minItems": 1,
+        "maxItems": 8
+      }
+    },
+    "required": [
+      "schema_version",
+      "batch_key",
+      "items"
+    ]
   }
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -426,42 +425,10 @@ func VerifyAssociationNative(b Bundle, f AssociationRequest, callID string, data
 	if err != nil || hashBytes([]byte(text)) != f.TextHash {
 		return Association{}, ErrInvalid
 	}
-	clean, err := strictjson.ReadValue(bytes.NewReader(data), 8<<20)
-	if err != nil {
-		return Association{}, ErrInvalid
-	}
-	var result struct {
-		SchemaVersion int `json:"schema_version"`
-		Binding
-		Media     string `json:"media"`
-		Operation string `json:"operation"`
-		State     string `json:"state"`
-		Accepted  bool   `json:"accepted"`
-		Analysis  struct {
-			Text           string          `json:"text"`
-			Document       json.RawMessage `json:"document"`
-			ModelID        string          `json:"model_id"`
-			Finish         string          `json:"finish_reason"`
-			SchemaVerified bool            `json:"response_schema_verified"`
-			Input          struct {
-				TextHash   string          `json:"source_text_sha256"`
-				SchemaHash string          `json:"response_schema_sha256"`
-				Media      json.RawMessage `json:"media"`
-				Range      json.RawMessage `json:"video_range"`
-			} `json:"input"`
-		} `json:"analysis"`
-	}
-	if json.Unmarshal(clean, &result) != nil || result.SchemaVersion != 1 || result.Binding != (Binding{callID, f.TaskID, f.ModelID}) || result.Media != "analysis" || result.Operation != "analyze" || result.State != "completed" || !result.Accepted || result.Analysis.ModelID != f.ModelID || result.Analysis.Finish != "STOP" || !result.Analysis.SchemaVerified {
-		return Association{}, ErrInvalid
-	}
 	schema, _ := associationSchema()
-	input := result.Analysis.Input
-	if input.TextHash != f.TextHash || input.SchemaHash != canonicalHash(schema) || len(input.Media) > 0 && string(input.Media) != "null" || len(input.Range) > 0 && string(input.Range) != "null" {
-		return Association{}, ErrInvalid
+	raw, err := verifyTextNative(Binding{callID, f.TaskID, f.ModelID}, f.TextHash, schema, data)
+	if err != nil {
+		return Association{}, err
 	}
-	var original, document any
-	if json.Unmarshal([]byte(result.Analysis.Text), &original) != nil || json.Unmarshal(result.Analysis.Document, &document) != nil || !reflect.DeepEqual(original, document) {
-		return Association{}, ErrInvalid
-	}
-	return ValidateAssociation(b, []byte(result.Analysis.Text))
+	return ValidateAssociation(b, raw)
 }
