@@ -36,6 +36,11 @@ var associationSQL string
 //go:embed 0009_analysis_prompts.sql
 var promptsSQL string
 
+//go:embed 0010_analysis_results.sql
+var resultsSQL string
+
+func resultsDigest() string { s := sha256.Sum256([]byte(resultsSQL)); return hex.EncodeToString(s[:]) }
+
 func promptsDigest() string { s := sha256.Sum256([]byte(promptsSQL)); return hex.EncodeToString(s[:]) }
 
 func associationDigest() string {
@@ -75,7 +80,7 @@ func applyGate(ctx context.Context, tx pgx.Tx) error {
 	for _, step := range []struct {
 		version     int
 		sql, digest string
-	}{{2, gateSQL, gateDigest()}, {3, fenceSQL, fenceDigest()}, {4, draftSQL, draftDigest()}, {5, draftAssetSQL, draftAssetDigest()}, {6, analysisSQL, analysisDigest()}, {7, scheduleSQL, scheduleDigest()}, {8, associationSQL, associationDigest()}, {9, promptsSQL, promptsDigest()}} {
+	}{{2, gateSQL, gateDigest()}, {3, fenceSQL, fenceDigest()}, {4, draftSQL, draftDigest()}, {5, draftAssetSQL, draftAssetDigest()}, {6, analysisSQL, analysisDigest()}, {7, scheduleSQL, scheduleDigest()}, {8, associationSQL, associationDigest()}, {9, promptsSQL, promptsDigest()}, {10, resultsSQL, resultsDigest()}} {
 		var hash string
 		err := tx.QueryRow(ctx, "SELECT "+gateHashColumn+" FROM "+gateHistory+" WHERE version=$1", step.version).Scan(&hash)
 		if err == nil {
@@ -120,7 +125,7 @@ func UpgradeGates(ctx context.Context, db *pgxpool.Pool) error {
 	if err = tx.QueryRow(ctx, "SELECT count(*) FROM "+gateHistory).Scan(&count); err != nil {
 		return err
 	}
-	if count != 2 && count != 3 && count != 4 && count != 5 && count != 6 && count != 7 && count != 8 && count != 9 {
+	if count != 2 && count != 3 && count != 4 && count != 5 && count != 6 && count != 7 && count != 8 && count != 9 && count != 10 {
 		return errors.New("unsupported gate upgrade source")
 	}
 	var owner bool
@@ -146,7 +151,7 @@ func CheckGate(ctx context.Context, q gateQuery) error {
 	if e := q.QueryRow(ctx, "SELECT count(*) FROM "+gateHistory).Scan(&count); e != nil {
 		return e
 	}
-	if hash != gateDigest() || count != 9 {
+	if hash != gateDigest() || count != 10 {
 		return errors.New("handoff migration mismatch")
 	}
 	if e := q.QueryRow(ctx, "SELECT "+gateHashColumn+" FROM "+gateHistory+" WHERE version=3").Scan(&hash); e != nil {
@@ -191,6 +196,12 @@ func CheckGate(ctx context.Context, q gateQuery) error {
 	if hash != promptsDigest() {
 		return errors.New("analysis prompts migration mismatch")
 	}
+	if e := q.QueryRow(ctx, "SELECT "+gateHashColumn+" FROM "+gateHistory+" WHERE version=10").Scan(&hash); e != nil {
+		return e
+	}
+	if hash != resultsDigest() {
+		return errors.New("analysis results migration mismatch")
+	}
 	_, body, ok := strings.Cut(gateSQL, "SET search_path=pg_catalog AS $$")
 	if !ok {
 		return errors.New("invalid gate source")
@@ -234,7 +245,7 @@ func CheckGate(ctx context.Context, q gateQuery) error {
 	if !valid {
 		return errors.New("runtime readiness guard changed")
 	}
-	for _, match := range regexp.MustCompile(`ON studio\.([a-z_]+) FOR EACH STATEMENT`).FindAllStringSubmatch(gateSQL+"\n"+draftSQL+"\n"+analysisSQL+"\n"+scheduleSQL+"\n"+associationSQL+"\n"+promptsSQL, -1) {
+	for _, match := range regexp.MustCompile(`ON studio\.([a-z_]+) FOR EACH STATEMENT`).FindAllStringSubmatch(gateSQL+"\n"+draftSQL+"\n"+analysisSQL+"\n"+scheduleSQL+"\n"+associationSQL+"\n"+promptsSQL+"\n"+resultsSQL, -1) {
 		if e := q.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=$1::regclass AND tgname=$2 AND tgenabled='A' AND NOT tgisinternal AND tgtype=62 AND tgnargs=0 AND tgqual IS NULL AND tgfoid=$3::regprocedure)`, "studio."+match[1], gateDomain+"_handoff_gate", "studio."+gateDomain+"_check_writer()").Scan(&valid); e != nil {
 			return e
 		}
@@ -261,7 +272,7 @@ func ActivateFresh(ctx context.Context, db *pgxpool.Pool) error {
 	if !owner || !unused || (mode != "closed" && mode != "active") {
 		return errors.New("fresh activation denied")
 	}
-	for _, match := range regexp.MustCompile(`ON studio\.([a-z_]+) FOR EACH STATEMENT`).FindAllStringSubmatch(gateSQL+"\n"+draftSQL+"\n"+analysisSQL+"\n"+scheduleSQL+"\n"+associationSQL+"\n"+promptsSQL, -1) {
+	for _, match := range regexp.MustCompile(`ON studio\.([a-z_]+) FOR EACH STATEMENT`).FindAllStringSubmatch(gateSQL+"\n"+draftSQL+"\n"+analysisSQL+"\n"+scheduleSQL+"\n"+associationSQL+"\n"+promptsSQL+"\n"+resultsSQL, -1) {
 		var occupied bool
 		if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM studio."+match[1]+")").Scan(&occupied); e != nil {
 			return e

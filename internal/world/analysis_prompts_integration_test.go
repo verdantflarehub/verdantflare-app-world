@@ -64,6 +64,16 @@ func (c *promptChannelFixture) SubmitPrompts(_ context.Context, _ string, f anal
 func verifyPromptExecution(t *testing.T, svc *Service, p Principal, b analysis.Bundle) {
 	ctx := t.Context()
 	store := analysis.PGStore{DB: svc.db}
+	taskForResult, taskErr := store.Task(ctx, p.OrganizationID, p.SubjectID, b.TaskID)
+	if taskErr != nil {
+		t.Fatal(taskErr)
+	}
+	if taskForResult.IncludeTypedResults {
+		if e := svc.PrepareAnalysisResults(ctx, p, b.TaskID, true); e == nil {
+			t.Fatal("results before prompt prerequisites")
+		}
+	}
+
 	if err := svc.PrepareAnalysisPrompts(ctx, p, b.TaskID, false); !errors.Is(err, ErrNotReady) {
 		t.Fatal("disabled dispatch prepared new batches", err)
 	}
@@ -180,9 +190,14 @@ func verifyPromptExecution(t *testing.T, svc *Service, p Principal, b analysis.B
 		t.Fatal("complete candidates missing", len(drafts), err)
 	}
 	progress, err = store.Progress(ctx, p.OrganizationID, p.SubjectID, b.TaskID)
-	if err != nil || progress.PromptReady != 2 || progress.Stage != "prompts_ready" {
+	expectedStage := "prompts_ready"
+	if task.IncludeTypedResults {
+		expectedStage = "preparing_results"
+	}
+	if err != nil || progress.PromptReady != 2 || progress.Stage != expectedStage {
 		t.Fatal("complete candidate progress", progress, err)
 	}
+	worker.Dispatch = false
 	due()
 	if worked, e := worker.Tick(ctx); worked || e != nil || c.submits != 2 {
 		t.Fatal("completed batch repeated", e)

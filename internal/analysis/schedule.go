@@ -76,6 +76,22 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
    AND (pb.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND pb.state='planned' AND NOT EXISTS(
     SELECT 1 FROM studio.world_analysis_prompt_batches other WHERE other.organization_id=q.organization_id AND other.owner_id=q.owner_id AND other.task_id=q.task_id
     AND other.state IN ('dispatching','running','acceptance_unknown','failed'))))
+  UNION ALL
+  SELECT 'results-prepare-v1',5,0::bigint
+  FROM studio.world_analysis_associations a
+  WHERE $1 AND t.include_typed_results AND a.organization_id=q.organization_id AND a.owner_id=q.owner_id AND a.task_id=q.task_id
+   AND a.state='association_ready'
+   AND (jsonb_array_length(t.prompt_targets)=0 OR (
+    EXISTS(SELECT 1 FROM studio.world_analysis_prompt_batches pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id)
+    AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_prompt_batches pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id AND pb.state<>'prompt_ready')))
+   AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_result_batches rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id)
+  UNION ALL
+  SELECT rb.batch_key,CASE WHEN rb.state='planned' THEN 6 ELSE 5 END,rb.batch_index::bigint
+  FROM studio.world_analysis_result_batches rb
+  WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id
+   AND (rb.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND rb.state='planned' AND NOT EXISTS(
+    SELECT 1 FROM studio.world_analysis_result_batches other WHERE other.organization_id=q.organization_id AND other.owner_id=q.owner_id AND other.task_id=q.task_id
+    AND other.state IN ('dispatching','running','acceptance_unknown','failed'))))
   ) picked ORDER BY picked.priority,picked.position LIMIT 1
  ) step
  WHERE q.next_attempt_at<=now() AND (q.lease_until IS NULL OR q.lease_until<=now())
@@ -199,21 +215,28 @@ func (s Scheduler) Run(ctx context.Context, report func(error)) {
 }
 
 type Progress struct {
-	TaskID           string `json:"task_id"`
-	Stage            string `json:"stage"`
-	Planned          int    `json:"planned"`
-	Running          int    `json:"running"`
-	Unknown          int    `json:"acceptance_unknown"`
-	Ready            int    `json:"observation_ready"`
-	Failed           int    `json:"failed"`
-	LastErrorCode    string `json:"last_error_code,omitempty"`
-	AssociationState string `json:"association_state,omitempty"`
-	PromptPlanned    int    `json:"prompt_planned"`
-	PromptRunning    int    `json:"prompt_running"`
-	PromptUnknown    int    `json:"prompt_acceptance_unknown"`
-	PromptReady      int    `json:"prompt_ready"`
-	PromptFailed     int    `json:"prompt_failed"`
-	PromptTotal      int    `json:"prompt_total"`
+	TaskID             string `json:"task_id"`
+	Stage              string `json:"stage"`
+	Planned            int    `json:"planned"`
+	Running            int    `json:"running"`
+	Unknown            int    `json:"acceptance_unknown"`
+	Ready              int    `json:"observation_ready"`
+	Failed             int    `json:"failed"`
+	LastErrorCode      string `json:"last_error_code,omitempty"`
+	AssociationState   string `json:"association_state,omitempty"`
+	PromptPlanned      int    `json:"prompt_planned"`
+	PromptRunning      int    `json:"prompt_running"`
+	PromptUnknown      int    `json:"prompt_acceptance_unknown"`
+	PromptReady        int    `json:"prompt_ready"`
+	PromptFailed       int    `json:"prompt_failed"`
+	PromptTotal        int    `json:"prompt_total"`
+	ResultPlanned      int    `json:"result_planned"`
+	ResultRunning      int    `json:"result_running"`
+	ResultUnknown      int    `json:"result_acceptance_unknown"`
+	ResultReady        int    `json:"result_ready"`
+	ResultFailed       int    `json:"result_failed"`
+	ResultTotal        int    `json:"result_total"`
+	ResultInsufficient int    `json:"result_insufficient_evidence"`
 }
 
 func (s PGStore) Progress(ctx context.Context, org, owner, task string) (Progress, error) {
@@ -261,9 +284,53 @@ func (s PGStore) Progress(ctx context.Context, org, owner, task string) (Progres
 			}
 		}
 	}
+	if t.IncludeTypedResults && p.AssociationState == "association_ready" {
+		records, err := s.ResultRecords(ctx, org, owner, task)
+		if err != nil && !errors.Is(err, ErrMissing) {
+			return p, err
+		}
+		if len(records) > 0 {
+			b, a, _, err := s.resultContext(ctx, org, owner, task)
+			if err != nil {
+				return p, err
+			}
+			for _, r := range records {
+				p.ResultTotal++
+				switch r.State {
+				case "planned":
+					p.ResultPlanned++
+				case "dispatching", "running":
+					p.ResultRunning++
+				case "acceptance_unknown":
+					p.ResultUnknown++
+				case "failed":
+					p.ResultFailed++
+				case "result_ready":
+					drafts, err := ResultDraftsFromNative(b, a, r.Request, r.CallID, r.Result)
+					if err != nil {
+						return p, err
+					}
+					p.ResultReady++
+					for _, d := range drafts {
+						if d.State == "insufficient_evidence" {
+							p.ResultInsufficient++
+						}
+					}
+				}
+			}
+		}
+	}
 	switch {
-	case p.Failed > 0 || p.Unknown > 0 || p.LastErrorCode != "" || p.AssociationState == "failed" || p.AssociationState == "acceptance_unknown" || p.PromptFailed > 0 || p.PromptUnknown > 0:
+	case p.Failed > 0 || p.Unknown > 0 || p.LastErrorCode != "" || p.AssociationState == "failed" || p.AssociationState == "acceptance_unknown" || p.PromptFailed > 0 || p.PromptUnknown > 0 || p.ResultFailed > 0 || p.ResultUnknown > 0:
 		p.Stage = "needs_attention"
+	case p.ResultTotal > 0 && p.ResultReady == p.ResultTotal && p.ResultInsufficient > 0:
+		p.Stage = "results_need_evidence"
+	case p.ResultTotal > 0 && p.ResultReady == p.ResultTotal:
+		p.Stage = "results_ready"
+	case p.ResultTotal > 0:
+		p.Stage = "producing_results"
+	case t.IncludeTypedResults && p.AssociationState == "association_ready" && (len(t.PromptTargets) == 0 || p.PromptTotal > 0 && p.PromptReady == p.PromptTotal):
+		p.Stage = "preparing_results"
 	case p.PromptTotal > 0 && p.PromptReady == p.PromptTotal:
 		p.Stage = "prompts_ready"
 	case p.PromptTotal > 0:

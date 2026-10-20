@@ -12,14 +12,15 @@ import (
 // Task is created only by the World worker after source authorization, byte
 // verification and media probing. It cannot be created by untrusted MCP JSON.
 type Task struct {
-	OrganizationID string         `json:"organization_id"`
-	OwnerID        string         `json:"owner_id"`
-	TaskID         string         `json:"task_id"`
-	DraftID        string         `json:"draft_id"`
-	RevisionID     string         `json:"revision_id"`
-	FileID         string         `json:"file_id"`
-	Plan           Plan           `json:"plan"`
-	PromptTargets  []PromptTarget `json:"prompt_targets,omitempty"`
+	OrganizationID      string         `json:"organization_id"`
+	OwnerID             string         `json:"owner_id"`
+	TaskID              string         `json:"task_id"`
+	DraftID             string         `json:"draft_id"`
+	RevisionID          string         `json:"revision_id"`
+	FileID              string         `json:"file_id"`
+	Plan                Plan           `json:"plan"`
+	PromptTargets       []PromptTarget `json:"prompt_targets,omitempty"`
+	IncludeTypedResults bool           `json:"include_typed_results,omitempty"`
 }
 type PGStore struct{ DB *pgxpool.Pool }
 
@@ -75,7 +76,7 @@ func (s PGStore) Create(ctx context.Context, t Task, requests []FrozenRequest) e
 	if !authorized {
 		return ErrMissing
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO studio.world_analysis_tasks(organization_id,owner_id,task_id,draft_id,revision_id,file_id,request_sha256,plan,prompt_targets) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(organization_id,owner_id,task_id) DO NOTHING`, t.OrganizationID, t.OwnerID, t.TaskID, t.DraftID, t.RevisionID, t.FileID, digest, plan, targets)
+	_, err = tx.Exec(ctx, `INSERT INTO studio.world_analysis_tasks(organization_id,owner_id,task_id,draft_id,revision_id,file_id,request_sha256,plan,prompt_targets,include_typed_results) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(organization_id,owner_id,task_id) DO NOTHING`, t.OrganizationID, t.OwnerID, t.TaskID, t.DraftID, t.RevisionID, t.FileID, digest, plan, targets, t.IncludeTypedResults)
 	if err != nil {
 		return err
 	}
@@ -137,7 +138,7 @@ func (s PGStore) Task(ctx context.Context, org, owner, id string) (Task, error) 
 		return t, ErrInvalid
 	}
 	var raw, targets []byte
-	err := s.DB.QueryRow(ctx, `SELECT draft_id::text,revision_id::text,file_id::text,plan,prompt_targets FROM studio.world_analysis_tasks WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, id).Scan(&t.DraftID, &t.RevisionID, &t.FileID, &raw, &targets)
+	err := s.DB.QueryRow(ctx, `SELECT draft_id::text,revision_id::text,file_id::text,plan,prompt_targets,include_typed_results FROM studio.world_analysis_tasks WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, id).Scan(&t.DraftID, &t.RevisionID, &t.FileID, &raw, &targets, &t.IncludeTypedResults)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, ErrMissing
 	}

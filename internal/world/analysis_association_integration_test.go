@@ -127,6 +127,9 @@ func verifyAssociationExecution(t *testing.T, svc *Service, p Principal, b analy
 		t.Fatal(taskErr)
 	}
 	expectedStage := "associations_ready"
+	if task.IncludeTypedResults {
+		expectedStage = "preparing_results"
+	}
 	if len(task.PromptTargets) > 0 {
 		expectedStage = "preparing_prompts"
 	}

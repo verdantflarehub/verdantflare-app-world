@@ -19,6 +19,20 @@ import (
 // This is not a real model call or a completed learning asset.
 func TestAnalysisBundleFixedSourceAndCurrentPermission(t *testing.T) { testAnalysisBundle(t, nil) }
 func testAnalysisBundle(t *testing.T, targets []analysis.PromptTarget, failPrompts ...bool) {
+	options := bundleOptions{targets: targets}
+	if len(failPrompts) > 0 {
+		options.failPrompts = failPrompts[0]
+	}
+	testAnalysisBundleOptions(t, options)
+}
+
+type bundleOptions struct {
+	targets                         []analysis.PromptTarget
+	failPrompts, typed, failResults bool
+}
+
+func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
+	targets := options.targets
 	ctx := t.Context()
 	db := testdb.New(t)
 	if err := migrations.ApplyFresh(ctx, db, 1, 1); err != nil {
@@ -55,7 +69,7 @@ func testAnalysisBundle(t *testing.T, targets []analysis.PromptTarget, failPromp
 	if err != nil {
 		t.Fatal(err)
 	}
-	task := analysis.Task{OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: newID(), DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: fileID, Plan: plan, PromptTargets: targets}
+	task := analysis.Task{OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: newID(), DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: fileID, Plan: plan, PromptTargets: targets, IncludeTypedResults: options.typed}
 	step := plan.Steps[0]
 	prepared := analysis.Prepared{SourceHash: hash, MediaHash: hash, MIME: "video/mp4", Range: step.Input}
 	request, err := analysis.Freeze(task.TaskID, "gemini-3.1-pro-preview", "", "1.00", step, prepared, 10)
@@ -131,13 +145,35 @@ func testAnalysisBundle(t *testing.T, targets []analysis.PromptTarget, failPromp
 	}
 	t.Run("persistent association recovery", func(t *testing.T) { verifyAssociationExecution(t, svc, p, bundle) })
 	if len(targets) > 0 {
-		if len(failPrompts) > 0 && failPrompts[0] {
+		if options.failPrompts {
 			t.Run("failed prompt stops new spending", func(t *testing.T) { verifyPromptFailure(t, svc, p, bundle) })
 		} else {
 			t.Run("persistent prompt recovery", func(t *testing.T) { verifyPromptExecution(t, svc, p, bundle) })
 		}
 	}
+	if options.typed {
+		if options.failPrompts {
+			if err := svc.PrepareAnalysisResults(ctx, p, bundle.TaskID, true); err == nil {
+				t.Fatal("results started after prompt failure")
+			}
+		} else if options.failResults {
+			t.Run("result failure stops spending", func(t *testing.T) { verifyResultFailure(t, svc, p, bundle) })
+		} else {
+			t.Run("persistent typed results", func(t *testing.T) { verifyResultExecution(t, svc, p, bundle) })
+		}
+	}
 	for _, actor := range []Principal{{}, {newID(), p.SubjectID, newID()}, {p.OrganizationID, newID(), newID()}} {
+		if options.typed {
+			if err := svc.PrepareAnalysisResults(ctx, actor, task.TaskID, true); err == nil {
+				t.Fatal("foreign result preparation")
+			}
+			if _, err := svc.AnalysisResultDrafts(ctx, actor, task.TaskID); err == nil {
+				t.Fatal("foreign result read")
+			}
+			if _, err := svc.AdvanceAnalysisResult(ctx, actor, task.TaskID, "results-v1-shot-0000", &resultChannelFixture{}, true); err == nil {
+				t.Fatal("foreign result advance")
+			}
+		}
 		b, err := svc.AnalysisBundle(ctx, actor, task.TaskID)
 		if err == nil || len(b.Nodes) > 0 {
 			t.Fatal("foreign evidence leaked")
@@ -166,6 +202,14 @@ func testAnalysisBundle(t *testing.T, targets []analysis.PromptTarget, failPromp
 	if len(targets) > 0 {
 		if _, err := svc.AnalysisPromptDrafts(ctx, p, task.TaskID); err == nil {
 			t.Fatal("revoked prompt source still readable")
+		}
+	}
+	if options.typed {
+		if _, err := svc.AnalysisResultDrafts(ctx, p, task.TaskID); err == nil {
+			t.Fatal("revoked results readable")
+		}
+		if _, err := svc.AdvanceAnalysisResult(ctx, p, task.TaskID, "results-v1-shot-0000", &resultChannelFixture{}, true); err == nil {
+			t.Fatal("revoked result advance")
 		}
 	}
 	version.OrganizationID = p.OrganizationID
