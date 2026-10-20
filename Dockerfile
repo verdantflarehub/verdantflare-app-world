@@ -26,6 +26,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test -c -tags integration -o /out/w
 
 FROM scratch AS integration-artifact
 COPY --from=integration-build /out/world-integration.test /
+COPY --from=integration-build /src/internal/world/testdata /testdata
 
 FROM gcr.io/distroless/static-debian12:nonroot
 ARG APP_VERSION

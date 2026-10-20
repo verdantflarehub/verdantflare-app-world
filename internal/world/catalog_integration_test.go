@@ -18,6 +18,9 @@ func TestWorldCatalogFiltersAndIsolation(t *testing.T) {
 	if err := migrations.ApplyFresh(ctx, db, 1, 1); err != nil {
 		t.Fatal(err)
 	}
+	if err := migrations.ActivateFresh(ctx, db); err != nil {
+		t.Fatal(err)
+	}
 	svc := &Service{db: db}
 	p := Principal{testID(30), testID(31), testID(32)}
 	// Only query fixtures; no task completion or publication behavior is inferred.
