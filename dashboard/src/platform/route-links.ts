@@ -32,7 +32,7 @@ export function canonicalRoute(domain: Domain, path: string): string {
     else if (url.pathname === '/') url.pathname = '/projects'
   } else {
     const collectionDetail = url.pathname.startsWith('/collections/') && uuid.test(url.pathname.slice('/collections/'.length))
-    if ((!['/', '/world', '/projects', '/publish', '/collections', '/learn'].includes(url.pathname) && !collectionDetail) || (mode && mode !== 'world') || (url.pathname === '/projects' && mode !== 'world')) invalid()
+    if ((!['/', '/world', '/projects', '/publish', '/collections', '/learn', '/character', '/scene', '/sound', '/music', '/shot', '/script', '/knowledge'].includes(url.pathname) && !collectionDetail) || (mode && mode !== 'world') || (url.pathname === '/projects' && mode !== 'world')) invalid()
     if (['/', '/world', '/projects'].includes(url.pathname)) url.pathname = '/'
   }
   url.searchParams.delete('mode')

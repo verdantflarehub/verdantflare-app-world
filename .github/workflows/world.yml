@@ -65,6 +65,18 @@ jobs:
           cache-to: type=gha,mode=max,scope=world
           provenance: false
           sbom: false
+      - name: Export compiled integration checks for dev execution
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: integration-artifact
+          push: false
+          platforms: linux/amd64
+          outputs: type=local,dest=release/checks
+          build-args: APP_VERSION=${{ steps.image.outputs.version }}
+          cache-from: type=gha,scope=world
+          provenance: false
+          sbom: false
       - name: Record delivery identity
         env:
           APP_VERSION: ${{ steps.image.outputs.version }}

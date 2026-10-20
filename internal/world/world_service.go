@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/verdantflarehub/verdantflare-app-world/internal/coordination"
@@ -575,7 +576,11 @@ func (s *Service) WorldList(ctx context.Context, p Principal, r WorldListRequest
 	if r.Limit < 1 || r.Limit > 100 || (r.Cursor != "" && !ValidID(r.Cursor)) || (r.AssetType != "" && !tokenPattern.MatchString(r.AssetType)) || (r.Subject != "" && !validText(r.Subject)) {
 		return out, ErrInvalid
 	}
-	rows, e := s.db.Query(ctx, `SELECT a.asset_id::text,a.head_version_id::text,a.name,a.asset_type,a.subjects,a.created_at FROM studio.world_assets a JOIN studio.world_asset_grants g USING(organization_id,asset_id) WHERE a.organization_id=$1 AND g.subject_id=$2 AND a.head_version_id IS NOT NULL AND ($3='' OR a.asset_type=$3) AND ($4='' OR a.subjects ? $4) AND ($5='' OR a.asset_id>NULLIF($5,'')::uuid) ORDER BY a.asset_id LIMIT $6`, p.OrganizationID, p.SubjectID, r.AssetType, r.Subject, r.Cursor, r.Limit+1)
+	types, terms, e := worldCatalogFilters(r)
+	if e != nil {
+		return out, e
+	}
+	rows, e := s.db.Query(ctx, `SELECT a.asset_id::text,a.head_version_id::text,a.name,a.asset_type,a.subjects,a.created_at FROM studio.world_assets a JOIN studio.world_asset_grants g USING(organization_id,asset_id) JOIN studio.world_asset_versions v ON v.organization_id=a.organization_id AND v.asset_id=a.asset_id AND v.version_id=a.head_version_id WHERE a.organization_id=$1 AND g.subject_id=$2 AND a.head_version_id IS NOT NULL AND ($3='' OR a.asset_type=$3) AND ($4='' OR a.subjects ? $4) AND ($5='' OR a.asset_id>NULLIF($5,'')::uuid) AND (cardinality($7::text[])=0 OR a.asset_type=ANY($7::text[])) AND NOT EXISTS(SELECT 1 FROM unnest($8::text[]) term WHERE strpos(lower(a.name),lower(term))=0 AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements_text(a.subjects) tag WHERE strpos(lower(tag),lower(term))>0)) AND ($9='' OR v.manifest_json->'source'->>'relation'=$9) ORDER BY a.asset_id LIMIT $6`, p.OrganizationID, p.SubjectID, r.AssetType, r.Subject, r.Cursor, r.Limit+1, types, terms, r.Relation)
 	if e != nil {
 		return out, e
 	}
@@ -600,6 +605,32 @@ func (s *Service) WorldList(ctx context.Context, p Principal, r WorldListRequest
 		out.NextCursor = out.Items[len(out.Items)-1].AssetID
 	}
 	return out, nil
+}
+
+// Domain aliases preserve existing asset identities; unknown types remain
+// queryable by exact asset_type and in the unfiltered catalog.
+func worldCatalogFilters(r WorldListRequest) ([]string, []string, error) {
+	domains := map[string][]string{
+		"character": {"character", "character-image"}, "scene": {"scene"},
+		"sound": {"sound", "voice-model"}, "music": {"music", "music-work"},
+		"shot": {"shot", "video-project"}, "script": {"script"}, "knowledge": {"knowledge", "prompt"},
+	}
+	types := []string{}
+	if r.Domain != "" {
+		var ok bool
+		types, ok = domains[r.Domain]
+		if !ok {
+			return nil, nil, ErrInvalid
+		}
+	}
+	if r.Relation != "" && r.Relation != "curated_in" && r.Relation != "produced_in" {
+		return nil, nil, ErrInvalid
+	}
+	if r.Query != "" && !validText(r.Query) {
+		return nil, nil, ErrInvalid
+	}
+	terms := append([]string{}, strings.Fields(r.Query)...)
+	return types, terms, nil
 }
 func (s *Service) WorldCommitStatus(ctx context.Context, p Principal, r WorldStatusRequest) (WorldStatus, error) {
 	if !p.Valid() {

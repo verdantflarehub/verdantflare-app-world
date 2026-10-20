@@ -60,6 +60,9 @@ type WorldGetRequest struct {
 }
 type WorldListRequest struct {
 	AssetType string `json:"asset_type,omitempty"`
+	Domain    string `json:"domain,omitempty"`
+	Query     string `json:"q,omitempty"`
+	Relation  string `json:"relation,omitempty"`
 	Subject   string `json:"subject,omitempty"`
 	Cursor    string `json:"cursor,omitempty"`
 	Limit     int    `json:"limit,omitempty"`

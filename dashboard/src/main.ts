@@ -1,6 +1,7 @@
 import { createApp, h } from 'vue'
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 import Browser from './pages/WorldBrowser.vue'
+import { worldDomains } from './platform/world-catalog'
 import CollectionsPage from './pages/CollectionsPage.vue'
 import LearnPage from './pages/LearnPage.vue'
 import PublicationPage from './pages/PublicationPage.vue'
@@ -14,6 +15,7 @@ async function mount() {
   const { appSDK: sdk, dashboardHost: host } = connectHost('world')
   const router = createRouter({ history: createMemoryHistory(), routes: [
     { path: '/', component: Browser },
+    ...worldDomains.map(d=>({path:'/'+d.key,component:Browser})),
     { path: '/publish', component: PublicationPage },
     { path: '/collections', component: CollectionsPage },
     { path: '/collections/:draftId', component: CollectionsPage },

@@ -192,6 +192,30 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 100
+        },
+        "domain": {
+          "type": "string",
+          "enum": [
+            "character",
+            "scene",
+            "sound",
+            "music",
+            "shot",
+            "script",
+            "knowledge"
+          ]
+        },
+        "q": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "relation": {
+          "type": "string",
+          "enum": [
+            "curated_in",
+            "produced_in"
+          ]
         }
       }
     }
