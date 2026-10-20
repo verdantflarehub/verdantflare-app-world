@@ -27,7 +27,6 @@ export function metadata(appId, version, entries) {
     appApiPolicyRef: appId === 'project' ? 'project-dashboard-v1' : 'world-analysis-v1', keepAlive: true,
   } }))
   const children = appId === 'world' ? [
-    ['overview', '资产总览', '/'],
     ['character', '人物', '/character'], ['scene', '场景', '/scene'],
     ['sound', '声音', '/sound'], ['music', '音乐', '/music'],
     ['shot', '镜头', '/shot'], ['script', '剧本', '/script'], ['knowledge', '知识', '/knowledge'],
