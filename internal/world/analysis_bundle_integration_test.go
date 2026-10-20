@@ -128,10 +128,14 @@ func TestAnalysisBundleFixedSourceAndCurrentPermission(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(bundle, again) {
 		t.Fatal("head edit changed fixed evidence", err)
 	}
+	t.Run("persistent association recovery", func(t *testing.T) { verifyAssociationExecution(t, svc, p, bundle) })
 	for _, actor := range []Principal{{}, {newID(), p.SubjectID, newID()}, {p.OrganizationID, newID(), newID()}} {
 		b, err := svc.AnalysisBundle(ctx, actor, task.TaskID)
 		if err == nil || len(b.Nodes) > 0 {
 			t.Fatal("foreign evidence leaked")
+		}
+		if _, err := svc.AnalysisAssociation(ctx, actor, task.TaskID); err == nil {
+			t.Fatal("foreign association leaked")
 		}
 	}
 	// Re-read current Artifact authority; the stored pass flag cannot grant access.
@@ -140,6 +144,9 @@ func TestAnalysisBundleFixedSourceAndCurrentPermission(t *testing.T) {
 	content.versions[ref] = version
 	if b, err := svc.AnalysisBundle(ctx, p, task.TaskID); err == nil || len(b.Nodes) > 0 {
 		t.Fatal("revoked source still readable")
+	}
+	if _, err := svc.AnalysisAssociation(ctx, p, task.TaskID); err == nil {
+		t.Fatal("revoked association still readable")
 	}
 	version.OrganizationID = p.OrganizationID
 	version.SHA256 = strings.Repeat("b", 64)

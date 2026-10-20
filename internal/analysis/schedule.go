@@ -46,14 +46,24 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
  FROM studio.world_analysis_schedule q
  JOIN studio.world_analysis_tasks t USING(organization_id,owner_id,task_id)
  CROSS JOIN LATERAL (
-  SELECT s.step_key FROM jsonb_array_elements(t.plan->'steps') WITH ORDINALITY p(item,position)
+  SELECT picked.step_key FROM (
+  SELECT s.step_key,CASE WHEN s.state='planned' THEN 1 ELSE 0 END AS priority,p.position FROM jsonb_array_elements(t.plan->'steps') WITH ORDINALITY p(item,position)
   JOIN studio.world_analysis_steps s ON s.organization_id=q.organization_id AND s.owner_id=q.owner_id AND s.task_id=q.task_id AND s.step_key=p.item->>'key'
   WHERE s.state IN ('dispatching','running','acceptance_unknown') OR (
    $1 AND s.state='planned' AND NOT EXISTS (
     SELECT 1 FROM studio.world_analysis_steps other
     WHERE other.organization_id=q.organization_id AND other.owner_id=q.owner_id AND other.task_id=q.task_id
     AND other.state IN ('dispatching','running','acceptance_unknown','failed')))
-  ORDER BY CASE WHEN s.state='planned' THEN 1 ELSE 0 END,p.position LIMIT 1
+  UNION ALL
+  SELECT 'association-v1',2,0::bigint
+  FROM (SELECT 1) seed
+  LEFT JOIN studio.world_analysis_associations a ON a.organization_id=q.organization_id AND a.owner_id=q.owner_id AND a.task_id=q.task_id
+  WHERE (a.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND COALESCE(a.state,'planned')='planned'))
+   AND jsonb_array_length(t.plan->'steps')>0 AND NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(t.plan->'steps') p(item)
+    LEFT JOIN studio.world_analysis_steps s ON s.organization_id=q.organization_id AND s.owner_id=q.owner_id AND s.task_id=q.task_id AND s.step_key=p.item->>'key'
+    WHERE s.state IS DISTINCT FROM 'observation_ready')
+  ) picked ORDER BY picked.priority,picked.position LIMIT 1
  ) step
  WHERE q.next_attempt_at<=now() AND (q.lease_until IS NULL OR q.lease_until<=now())
  ORDER BY q.next_attempt_at,q.task_id FOR UPDATE OF q SKIP LOCKED LIMIT 1
@@ -106,14 +116,14 @@ type Queue interface {
 type Scheduler struct {
 	Queue    Queue
 	Dispatch bool
-	Advance  func(context.Context, Work) (StepRecord, error)
+	Advance  func(context.Context, Work) (string, error)
 }
 
-func outcome(r StepRecord, err error) string {
-	if r.State == "failed" {
+func outcome(state string, err error) string {
+	if state == "failed" {
 		return "step_failed"
 	}
-	if r.State == "acceptance_unknown" {
+	if state == "acceptance_unknown" {
 		return "acceptance_unknown"
 	}
 	if errors.Is(err, context.Canceled) {
@@ -176,14 +186,15 @@ func (s Scheduler) Run(ctx context.Context, report func(error)) {
 }
 
 type Progress struct {
-	TaskID        string `json:"task_id"`
-	Stage         string `json:"stage"`
-	Planned       int    `json:"planned"`
-	Running       int    `json:"running"`
-	Unknown       int    `json:"acceptance_unknown"`
-	Ready         int    `json:"observation_ready"`
-	Failed        int    `json:"failed"`
-	LastErrorCode string `json:"last_error_code,omitempty"`
+	TaskID           string `json:"task_id"`
+	Stage            string `json:"stage"`
+	Planned          int    `json:"planned"`
+	Running          int    `json:"running"`
+	Unknown          int    `json:"acceptance_unknown"`
+	Ready            int    `json:"observation_ready"`
+	Failed           int    `json:"failed"`
+	LastErrorCode    string `json:"last_error_code,omitempty"`
+	AssociationState string `json:"association_state,omitempty"`
 }
 
 func (s PGStore) Progress(ctx context.Context, org, owner, task string) (Progress, error) {
@@ -203,9 +214,20 @@ func (s PGStore) Progress(ctx context.Context, org, owner, task string) (Progres
 	if err != nil {
 		return p, err
 	}
+	association, associationErr := s.LoadAssociation(ctx, org, owner, task)
+	if associationErr != nil && !errors.Is(associationErr, ErrMissing) {
+		return p, associationErr
+	}
+	if associationErr == nil {
+		p.AssociationState = association.State
+	}
 	switch {
-	case p.Failed > 0 || p.Unknown > 0 || p.LastErrorCode != "":
+	case p.Failed > 0 || p.Unknown > 0 || p.LastErrorCode != "" || p.AssociationState == "failed" || p.AssociationState == "acceptance_unknown":
 		p.Stage = "needs_attention"
+	case p.AssociationState == "association_ready":
+		p.Stage = "associations_ready"
+	case p.AssociationState != "":
+		p.Stage = "associating"
 	case p.Ready == len(t.Plan.Steps):
 		p.Stage = "observations_ready"
 	case p.Running > 0 || p.Ready > 0:

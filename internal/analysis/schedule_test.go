@@ -43,13 +43,13 @@ func (q *memoryQueue) Release(ctx context.Context, w Work, code string) error {
 func TestSchedulerCancellationReleasesButDoesNotResubmit(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	q := &memoryQueue{}
-	s := Scheduler{Queue: q, Advance: func(ctx context.Context, w Work) (StepRecord, error) {
+	s := Scheduler{Queue: q, Advance: func(ctx context.Context, w Work) (string, error) {
 		d, ok := ctx.Deadline()
 		if !ok || time.Until(d) > StepTimeout {
 			t.Fatal("unbounded step")
 		}
 		cancel()
-		return StepRecord{State: "acceptance_unknown"}, ctx.Err()
+		return "acceptance_unknown", ctx.Err()
 	}}
 	worked, err := s.Tick(ctx)
 	if !worked || !errors.Is(err, context.Canceled) || !q.released || q.code != "acceptance_unknown" || q.dispatch {
@@ -61,9 +61,9 @@ func TestSchedulerCancellationReleasesButDoesNotResubmit(t *testing.T) {
 	}
 }
 func TestSchedulerMissingWorkDoesNotAdvance(t *testing.T) {
-	s := Scheduler{Queue: &memoryQueue{claimErr: ErrMissing}, Advance: func(context.Context, Work) (StepRecord, error) {
+	s := Scheduler{Queue: &memoryQueue{claimErr: ErrMissing}, Advance: func(context.Context, Work) (string, error) {
 		t.Fatal("advanced absent work")
-		return StepRecord{}, nil
+		return "", nil
 	}}
 	if worked, err := s.Tick(t.Context()); worked || err != nil {
 		t.Fatal(worked, err)
@@ -82,7 +82,7 @@ func TestSchedulerErrorSanitizationAndBoundedRetry(t *testing.T) {
 		{StepRecord{State: "observation_ready"}, nil, ""},
 	} {
 		q := &memoryQueue{}
-		s := Scheduler{Queue: q, Dispatch: true, Advance: func(context.Context, Work) (StepRecord, error) { return tc.record, tc.err }}
+		s := Scheduler{Queue: q, Dispatch: true, Advance: func(context.Context, Work) (string, error) { return tc.record.State, tc.err }}
 		_, _ = s.Tick(t.Context())
 		if q.code != tc.code || !q.dispatch {
 			t.Fatal("unsafe/wrong diagnostic", q.code)

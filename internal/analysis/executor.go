@@ -172,7 +172,10 @@ type Call struct {
 }
 
 func (c Call) valid(f FrozenRequest, callID string) bool {
-	if c.SchemaVersion != 1 || !validUUID(c.CallID) || c.TaskID != f.TaskID || c.ModelID != f.ModelID || c.Media != "analysis" || c.Operation != "analyze" || callID != "" && c.CallID != callID {
+	return c.matches(f.TaskID, f.ModelID, callID)
+}
+func (c Call) matches(task, model, callID string) bool {
+	if c.SchemaVersion != 1 || !validUUID(c.CallID) || c.TaskID != task || c.ModelID != model || c.Media != "analysis" || c.Operation != "analyze" || callID != "" && c.CallID != callID {
 		return false
 	}
 	switch c.State {

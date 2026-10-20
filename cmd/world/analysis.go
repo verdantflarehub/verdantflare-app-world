@@ -42,15 +42,20 @@ func startAnalysisWorker(ctx context.Context, db *pgxpool.Pool, svc *world.Servi
 	ctx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
 	worker := analysis.Scheduler{Queue: analysis.PGStore{DB: db}, Dispatch: cfg.dispatch,
-		Advance: func(ctx context.Context, w analysis.Work) (analysis.StepRecord, error) {
+		Advance: func(ctx context.Context, w analysis.Work) (string, error) {
 			p := world.Principal{OrganizationID: w.OrganizationID, SubjectID: w.OwnerID, RequestID: w.LeaseID}
-			return svc.AdvanceAnalysisStep(ctx, p, w.TaskID, w.StepKey, analysis.Preparer{FFprobe: "/usr/bin/ffprobe", FFmpeg: "/usr/bin/ffmpeg"}, cfg.channel)
+			if w.StepKey == analysis.AssociationStepKey {
+				r, err := svc.AdvanceAnalysisAssociation(ctx, p, w.TaskID, cfg.channel, cfg.dispatch)
+				return r.State, err
+			}
+			r, err := svc.AdvanceAnalysisStep(ctx, p, w.TaskID, w.StepKey, analysis.Preparer{FFprobe: "/usr/bin/ffprobe", FFmpeg: "/usr/bin/ffmpeg"}, cfg.channel)
+			return r.State, err
 		},
 	}
 	go func() {
 		defer close(done)
 		worker.Run(ctx, func(error) {
-			fmt.Fprintln(os.Stderr, "World observation scheduler deferred; inspect owner-scoped task state")
+			fmt.Fprintln(os.Stderr, "World analysis scheduler deferred; inspect owner-scoped task state")
 		})
 	}()
 	return func() { cancel(); <-done }

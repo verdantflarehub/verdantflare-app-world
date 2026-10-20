@@ -137,8 +137,9 @@ func TestAnalysisSchedulerLeasesRecoveryAndIsolation(t *testing.T) {
 	due(task.TaskID)
 	yes := true
 	channel := &observationChannel{call: analysis.Call{SchemaVersion: 1, Binding: analysis.Binding{CallID: newID(), TaskID: task.TaskID, ModelID: r.Request.ModelID}, Media: "analysis", Operation: "analyze", State: "queued", Accepted: &yes}}
-	worker := analysis.Scheduler{Queue: store, Advance: func(ctx context.Context, w analysis.Work) (analysis.StepRecord, error) {
-		return svc.AdvanceAnalysisStep(ctx, Principal{w.OrganizationID, w.OwnerID, w.LeaseID}, w.TaskID, w.StepKey, analysis.Preparer{FFprobe: "must-not-run", FFmpeg: "must-not-run"}, channel)
+	worker := analysis.Scheduler{Queue: store, Advance: func(ctx context.Context, w analysis.Work) (string, error) {
+		r, err := svc.AdvanceAnalysisStep(ctx, Principal{w.OrganizationID, w.OwnerID, w.LeaseID}, w.TaskID, w.StepKey, analysis.Preparer{FFprobe: "must-not-run", FFmpeg: "must-not-run"}, channel)
+		return r.State, err
 	}}
 	if worked, e := worker.Tick(ctx); e != nil || !worked || channel.submits != 0 || channel.lookups != 1 {
 		t.Fatal("restart resubmitted", e)
@@ -169,19 +170,19 @@ func TestAnalysisSchedulerLeasesRecoveryAndIsolation(t *testing.T) {
 	other := create()
 	// Ready observations here are synthetic state fixtures, not model evidence.
 	completed := 0
-	finish := analysis.Scheduler{Queue: store, Dispatch: true, Advance: func(ctx context.Context, w analysis.Work) (analysis.StepRecord, error) {
+	finish := analysis.Scheduler{Queue: store, Dispatch: true, Advance: func(ctx context.Context, w analysis.Work) (string, error) {
 		if w.TaskID != other.TaskID || w.StepKey != other.Plan.Steps[completed].Key {
 			t.Fatal("fairness or plan order lost")
 		}
 		r, e := store.Load(ctx, w.OrganizationID, w.OwnerID, w.TaskID, w.StepKey)
 		if e != nil {
-			return r, e
+			return r.State, e
 		}
 		n := r
 		n.State = "dispatching"
 		n.Revision++
 		if ok, e := store.CompareAndSwap(ctx, r, n); e != nil || !ok {
-			return r, analysis.ErrChanged
+			return r.State, analysis.ErrChanged
 		}
 		r = n
 		n.State = "observation_ready"
@@ -190,10 +191,10 @@ func TestAnalysisSchedulerLeasesRecoveryAndIsolation(t *testing.T) {
 		n.Result = json.RawMessage(`{"synthetic_scheduler_fixture":true}`)
 		n.Report = &analysis.Report{Passed: true, Issues: []analysis.Issue{}}
 		if ok, e := store.CompareAndSwap(ctx, r, n); e != nil || !ok {
-			return r, analysis.ErrChanged
+			return r.State, analysis.ErrChanged
 		}
 		completed++
-		return n, nil
+		return n.State, nil
 	}}
 	for range len(other.Plan.Steps) {
 		due(other.TaskID)
@@ -206,8 +207,15 @@ func TestAnalysisSchedulerLeasesRecoveryAndIsolation(t *testing.T) {
 		t.Fatal("observations not aggregated", progress, err)
 	}
 	due(other.TaskID)
-	if worked, e := finish.Tick(ctx); e != nil || worked {
-		t.Fatal("finished task repeated", e)
+	if _, e := store.Claim(ctx, false); !errors.Is(e, analysis.ErrMissing) {
+		t.Fatal("disabled dispatch created association", e)
+	}
+	associationWork, e := store.Claim(ctx, true)
+	if e != nil || associationWork.TaskID != other.TaskID || associationWork.StepKey != analysis.AssociationStepKey {
+		t.Fatal("association not scheduled", e)
+	}
+	if e = store.Release(ctx, associationWork, ""); e != nil {
+		t.Fatal(e)
 	}
 	// The new queue obeys the same writer ownership gate as business records.
 	if _, err = db.Exec(ctx, `UPDATE studio.world_handoff SET state='closed'`); err != nil {
