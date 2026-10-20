@@ -61,8 +61,16 @@ func TestAnalysisDesignatedVideoMediaPreparation(t *testing.T) {
 		t.Fatal("actual runtime probe", err)
 	}
 	defer material.Close()
+	probe, probeErr := exec.CommandContext(t.Context(), processor.FFprobe, "-v", "error", "-show_entries", "format=duration,start_time", "-of", "json", path).Output()
+	if probeErr != nil {
+		t.Fatal("raw source probe unavailable")
+	}
+	var rawProbe any
+	if json.Unmarshal(probe, &rawProbe) != nil {
+		t.Fatal("invalid raw source metadata")
+	}
 	info := material.Info()
-	if info.Source.DurationMS != 345002 || !info.Source.HasAudio {
+	if info.Source.DurationMS != 345003 || !info.Source.HasAudio {
 		t.Fatal("actual source metadata", info)
 	}
 	plan, err := analysis.PlanVideo(info.Source)
@@ -103,7 +111,7 @@ func TestAnalysisDesignatedVideoMediaPreparation(t *testing.T) {
 	if e != nil {
 		t.Fatal("tool version unavailable")
 	}
-	report, _ := json.Marshal(map[string]any{"scope": "media preparation only; no model inference or complete learning asset", "source": info, "steps": reports, "ffmpeg_version": strings.Split(string(version), "\n")[0], "staging_cleaned": true})
+	report, _ := json.Marshal(map[string]any{"scope": "media preparation only; no model inference or complete learning asset", "source": info, "raw_container_probe": rawProbe, "steps": reports, "ffmpeg_version": strings.Split(string(version), "\n")[0], "staging_cleaned": true})
 	t.Log("MEDIA_REPORT " + string(report))
 }
 func (a *draftTestArtifact) Download(ctx context.Context, p Principal, ref ContentRef, access Access, dst io.Writer, max int64) error {
