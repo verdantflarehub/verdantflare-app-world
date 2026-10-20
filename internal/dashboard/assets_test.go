@@ -145,3 +145,18 @@ func TestNavigationChildrenStayWithinWorldRoutesAndPermissions(t *testing.T) {
 		t.Fatal("duplicate navigation accepted")
 	}
 }
+
+// Offline release acceptance: load the exact downloaded Actions dashboard through
+// the same consumer as serve, without starting a service or a local container.
+func TestPublishedDashboardLoadsInRuntime(t *testing.T) {
+	root, version := os.Getenv("WORLD_DASHBOARD_RELEASE_CHECK_DIR"), os.Getenv("WORLD_DASHBOARD_RELEASE_CHECK_VERSION")
+	if root == "" && version == "" {
+		t.Skip("set release directory and version to check an Actions artifact")
+	}
+	if root == "" || version == "" {
+		t.Fatal("both release directory and version are required")
+	}
+	if _, err := Load(root, version); err != nil {
+		t.Fatalf("published Dashboard rejected: %v", err)
+	}
+}
