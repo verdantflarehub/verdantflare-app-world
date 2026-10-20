@@ -3,8 +3,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/verdantflarehub/verdantflare-app-world/internal/analysis"
@@ -39,13 +41,8 @@ func main() {
 			Payloads map[string]any `json:"payloads"`
 		}{plan, payloads}
 	case "verify-native":
-		var input struct {
-			Step     analysis.Step     `json:"step"`
-			Prepared analysis.Prepared `json:"prepared"`
-			Binding  analysis.Binding  `json:"binding"`
-			Result   json.RawMessage   `json:"result"`
-		}
-		if strictjson.Decode(os.Stdin, 8*1024*1024, &input) != nil {
+		input, err := readNativeInput(os.Stdin)
+		if err != nil {
 			fail("invalid native audit input", 2)
 		}
 		report := analysis.VerifyNative(input.Step, input.Prepared, input.Binding, input.Result)
@@ -74,6 +71,31 @@ func main() {
 		fail("unknown offline command", 2)
 	}
 	write(output)
+}
+
+type nativeInput struct {
+	Step     analysis.Step
+	Prepared analysis.Prepared
+	Binding  analysis.Binding
+	Result   json.RawMessage
+}
+
+func readNativeInput(reader io.Reader) (nativeInput, error) {
+	var input nativeInput
+	// Channel envelopes legitimately contain nullable prices/reasons. Keep that
+	// opaque body intact while enforcing exact fields for the local audit inputs.
+	data, err := strictjson.ReadValue(reader, 8*1024*1024)
+	var fields map[string]json.RawMessage
+	if err != nil || json.Unmarshal(data, &fields) != nil || len(fields) != 4 || fields["result"] == nil {
+		return input, strictjson.ErrInvalid
+	}
+	for key, target := range map[string]any{"step": &input.Step, "prepared": &input.Prepared, "binding": &input.Binding} {
+		if strictjson.Decode(bytes.NewReader(fields[key]), 65536, target) != nil {
+			return input, strictjson.ErrInvalid
+		}
+	}
+	input.Result = fields["result"]
+	return input, nil
 }
 
 func write(value any) {

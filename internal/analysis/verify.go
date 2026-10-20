@@ -33,7 +33,7 @@ type Receipt struct {
 	MIME           string `json:"mime"`
 	SchemaHash     string `json:"response_schema_sha256"`
 	OutputHash     string `json:"output_sha256"`
-	VideoRange     *Range `json:"video_range"`
+	VideoRange     *Range `json:"video_range,omitempty"`
 }
 
 type Issue struct {
