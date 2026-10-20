@@ -38,7 +38,7 @@ func (s PGStore) CreateSubmission(ctx context.Context, r Submission) error {
 		return ErrInvalid
 	}
 	_, err := s.DB.Exec(ctx, `INSERT INTO studio.world_analysis_requests(organization_id,owner_id,task_id,draft_id,revision_id,file_id,source_sha256,request_sha256,request)
- SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9 WHERE EXISTS(SELECT 1 FROM studio.world_drafts d JOIN studio.world_draft_revisions v USING(organization_id,draft_id) WHERE d.organization_id=$1 AND d.owner_id=$2 AND d.draft_id=$4 AND v.revision_id=$5 AND d.purpose='collection' AND EXISTS(SELECT 1 FROM jsonb_array_elements(v.manifest_json->'files') f WHERE f->>'file_id'=$6))
+ SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9 WHERE EXISTS(SELECT 1 FROM studio.world_drafts d JOIN studio.world_draft_revisions v USING(organization_id,draft_id) WHERE d.organization_id=$1 AND d.owner_id=$2 AND d.draft_id=$4 AND v.revision_id=$5 AND d.purpose='collection' AND EXISTS(SELECT 1 FROM jsonb_array_elements(v.manifest_json->'files') f WHERE f->>'file_id'=$6::uuid::text))
  ON CONFLICT(organization_id,owner_id,task_id) DO NOTHING`, r.OrganizationID, r.OwnerID, r.TaskID, r.DraftID, r.RevisionID, r.FileID, r.SourceHash, r.Hash, []byte(r.Request))
 	if err != nil {
 		return err
