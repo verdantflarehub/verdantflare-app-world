@@ -32,9 +32,9 @@ func MCPTools() []MCPTool {
 	return tools
 }
 
-// MCPHandler shares HTTP parsing, authority and persistent operations.
-func (s *Service) MCPHandler(token, authorityToken string) (http.Handler, error) {
-	h, e := s.HTTPHandler(token, authorityToken)
+// MCPHandler shares HTTP parsing and persistent operations.
+func (s *Service) MCPHandler(token string, _ ...string) (http.Handler, error) {
+	h, e := s.HTTPHandler(token)
 	if e != nil {
 		return nil, e
 	}

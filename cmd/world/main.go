@@ -69,10 +69,10 @@ func run(ctx context.Context, args []string) error {
 	if err = migrations.CheckRuntime(startup, db); err != nil {
 		return err
 	}
-	serviceToken, authorityToken := os.Getenv("WORLD_SERVICE_TOKEN"), os.Getenv("WORLD_AUTHORITY_TOKEN")
+	serviceToken := os.Getenv("WORLD_SERVICE_TOKEN")
 	worldCoord, projectCoord := os.Getenv("WORLD_COORD_TOKEN"), os.Getenv("PROJECT_COORD_TOKEN")
 	seen := map[string]bool{}
-	for _, token := range []string{serviceToken, authorityToken, worldCoord, projectCoord, os.Getenv("PROJECT_SERVICE_TOKEN"), os.Getenv("ARTIFACT_SERVICE_TOKEN")} {
+	for _, token := range []string{serviceToken, worldCoord, projectCoord, os.Getenv("PROJECT_SERVICE_TOKEN"), os.Getenv("ARTIFACT_SERVICE_TOKEN")} {
 		if len(token) < 32 || strings.ContainsAny(token, " \r\n\t") || seen[token] {
 			return errors.New("independent credentials required")
 		}
@@ -98,11 +98,11 @@ func run(ctx context.Context, args []string) error {
 	if err = engine.Store.Check(startup, map[string]int64{"project": pf, "world": wf}); err != nil {
 		return err
 	}
-	internal, err := svc.HTTPHandler(serviceToken, authorityToken)
+	internal, err := svc.HTTPHandler(serviceToken)
 	if err != nil {
 		return err
 	}
-	mcp, err := svc.MCPHandler(serviceToken, authorityToken)
+	mcp, err := svc.MCPHandler(serviceToken)
 	if err != nil {
 		return err
 	}

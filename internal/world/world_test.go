@@ -203,7 +203,7 @@ func TestWorldHTTPAndAuthorityRejectProjectOperations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"/internal/v1/project/list", "/api/v1/world/references", "/internal/v1/world/list?scope=foreign"} {
+	for _, path := range []string{"/internal/v1/artifact/authorize", "/internal/v1/project/list", "/api/v1/world/references", "/internal/v1/world/list?scope=foreign"} {
 		r := httptest.NewRequest("POST", path, strings.NewReader(`{}`))
 		r.Header.Set("Authorization", "Bearer "+token)
 		r.Header.Set("Content-Type", "application/json")

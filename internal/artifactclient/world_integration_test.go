@@ -226,18 +226,13 @@ func runWorldDraftAcrossArtifact(t *testing.T, withProject bool) {
 			t.Fatal(e)
 		}
 		service = s
-		a, e := s.AuthorityHandler(authorityToken)
-		if e != nil {
-			t.Fatal(e)
-		}
-		m, e := s.MCPHandler(worldToken, authorityToken)
+		m, e := s.MCPHandler(worldToken)
 		if e != nil {
 			t.Fatal(e)
 		}
 		mux := http.NewServeMux()
-		mux.Handle("/internal/v1/artifact/authorize", a)
 		mux.Handle("/mcp", m)
-		internal, e := s.HTTPHandler(worldToken, authorityToken)
+		internal, e := s.HTTPHandler(worldToken)
 		if e != nil {
 			t.Fatal(e)
 		}
