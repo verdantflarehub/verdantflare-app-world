@@ -35,7 +35,7 @@ void load()
 <template v-else><ResultBrowser :results="document.results" v-slot="{result}">
 <PromptResult v-if="result.type_key==='prompt'&&result.type_version===1" :result="result" :asset="asset" :document="document" @new-project="variant=>emit('new-project',result,variant)"/>
 <template v-else><p v-if="result.type_version!==1||!resultTypes[result.type_key]" class="notice">此成果的结构尚未适配，可在补充信息中查阅完整字段。</p><ResultFields :value="result.payload"/></template>
-<ResultContext :result="result"/>
+<ResultContext :result="result" :document="document"/>
 </ResultBrowser></template></template></section></template>
 <style scoped>
 .asset-results{margin:24px 0;color:var(--ink);min-width:0}header{margin-bottom:18px}h2{font-size:21px;margin:0 0 8px}header p{font-size:12px;color:var(--muted)}.state{padding:26px;border:1px dashed var(--line);border-radius:10px;color:var(--muted)}.error{color:var(--danger)}.notice{font-size:12px;color:var(--muted);margin-bottom:16px}

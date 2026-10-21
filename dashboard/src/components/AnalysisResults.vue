@@ -18,7 +18,7 @@ function config(r:LearningResult){return JSON.stringify({source:{world_draft_id:
 <div class="section-head"><p class="intro">{{result.basis_note}}</p><button class="btn" @click="copy(config(result))">复制成果与来源</button></div>
 <AnalysisPrompt v-if="result.type_key==='prompt'&&result.type_version===1" :result="result" @copy="copy"/>
 <ResultFields v-else :value="result.payload"/>
-<ResultContext :result="result"/>
+<ResultContext :result="result" :document="document"/>
 </ResultBrowser>
 <section v-if="copyText" aria-live="polite" class="copy"><p>{{copied?'已复制。':'可选中下方文本手动复制。'}}</p><details :open="!copied"><summary>查看复制内容</summary><textarea readonly :value="copyText" rows="5" aria-label="可复制的成果正文"/></details><button class="btn" @click="copyText=''">收起</button></section>
 <details class="coverage"><summary>已分析的范围与仍需补齐的内容</summary><ResultFields :value="document.coverage"/></details>

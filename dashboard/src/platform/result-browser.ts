@@ -18,9 +18,9 @@ export function useResultBrowser(results: () => LearningResult[]) {
   return { type, query, page, pages, visible, filtered, selected, index, active, move }
 }
 export function resultSummary(result: LearningResult): string {
-  for (const key of ['creative_intent', 'description', 'premise', 'objective', 'setting', 'composition', 'text']) {
+  for (const key of ['creative_intent', 'description', 'identity_notes', 'appearance', 'premise', 'objective', 'setting', 'composition', 'function', 'transcript', 'delivery', 'text']) {
     const value = result.payload[key]
     if (typeof value === 'string' && value.trim()) return value
   }
-  return result.use_conditions.map(u => u.purpose).join(' · ') || result.basis_note
+  return result.basis_note || result.use_conditions.map(u => u.purpose).join(' · ')
 }

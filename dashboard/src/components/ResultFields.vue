@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 defineOptions({ name:'ResultFields' })
-const props=withDefaults(defineProps<{value:unknown;depth?:number}>(),{depth:0})
+const props=withDefaults(defineProps<{value:unknown;depth?:number;fieldKey?:string}>(),{depth:0})
 const labels:Record<string,string>={
  variables:'可改变量',parameters:'生成参数',reference_bindings:'参考素材绑定',locator:'来源位置',source_ref:'来源引用',start_ms:'开始时间（毫秒）',end_ms:'结束时间（毫秒）',start_seconds:'开始时间（秒）',end_seconds:'结束时间（秒）',start_sec:'开始时间（秒）',end_sec:'结束时间（秒）',time_range:'时间范围',confidence:'分析置信度',observation:'观察',rationale:'分析理由',summary:'概述',status:'状态',
  text:'正文',premise:'故事前提',theme:'主题',goal:'目标',conflict:'冲突',stakes:'代价',reversal:'反转',hook:'悬念',story_time:'故事时间',dialogue_turns:'对白',
@@ -21,6 +21,8 @@ const technical=/^(key|.*_id|.*_key|.*_ref|.*_refs|locator|sha256|digest)$/
 const primary=computed(()=>entries.value?.filter(([key])=>labels[key]&&!technical.test(key))||[])
 const extra=computed(()=>entries.value?.filter(([key])=>!labels[key]||technical.test(key))||[])
 const empty=computed(()=>!hasValue(props.value)||entries.value?.length===0)
+const enumLabels:Record<string,Record<string,string>>={character_kind:{fictional:'虚构角色',real_person:'真实人物',animal:'动物角色'},kind:{source:'来源',lines:'文档行号'}}
+const scalar=computed(()=>typeof props.value==='boolean'?(props.value?'是':'否'):typeof props.value==='string'?(enumLabels[props.fieldKey||'']?.[props.value]||props.value):props.value)
 const limit=ref(6)
 watch(()=>props.value,()=>{limit.value=6})
 </script>
@@ -28,8 +30,8 @@ watch(()=>props.value,()=>{limit.value=6})
 <span v-if="empty" class="empty">未记录</span>
 <details v-else-if="depth>=3" class="supplement"><summary>展开完整内容</summary><pre>{{JSON.stringify(value,null,2)}}</pre></details>
 <template v-else-if="Array.isArray(value)"><ul class="items"><li v-for="(item,i) in value.slice(0,limit)" :key="i"><ResultFields :value="item" :depth="depth+1"/></li></ul><button v-if="value.length>limit" class="btn more" @click="limit+=6">再显示 {{Math.min(6,value.length-limit)}} 项 · 还剩 {{value.length-limit}} 项</button><button v-if="limit>6" class="btn more" @click="limit=6">收起为前 6 项</button></template>
-<template v-else-if="entries"><dl v-if="primary.length" class="fields"><template v-for="[key,item] in primary" :key="key"><dt>{{labels[key]}}</dt><dd><ResultFields :value="item" :depth="depth+1"/></dd></template></dl><details v-if="extra.length" class="supplement"><summary>补充信息与原始字段 · {{extra.length}} 项</summary><pre>{{JSON.stringify(Object.fromEntries(extra),null,2)}}</pre></details></template>
-<span v-else class="scalar">{{typeof value==='boolean'?(value?'是':'否'):value}}</span>
+<template v-else-if="entries"><dl v-if="primary.length" class="fields"><template v-for="[key,item] in primary" :key="key"><dt>{{labels[key]}}</dt><dd><ResultFields :value="item" :depth="depth+1" :field-key="key"/></dd></template></dl><details v-if="extra.length" class="supplement"><summary>补充信息与原始字段 · {{extra.length}} 项</summary><pre>{{JSON.stringify(Object.fromEntries(extra),null,2)}}</pre></details></template>
+<span v-else class="scalar">{{scalar}}</span>
 </template>
 <style scoped>
 .fields{display:grid;grid-template-columns:minmax(90px,140px) minmax(0,1fr);gap:16px 24px;margin:0}.fields dt,.empty{color:var(--muted);font-size:12px;line-height:1.8}.fields dd{margin:0;min-width:0}.items{margin:0;padding-left:20px;display:grid;gap:16px}.items>li{min-width:0}.scalar,pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8}.scalar{font-size:14px}pre{font:inherit;font-size:12px;margin:14px 0;padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--shell-button)}.supplement{margin-top:14px;font-size:12px;color:var(--muted)}summary{cursor:pointer;line-height:1.8}.more{margin:14px 10px 0 0}.fields .fields{grid-template-columns:1fr;gap:6px}.fields .fields dd{margin-bottom:10px}@media(max-width:700px){.fields{grid-template-columns:1fr;gap:6px}.fields dd{margin-bottom:12px}}
