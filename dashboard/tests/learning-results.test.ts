@@ -39,14 +39,17 @@ test('unknown future result payloads remain intact without being interpreted as 
  const d:any=sample();d.results[0].type_version=2;d.results[0].payload={future_field:{value:'must remain visible'}}
  assert.deepEqual(readLearningResults(JSON.stringify(d)).results[0].payload,d.results[0].payload)
 })
+const downloadPath='/studio/dashboards/00000000-0000-4000-8000-000000000001/content/00000000-0000-4000-8000-000000000002'
+const downloadVersion={...ref,mime:'application/json',size:100,sha256:'a'.repeat(64)}
+const readFixture=async()=>new Blob([JSON.stringify(sample())])
 test('asset body reads the selected content under asset access, never its original draft or project',async()=>{
  let calls=0
  const result=await loadAssetResults(async(name,args)=>{
-  calls++;assert.equal(name,'artifact.read');assert.deepEqual(args,{mode:'text',content_ref:ref,access:{asset_id:id(1),asset_version_id:id(2)}})
-  return {mode:'text',version:ref,text:JSON.stringify(sample())}
- },asset)
+  calls++;assert.equal(name,'artifact.read');assert.deepEqual(args,{mode:'download',content_ref:ref,access:{asset_id:id(1),asset_version_id:id(2)}})
+  return {mode:'download',version:downloadVersion,content_path:downloadPath}
+ },asset,new AbortController().signal,readFixture)
  assert.equal(result?.results.length,1);assert.equal(calls,1)
- for(const reply of [{mode:'text',version:{...ref,version_id:id(99)},text:JSON.stringify(sample())},{mode:'metadata',version:ref,text:JSON.stringify(sample())}]){
+ for(const reply of [{mode:'download',version:{...downloadVersion,version_id:id(99)},content_path:downloadPath},{mode:'metadata',version:downloadVersion,content_path:downloadPath}]){
   await assert.rejects(loadAssetResults(async()=>reply,asset),/固定资产/)
  }
  await assert.rejects(loadAssetResults(async()=>{throw Error('permission denied')},asset),/permission denied/)

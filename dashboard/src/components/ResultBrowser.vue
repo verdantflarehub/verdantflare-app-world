@@ -2,8 +2,8 @@
 import { computed, nextTick, ref } from 'vue'
 import { resultTypes, promptVariants, type LearningResult } from '../platform/learning-results'
 import { useResultBrowser, resultSummary, resultPageSize } from '../platform/result-browser'
-const props = defineProps<{ results: LearningResult[] }>()
-const { type, query, page, pages, visible, filtered, selected, index, active, move } = useResultBrowser(() => props.results)
+const props = defineProps<{ results: LearningResult[]; code?: (result: LearningResult) => string }>()
+const { type, query, page, pages, visible, filtered, selected, index, active, move } = useResultBrowser(() => props.results, r=>props.code?.(r)||'')
 const root = ref<HTMLElement | null>(null), heading = ref<HTMLElement | null>(null)
 const counts = computed(() => {
   const values = new Map<string, number>()
@@ -26,15 +26,15 @@ async function changePage(delta: number) { page.value += delta; await nextTick()
 </script>
 <template><div ref="root" class="result-browser">
 <template v-if="!active">
-<div class="browser-tools"><label>成果分类<select v-model="type"><option value="">全部成果 · {{results.length}}</option><option v-for="[key,count] in counts" :key="key" :value="key">{{resultTypes[key]||'其他成果'}} · {{count}}</option></select></label><label class="search">查找成果<input v-model="query" type="search" maxlength="256" placeholder="搜索名称或适用模型"></label><button v-if="type||query" class="btn" @click="type='';query=''">清除筛选</button></div>
+<div class="browser-tools"><label>成果分类<select v-model="type"><option value="">全部成果 · {{results.length}}</option><option v-for="[key,count] in counts" :key="key" :value="key">{{resultTypes[key]||'其他成果'}} · {{count}}</option></select></label><label class="search">查找成果<input v-model="query" type="search" maxlength="256" placeholder="搜索编号、名称或适用模型"></label><button v-if="type||query" class="btn" @click="type='';query=''">清除筛选</button></div>
 <div class="browser-summary" role="status"><span>{{type ? resultTypes[type]||'其他成果' : '全部成果'}} <strong>{{filtered.length}}</strong> 项</span><span v-if="filtered.length">{{(page-1)*resultPageSize+1}}–{{Math.min(page*resultPageSize,filtered.length)}} / {{filtered.length}}</span></div>
 <div v-if="!filtered.length" class="empty"><h3>没有找到匹配成果</h3><p>试试其他名称或模型，也可以清除筛选查看全部。</p><button class="btn" @click="type='';query=''">显示全部成果</button></div>
-<div v-else class="result-grid"><button v-for="r in visible" :key="r.key" class="result-card" :data-result-key="r.key" @click="open(r)"><span class="card-kind">{{resultTypes[r.type_key]||'其他成果'}}</span><strong class="card-title">{{r.title}}</strong><span class="card-summary">{{resultSummary(r)}}</span><span class="card-footer"><span>{{models(r)||'查看内容与使用说明'}}</span><span aria-hidden="true">↗</span></span></button></div>
+<div v-else class="result-grid"><button v-for="r in visible" :key="r.key" class="result-card" :data-result-key="r.key" @click="open(r)"><slot name="thumbnail" :result="r"/><span class="card-kind">{{code?.(r)||resultTypes[r.type_key]||'其他成果'}}</span><strong class="card-title">{{r.title}}</strong><span class="card-summary">{{resultSummary(r)}}</span><span class="card-footer"><span>{{models(r)||'查看内容与使用说明'}}</span><span aria-hidden="true">↗</span></span></button></div>
 <nav v-if="pages>1" class="pagination" aria-label="成果分页"><button class="btn" :disabled="page===1" @click="changePage(-1)">上一页</button><span>第 {{page}} / {{pages}} 页</span><button class="btn" :disabled="page===pages" @click="changePage(1)">下一页</button></nav>
 </template>
 <section v-else class="result-detail">
 <div class="detail-nav"><button class="btn" @click="back">← 返回成果</button><div><span>{{index+1}} / {{filtered.length}}</span><button class="btn" :disabled="index<=0" @click="adjacent(-1)">上一项</button><button class="btn" :disabled="index>=filtered.length-1" @click="adjacent(1)">下一项</button></div></div>
-<header class="detail-heading"><span>{{resultTypes[active.type_key]||'其他成果'}}</span><h3 ref="heading" tabindex="-1">{{active.title}}</h3></header>
+<header class="detail-heading"><span>{{code?.(active)||resultTypes[active.type_key]||'其他成果'}}</span><h3 ref="heading" tabindex="-1">{{active.title}}</h3></header>
 <div :key="active.key" class="detail-body"><slot :result="active"/></div>
 </section>
 </div></template>

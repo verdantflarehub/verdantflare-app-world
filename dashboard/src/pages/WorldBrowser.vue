@@ -133,7 +133,7 @@ void loadWorld()
       <div v-if="detailLoading" class="state" role="status">正在读取固定版本…</div>
       <template v-else-if="selectedAsset">
         <div class="asset-actions"><span class="version-pill">固定版本 {{shortID(selectedAsset.asset_version_id)}}</span><button class="btn" @click="bringIntoProject">选择项目并引用此版本</button></div>
-        <AssetResults :key="selectedAsset.asset_id+':'+selectedAsset.asset_version_id" :asset="selectedAsset" @new-project="newProject"/>
+        <AssetResults :key="selectedAsset.asset_id+':'+selectedAsset.asset_version_id" :asset="selectedAsset" @new-project="newProject" @use-project="bringIntoProject"/>
         <details class="detail-panel"><summary>资产信息与已保存文件</summary>
           <dl class="facts"><dt>资产类型</dt><dd>{{selectedAsset.manifest.asset_type}}</dd><dt>主体</dt><dd>{{selectedAsset.manifest.subjects.join('、') || '未标主体'}}</dd><template v-if="selectedAsset.manifest.source.kind === 'world_draft'"><dt>来源工作区修订</dt><dd>{{shortID(selectedAsset.manifest.source.draft_id)}} · {{shortID(selectedAsset.manifest.source.draft_revision_id)}}</dd></template><template v-else><dt>来源项目修订</dt><dd>{{shortID(selectedAsset.manifest.source.project_id)}} · {{shortID(selectedAsset.manifest.source.project_revision_id)}}</dd></template></dl>
           <ul class="plain-list"><li v-for="file in selectedAsset.manifest.files" :key="file.file_id"><span>{{file.path}}</span><small>{{file.role}} · {{shortID(file.file_id)}}</small></li></ul><button v-if="selectedAsset.manifest.source.kind !== 'world_draft'" class="btn detail-action" @click="openSource">查看来源项目的固定修订</button>

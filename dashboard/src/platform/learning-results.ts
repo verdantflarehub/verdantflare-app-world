@@ -1,3 +1,4 @@
+import { readSampleBytes, sampleContentPath, type SampleDownload } from './prompt-samples.ts'
 import type { AssetOpen } from './world-model.ts'
 import { object, readCollectionDocument, type CollectionDocument } from './draft-model.ts'
 
@@ -72,13 +73,16 @@ export function filterResults(results:LearningResult[],type:string,query:string)
     ...(r.type_key==='prompt'&&r.type_version===1?promptVariants(r).flatMap(v=>[v.requested_label,v.model_id||'',v.model_version||'']):[])]
     .some(s=>s.toLocaleLowerCase().includes(q))))
 }
-export async function loadAssetResults(call:(name:string,args:Record<string,unknown>)=>Promise<unknown>,asset:AssetOpen):Promise<LearningDocument|null>{
+export async function loadAssetResults(call:(name:string,args:Record<string,unknown>)=>Promise<unknown>,asset:AssetOpen,signal:AbortSignal=new AbortController().signal,readBytes:(read:SampleDownload,signal:AbortSignal)=>Promise<Blob>=readSampleBytes):Promise<LearningDocument|null>{
   const domain=asset.manifest.domain_documents?.find(d=>d.document_type==='reference-learning')
   if(!domain)return null
   const file=asset.manifest.files.find(f=>f.file_id===domain.file_id);if(!file)fail()
   const ref=file!.content_ref
-  const response=object(await call('artifact.read',{mode:'text',content_ref:ref,access:{asset_id:asset.asset_id,asset_version_id:asset.asset_version_id}}))
+  const response=object(await call('artifact.read',{mode:'download',content_ref:ref,access:{asset_id:asset.asset_id,asset_version_id:asset.asset_version_id}}))
   const version=object(response.version)
-  if(response.mode!=='text'||typeof response.text!=='string'||version.store_id!==ref.store_id||version.artifact_id!==ref.artifact_id||version.version_id!==ref.version_id)throw Error('成果正文与所选固定资产版本不一致。')
-  return readLearningResults(response.text)
+  if(response.mode!=='download'||version.store_id!==ref.store_id||version.artifact_id!==ref.artifact_id||version.version_id!==ref.version_id||typeof version.mime!=='string'||!Number.isSafeInteger(version.size)||Number(version.size)<0||typeof version.sha256!=='string'||!/^[a-f0-9]{64}$/.test(version.sha256))throw Error('成果正文与所选固定资产版本不一致。')
+  const mime=String(version.mime).split(';')[0].trim().toLowerCase()
+  if(!['application/json','text/plain'].includes(mime))throw Error('成果正文格式无效。')
+  const bytes=await readBytes({path:sampleContentPath(response.content_path),mime,size:Number(version.size),sha256:String(version.sha256)},signal)
+  signal.throwIfAborted();return readLearningResults(await bytes.text())
 }
