@@ -2,15 +2,18 @@
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useHost } from '../platform/host'
-import { canonicalJSON, compareEvidence, createReviewClient, fullReviewEligible, mappedReviewOptions, parseReviewPath, readEvidence, resolveReviewScope, ReviewError, reviewMessage, reviewPath, reviewViewerTarget, type Evidence, type ReviewAppend, type ReviewOpen, type ReviewResult, type ReviewScope, type ReviewScopeChoice } from '../platform/set-review'
+import { canonicalJSON, compareEvidence, createReviewClient, fullReviewEligible, mappedReviewOptions, parseReviewPath, readEvidence, resolveReviewScope, ReviewError, reviewGapMessage as labelGap, reviewMessage, reviewPath, reviewViewerTarget, type Evidence, type ReviewAppend, type ReviewOpen, type ReviewResult, type ReviewScope, type ReviewScopeChoice } from '../platform/set-review'
 import { reviewContext, reviewContextKey, rememberReviewContext } from '../platform/set-review-memory'
+import { loadReviewCandidates, type ReviewCandidate } from '../platform/set-review-candidates'
 
 const route = useRoute(), router = useRouter(), { appSDK: sdk, dashboardHost: host } = useHost()
 const domain = sdk.context.get().appId === 'world' ? 'world' : 'project'
 const parsed = computed(() => parseReviewPath(route.fullPath))
 const page = shallowRef<ReviewOpen>(), other = shallowRef<ReviewOpen>()
 const loading = ref(false), error = ref(''), message = ref(''), forbidden = ref(false), saving = ref(false), hidden = ref(false)
-const text = ref(''), scopeChoice = ref<ReviewScopeChoice>('current'), selected = ref(''), camera = ref(''), selectedOther = ref(''), comparePath = ref(''), compareError = ref(''), compareBusy = ref(false), narrowCandidate = ref('current')
+const text = ref(''), scopeChoice = ref<ReviewScopeChoice>('current'), selected = ref(''), camera = ref(''), selectedOther = ref(''), compareChoice = ref(''), otherLabel = ref(''), compareError = ref(''), compareBusy = ref(false), narrowCandidate = ref('current')
+const candidates = shallowRef<ReviewCandidate[]>([]), candidateBusy = ref(false), candidateError = ref(''), candidateCursor = ref(''), browseChoice = ref(''), switching = ref(false)
+let candidateCursors = new Set<string>()
 const scopeCameras = ref<string[]>([]), scopeRegions = ref<string[]>([]), confirmedScope = ref<ReviewScope>(), confirmedTarget = ref('')
 const viewerBusy = ref(false), viewerUnavailable = ref(false)
 const pending = ref(false), pendingPath = ref(''), resolvedRejected = ref(false), dialog = ref<HTMLDialogElement>(), confirmAction = ref<ReviewAppend['action']>('comment'), supersede = ref(false)
@@ -25,22 +28,38 @@ const otherImages = computed(() => other.value?.target_view?.evidence.filter(e =
 const otherEvidence = computed(() => otherImages.value.find(e => e.evidence_id === selectedOther.value) || otherImages.value[0])
 const stateLabels: Record<string, string> = { unreviewed: '未审阅', in_review: '审阅中', approved: '完整范围通过', rejected: '需修改' }
 const roleLabels: Record<string, string> = { source_engineering: '源工程', space_record: '空间记录', lighting_record: '灯光记录', camera_reference: '机位参考', render: '工程渲染', photograph: '实拍图片', generated: '生成原片', composite: '底板合成', set_package: '片场包', supporting: '辅助证据' }
-const gapLabels: Record<string, string> = { RESTRICTED: '部分内容没有读取权限', READ_ONLY: '当前目标仅可阅读', AGENT_SUGGESTIONS_ONLY: '当前会话仅可保存 AI 建议', legacy_unmapped: '版本关联待补齐', LEGACY_TARGET_UNMAPPED: '版本关联待补齐', missing_source: '缺少源工程', source_recovery_unverified: '工程恢复未核实', restricted: '部分内容没有读取权限', missing_package: '固定片场包未提供', missing_camera_mapping: '机位映射未登记', metadata_unavailable: '固定文件元数据暂不可用', source_engineering_missing: '源工程未提供', set_package_missing: '片场包未提供' }
-const labelGap = (code: string) => gapLabels[code] || code.replaceAll('_', ' ')
+const claimLabels: Record<string, string> = { image_reading: '图像阅读', space_layout: '空间布局', source_recovery: '源工程恢复', new_camera: '新机位复用', full_set: '完整片场' }
+const scopeLabels: Record<string, string> = { evidence: '所选固定证据', camera: '指定机位', region: '指定区域', full_target: '完整固定版本' }
+function recordEvidence(scope?: ReviewScope) { return target.value?.evidence.filter(item => scope?.evidence_ids.includes(item.evidence_id)) || [] }
+function evidenceLabel(item: Evidence) { return `${roleLabels[item.role] || '固定证据'} · ${item.mime.startsWith('image/') ? '图像 ' + (images.value.findIndex(image => image.evidence_id === item.evidence_id) + 1) : '附件'}` }
+function recordMappings(scope: ReviewScope | undefined, kind: 'camera' | 'region') {
+  const allowed = kind === 'camera' ? target.value?.coverage.camera_ids : target.value?.coverage.region_ids
+  const recorded = kind === 'camera' ? scope?.camera_ids : scope?.region_ids
+  return recorded?.filter(id => allowed?.includes(id)) || []
+}
 const definition = computed(() => target.value?.definition || {})
 const title = computed(() => {
   for (const value of [definition.value.name, definition.value.title, (definition.value.location as Record<string, unknown>)?.name, (definition.value.material as Record<string, unknown>)?.name]) if (typeof value === 'string' && value) return value
-  return original.value?.label || (domain === 'project' ? '地点片场' : '场景资产')
+  const candidate = candidates.value.find(item => item.key === canonicalJSON(page.value?.target_locator || parsed.value?.locator))
+  return candidate?.title || candidate?.label || original.value?.label || (domain === 'project' ? '地点片场' : '场景资产')
 })
 const ownerID = computed(() => parsed.value?.locator.kind === 'project' ? parsed.value.locator.project_id : parsed.value?.locator.asset_id || '')
 const memoryKey = computed(() => reviewContextKey(sdk.context.get(), ownerID.value))
-const original = computed(() => reviewContext(memoryKey.value))
+const original = computed(() => parsed.value ? reviewContext(memoryKey.value) : undefined)
 const parentPath = computed(() => {
   const l = parsed.value?.locator
   if (original.value?.path) return original.value.path
   if (!l) return domain === 'project' ? '/ai_short_drama' : '/scene'
   return l.kind === 'project' ? `/ai_short_drama/${l.project_id}/materials/location/${l.material_key}${l.state_key ? '/' + l.state_key : ''}?` + new URLSearchParams({ revision: l.content_revision_id, ...(l.version_key ? { version: l.version_key } : {}) }) : '/scene?' + new URLSearchParams({ asset: l.asset_id, version: l.asset_version_id })
 })
+const currentCandidateKey = computed(() => page.value ? canonicalJSON(page.value.target_locator) : '')
+const candidateOptions = computed(() => {
+  const current = page.value
+  if (!current || candidates.value.some(item => item.key === currentCandidateKey.value)) return candidates.value
+  return [{ key: currentCandidateKey.value, label: `${title.value} · 当前固定版本`, title: title.value, locator: current.target_locator }, ...candidates.value]
+})
+const comparisonOptions = computed(() => candidateOptions.value.filter(item => item.key !== currentCandidateKey.value))
+const targetChangeBlocked = computed(() => !!text.value.trim() || pending.value || saving.value)
 const fullEligible = computed(() => fullReviewEligible(page.value))
 const readableImages = computed(() => page.value ? images.value.filter(e => !!media.value[mediaKey(page.value!, e)]).map(e => e.evidence_id) : [])
 const cameraOptions = computed(() => mappedReviewOptions(page.value, 'camera', readableImages.value))
@@ -62,9 +81,10 @@ function refreshPending() {
   try { const r = client?.pending(); pending.value = !!r; pendingPath.value = r ? reviewPath(r.request.target_locator, r.request.expected_target_hash) : ''; if (r && !text.value) text.value = r.request.body } catch (e) { pending.value = true; message.value = reviewMessage(e) }
 }
 async function load() {
-  const nextTarget = parsed.value ? canonicalJSON(parsed.value.locator) : ''; if (editingTarget && editingTarget !== nextTarget) { text.value = ''; scopeChoice.value = 'current'; scopeCameras.value = []; scopeRegions.value = []; comparePath.value = ''; message.value = ''; pendingResult = undefined; resolvedRejected.value = false } editingTarget = nextTarget
+  const nextTarget = parsed.value ? canonicalJSON(parsed.value.locator) : ''; if (editingTarget && editingTarget !== nextTarget) { text.value = ''; scopeChoice.value = 'current'; scopeCameras.value = []; scopeRegions.value = []; compareChoice.value = ''; message.value = ''; pendingResult = undefined; resolvedRejected.value = false } editingTarget = nextTarget
   const e = ++epoch; clearMedia(); page.value = undefined; other.value = undefined; forbidden.value = false; error.value = ''; loading.value = true
   client?.dispose(); client = undefined; saving.value = false; viewerBusy.value = false; viewerUnavailable.value = false
+  candidates.value = []; candidateCursor.value = ''; candidateCursors = new Set(); candidateError.value = ''; candidateBusy.value = false; switching.value = false; compareBusy.value = false; compareError.value = ''
   try {
     if (!parsed.value || parsed.value.locator.kind !== domain) throw new ReviewError('INVALID_RESPONSE')
     client = createReviewClient(sdk, domain, parsed.value.locator, localStorage); refreshPending()
@@ -74,7 +94,8 @@ async function load() {
     const fixed = reviewPath(result.target_locator, result.target_hash)
     if (fixed !== route.fullPath) { await router.replace(fixed); return }
     const saved = reviewContext(memoryKey.value + ':' + fixed)
-    selected.value = saved?.evidence || ''; camera.value = saved?.camera || ''
+    selected.value = saved?.evidence || ''; camera.value = saved?.camera || ''; browseChoice.value = canonicalJSON(result.target_locator)
+    await loadCandidates()
     await nextTick(); if (live(e)) host.restoreScroll(saved?.top || 0)
   } catch (cause) { if (live(e)) { error.value = reviewMessage(cause); forbidden.value = cause instanceof ReviewError && [401,403].includes(cause.status) } }
   finally { if (live(e)) loading.value = false }
@@ -172,15 +193,58 @@ async function moreRecords() {
   if (!p?.next_cursor || !client) return
   try { const next = await client.open(p.target_locator, p.target_hash || undefined, p.next_cursor, p.records_revision_id); if (!live(e)) return; if (next.records_head_record_id !== p.records_head_record_id || next.next_cursor === p.next_cursor) throw new ReviewError('REVIEW_CONFLICT'); page.value = { ...p, records: [...p.records, ...next.records], next_cursor: next.next_cursor } } catch (cause) { message.value = reviewMessage(cause) }
 }
-async function loadComparison() {
-  const candidate = parseReviewPath(comparePath.value.trim()), e = epoch
-  compareError.value = ''; compareBusy.value = true; other.value = undefined
+async function loadCandidates(more = false) {
+  const current = page.value, generation = epoch, cursor = more ? candidateCursor.value : ''
+  if (!current || candidateBusy.value || more && !cursor) return
+  candidateBusy.value = true; candidateError.value = ''
+  const seenCursors = more ? new Set(candidateCursors) : new Set<string>()
   try {
-    if (!candidate || candidate.locator.kind !== domain || !candidate.hash) throw new ReviewError('INVALID_RESPONSE')
-    const reader = createReviewClient(sdk, domain, candidate.locator, localStorage)
-    try { const value = await reader.open(candidate.locator, candidate.hash); if (live(e)) { other.value = value; selectedOther.value = ''; camera.value = '' } } finally { reader.dispose() }
-  } catch (cause) { if (live(e)) compareError.value = reviewMessage(cause) }
-  finally { if (live(e)) compareBusy.value = false }
+    if (cursor && seenCursors.has(cursor)) throw new ReviewError('INVALID_RESPONSE')
+    const result = await loadReviewCandidates(sdk, current.target_locator, { signal: controller.signal, cursor })
+    if (!live(generation)) return
+    if (result.nextCursor && (result.nextCursor === cursor || seenCursors.has(result.nextCursor))) throw new ReviewError('INVALID_RESPONSE')
+    if (cursor) seenCursors.add(cursor)
+    candidateCursors = seenCursors
+    candidates.value = [...new Map([...(more ? candidates.value : []), ...result.items].map(item => [item.key, item])).values()]
+    candidateCursor.value = result.nextCursor
+    if (!comparisonOptions.value.some(item => item.key === compareChoice.value)) compareChoice.value = ''
+  } catch (cause) { if (live(generation)) candidateError.value = reviewMessage(cause) }
+  finally { if (live(generation)) candidateBusy.value = false }
+}
+async function changeTarget(candidate?: ReviewCandidate) {
+  if (!candidate || switching.value || candidate.key === currentCandidateKey.value) return
+  if (targetChangeBlocked.value) { message.value = '请先保存或清空当前意见，并确认原提交结果后再切换审阅目标。'; return }
+  const generation = epoch
+  switching.value = true; message.value = ''
+  const reader = createReviewClient(sdk, domain, candidate.locator, localStorage)
+  try {
+    const value = await reader.open(candidate.locator)
+    if (!live(generation)) return
+    if (!value.target_hash) { message.value = '此版本尚未建立可审阅的固定目标，请先补齐版本关联。'; return }
+    if (targetChangeBlocked.value) { message.value = '当前意见尚未处理，已保留输入并停止切换。'; return }
+    remember()
+    const locator = value.target_locator
+    const parent = locator.kind === 'project'
+      ? `/ai_short_drama/${locator.project_id}/materials/location/${locator.material_key}${locator.state_key ? '/' + locator.state_key : ''}?` + new URLSearchParams({ revision: locator.content_revision_id, ...(locator.version_key ? { version: locator.version_key } : {}) })
+      : '/scene?' + new URLSearchParams({ asset: locator.asset_id, version: locator.asset_version_id })
+    rememberReviewContext(reviewContextKey(sdk.context.get(), locator.kind === 'project' ? locator.project_id : locator.asset_id), parent, 0, undefined, undefined, original.value?.work, candidate.title)
+    await router.push(reviewPath(locator, value.target_hash))
+  } catch (cause) { if (live(generation)) message.value = reviewMessage(cause) }
+  finally { reader.dispose(); if (live(generation)) switching.value = false }
+}
+async function loadComparison() {
+  const candidate = comparisonOptions.value.find(item => item.key === compareChoice.value), generation = epoch
+  if (!candidate || compareBusy.value) return
+  compareError.value = ''; compareBusy.value = true; other.value = undefined; otherLabel.value = ''
+  const reader = createReviewClient(sdk, domain, candidate.locator, localStorage)
+  try {
+    const value = await reader.open(candidate.locator)
+    if (!live(generation)) return
+    if (!value.target_hash) { compareError.value = '此候选尚未建立固定审阅目标，不能比较。'; return }
+    if (value.target_hash === page.value?.target_hash && canonicalJSON(value.target_locator) === currentCandidateKey.value) { compareError.value = '所选候选与当前固定目标相同，请选择其他版本。'; return }
+    other.value = value; otherLabel.value = candidate.label; selectedOther.value = ''; camera.value = ''
+  } catch (cause) { if (live(generation)) compareError.value = reviewMessage(cause) }
+  finally { reader.dispose(); if (live(generation)) compareBusy.value = false }
 }
 async function viewer(chosen?: Evidence) {
   const p = page.value, generation = epoch
@@ -219,10 +283,10 @@ watch([other, otherEvidence], ([p, e]) => { if (p && e) void loadMedia(p, e) })
 watch(commonCameras, values => { if (!values.includes(camera.value)) camera.value = values[0] || '' })
 onBeforeRouteLeave(() => { remember(); dialog.value?.close(); attachmentDialog.value?.close(); return true })
 const stopLife = sdk.lifecycle.subscribe(event => {
-  if (event === 'hidden' || event === 'dispose') { remember(); hidden.value = true; epoch++; clearMedia(); page.value = undefined; other.value = undefined; dialog.value?.close(); attachmentDialog.value?.close() }
+  if (event === 'hidden' || event === 'dispose') { remember(); hidden.value = true; epoch++; clearMedia(); page.value = undefined; other.value = undefined; candidates.value = []; candidateCursor.value = ''; dialog.value?.close(); attachmentDialog.value?.close() }
   else if (!invalidated) { hidden.value = false; void load() }
 })
-const stopContext = sdk.context.subscribe(c => { if (canonicalJSON(c) !== initialContext) { invalidated = true; epoch++; clearMedia(); page.value = undefined; other.value = undefined; text.value = ''; error.value = '会话已变化，请重新打开审阅。'; client?.dispose() } })
+const stopContext = sdk.context.subscribe(c => { if (canonicalJSON(c) !== initialContext) { invalidated = true; epoch++; clearMedia(); page.value = undefined; other.value = undefined; candidates.value = []; candidateCursor.value = ''; text.value = ''; error.value = '会话已变化，请重新打开审阅。'; client?.dispose() } })
 onBeforeUnmount(() => { alive = false; epoch++; clearMedia(); client?.dispose(); stopLife(); stopContext(); host.setDirty(false) })
 </script>
 
@@ -239,6 +303,18 @@ onBeforeUnmount(() => { alive = false; epoch++; clearMedia(); client?.dispose();
     <template v-else-if="page">
       <div v-if="!page.target_hash || page.mapping_state === 'legacy_unmapped'" class="review-notice"><strong>历史附件 · 版本关联待补齐</strong><p>现有原件可阅读；尚未建立可正式写入的固定目标，不补造版本或批准。</p></div>
       <div v-else class="review-fixed"><span>已固定送审内容</span><code>{{ page.target_hash.slice(0, 16) }}…</code><span>新增意见不改变送审内容；新目标不继承旧结论。</span></div>
+      <section class="review-version-picker" aria-label="固定版本选择">
+        <form class="review-compare-form" @submit.prevent="changeTarget(candidateOptions.find(item => item.key === browseChoice))">
+          <label>浏览固定版本<select v-model="browseChoice" :disabled="candidateBusy || switching || targetChangeBlocked"><option v-for="item in candidateOptions" :key="item.key" :value="item.key">{{ item.label }}</option></select></label>
+          <button class="btn" :disabled="candidateBusy || switching || targetChangeBlocked || !browseChoice || browseChoice === currentCandidateKey">{{ switching ? '读取固定版本…' : '切换审阅目标' }}</button>
+        </form>
+        <p class="review-muted">{{ domain === 'project' ? '候选来自当前送审修订中的地点与版本，不读取后续制作内容。' : '列出当前有权访问场景的固定版本快照；当前历史版本会继续保留。' }}</p>
+        <p v-if="targetChangeBlocked" class="review-muted" role="status">当前有未提交意见或待确认的原请求。请先保存或清空意见，并确认提交结果后再切换；另一候选仍可只读比较。</p>
+        <p v-if="candidateBusy" class="review-muted" role="status">正在读取可用固定版本…</p>
+        <p v-else-if="candidateError" class="review-muted" role="alert">{{ candidateError }} <button class="btn" @click="loadCandidates()">重读候选</button></p>
+        <p v-else-if="!comparisonOptions.length" class="review-muted">当前没有其他可用固定候选。</p>
+        <button v-if="candidateCursor" class="btn" :disabled="candidateBusy" @click="loadCandidates(true)">读取更多场景</button>
+      </section>
       <div v-if="message" class="review-notice" role="status">{{ message }}<button v-if="viewerUnavailable" class="btn" @click="openViewerCenter">前往应用中心</button></div>
       <div v-if="pending" class="review-notice"><strong>有待确认的原提交</strong><p>刷新、中断或重试均恢复相同请求，不另建提交编号。</p><div class="review-actions"><button class="btn" :disabled="saving" @click="recover()">查询原提交</button><button class="btn" :disabled="saving" @click="recover(true)">恢复原请求</button><button v-if="resolvedRejected" class="btn" @click="rereadAfterRejection">保留输入并重读</button></div></div>
       <div class="review-hero-grid">
@@ -250,8 +326,8 @@ onBeforeUnmount(() => { alive = false; epoch++; clearMedia(); client?.dispose();
         <aside class="review-panel review-padded"><h2>本次范围</h2><dl><dt>当前可读证据</dt><dd>{{ target?.evidence.length || 0 }} 项 · {{ images.length }} 张图片</dd><dt>工程与空间</dt><dd>{{ fullEligible ? '已具备登记的必需证据，仍需人工结论' : '完整范围证据尚不齐备' }}</dd><dt>当前阅读</dt><dd>只对所选固定证据作判断</dd></dl><p class="review-muted">图像通过不等于工程恢复、任意角度可拍或 World 发布。</p></aside>
       </div>
       <section class="review-section"><h2>视角与机位</h2><p class="review-muted">来自当前目标登记的固定证据；未提供机位对应时明确留空。</p><div class="review-evidence-grid"><button v-for="(item, index) in images" :key="item.evidence_id" class="review-evidence" :class="{ active: selectedEvidence?.evidence_id === item.evidence_id }" @click="selected = item.evidence_id"><img v-if="media[mediaKey(page,item)]" :src="media[mediaKey(page,item)].url" :alt="'固定图像 ' + (index + 1)"><span v-else class="review-evidence-placeholder">{{ index + 1 }}</span><strong>{{ roleLabels[item.role] || item.role }} {{ index + 1 }}</strong><small>{{ item.camera_ids.join(' / ') || '机位映射未登记' }}</small></button></div><p v-if="!images.length" class="review-muted">无图像不代表无工程；请继续检查下方实际文件与缺项。</p></section>
-      <section class="review-section"><h2>空间、资产与缺项</h2><div class="review-two"><article class="review-panel review-padded"><h3>固定要求</h3><ul class="review-list"><li v-for="r in target?.requirements" :key="r.requirement_id"><strong>{{ ({ image_reading:'图像阅读', space_layout:'空间布局', source_recovery:'源工程恢复', new_camera:'新机位复用', full_set:'完整片场' } as Record<string,string>)[r.claim] || r.claim }}</strong><span>{{ ({satisfied:'证据齐备',missing:'缺项',unverified:'未核实'} as Record<string,string>)[r.state] || r.state }}</span><small>{{ labelGap(r.reason_code) }}</small></li></ul><p v-if="!target?.requirements.length" class="review-muted">未登记完整空间与恢复要求，不能默认通过。</p></article><article class="review-panel review-padded"><h3>可用性与依赖</h3><p v-for="(gap,i) in [...page.missing,...page.availability]" :key="i" class="review-muted">○ {{ labelGap(gap.code) }}</p><p v-if="!page.missing.length && !page.availability.length" class="review-muted">当前已授权内容可读；技术可读不等于人工通过。</p><p class="review-muted">{{ target?.dependencies.length || 0 }} 项固定资产依赖。项目配置与 World 资产分别审阅。</p><details><summary>固定文件与摘要</summary><ul class="review-list"><li v-for="e in target?.evidence" :key="e.evidence_id"><strong>{{ roleLabels[e.role] || e.role }}</strong><small>{{ e.mime }} · {{ e.size_bytes }} 字节</small><code>{{ e.sha256 || '摘要暂未取得' }}</code><button v-if="e.role === 'set_package'" class="btn" :disabled="viewerBusy" @click="viewer(e)">在片场查看器中打开</button><button v-if="!e.mime.startsWith('image/')" class="btn" @click="openAttachment(e)">阅读固定附件</button></li></ul></details></article></div></section>
-      <section class="review-section"><h2>同机位路线比较</h2><p class="review-muted">加载另一份已固定、已授权的审阅目标。比较不改变意见归属，一次只对一个目标提交。</p><form class="review-compare-form" @submit.prevent="loadComparison"><label>另一候选的应用内审阅路径<input v-model="comparePath" placeholder="包含固定版本及 target 的 /…/review 路径" autocomplete="off"></label><button class="btn" :disabled="compareBusy">{{ compareBusy ? '读取中…' : '读取固定候选' }}</button></form><p v-if="compareError" role="alert">{{ compareError }}</p><div class="review-notice"><strong>{{ other && !comparisonIssues.length ? '固定映射一致，可直接对照' : '尚不可直接比较' }}</strong><p>{{ comparisonIssues.join('；') || '空间、机位参数、证据类型、帧段与画幅均已核对。' }}</p><p v-if="!other">A/B/C 真实候选未登记时不生成替代图，不据缺项判断路线优胜。</p></div><template v-if="other"><div class="review-actions"><label>共同机位 <select v-model="camera"><option value="">未匹配</option><option v-for="c in commonCameras" :key="c" :value="c">{{ c }}</option></select></label><label>候选图像 <select v-model="selectedOther"><option v-for="(e,i) in otherImages" :key="e.evidence_id" :value="e.evidence_id">{{ roleLabels[e.role] || e.role }} {{ i+1 }}</option></select></label><RouterLink class="btn" :to="reviewPath(other.target_locator, other.target_hash)">转到此候选写意见</RouterLink></div><div class="review-candidate-switch"><button class="btn" @click="narrowCandidate = 'current'">当前目标</button><button class="btn" @click="narrowCandidate = 'other'">另一候选</button></div><div class="review-comparison" :data-candidate="narrowCandidate"><article data-candidate="current"><h3>当前目标 · 意见归属</h3><button v-if="image && selectedEvidence" class="review-image" @click="preview(page,selectedEvidence)"><img :src="image.url" alt="当前固定候选"></button></article><article data-candidate="other"><h3>另一候选 · 仅比较</h3><button v-if="imageOther && otherEvidence" class="review-image" @click="preview(other,otherEvidence)"><img :src="imageOther.url" alt="另一固定候选"></button><p v-else class="review-muted">图像尚未读取或不可用。</p></article></div></template></section>
+      <section class="review-section"><h2>空间、资产与缺项</h2><div class="review-two"><article class="review-panel review-padded"><h3>固定要求</h3><ul class="review-list"><li v-for="r in target?.requirements" :key="r.requirement_id"><strong>{{ claimLabels[r.claim] || '固定证据检查' }}</strong><span>{{ ({satisfied:'证据齐备',missing:'缺项',unverified:'未核实'} as Record<string,string>)[r.state] || r.state }}</span><small>{{ labelGap(r.reason_code) }}</small></li></ul><p v-if="!target?.requirements.length" class="review-muted">未登记完整空间与恢复要求，不能默认通过。</p></article><article class="review-panel review-padded"><h3>可用性与依赖</h3><p v-for="(gap,i) in [...page.missing,...page.availability]" :key="i" class="review-muted">○ {{ labelGap(gap.code) }}</p><p v-if="!page.missing.length && !page.availability.length" class="review-muted">当前已授权内容可读；技术可读不等于人工通过。</p><p class="review-muted">{{ target?.dependencies.length || 0 }} 项固定资产依赖。项目配置与 World 资产分别审阅。</p><details><summary>固定文件与摘要</summary><ul class="review-list"><li v-for="e in target?.evidence" :key="e.evidence_id"><strong>{{ roleLabels[e.role] || e.role }}</strong><small>{{ e.mime }} · {{ e.size_bytes }} 字节</small><code>{{ e.sha256 || '摘要暂未取得' }}</code><button v-if="e.role === 'set_package'" class="btn" :disabled="viewerBusy" @click="viewer(e)">在片场查看器中打开</button><button v-if="!e.mime.startsWith('image/')" class="btn" @click="openAttachment(e)">阅读固定附件</button></li></ul></details></article></div></section>
+      <section class="review-section"><h2>同机位路线比较</h2><p class="review-muted">加载另一份已固定、已授权的审阅目标。比较不改变意见归属，一次只对一个目标提交。</p><form class="review-compare-form" @submit.prevent="loadComparison"><label>选择另一固定候选<select v-model="compareChoice" :disabled="candidateBusy || compareBusy"><option value="">{{ comparisonOptions.length ? '请选择固定候选' : '暂无其他固定候选' }}</option><option v-for="item in comparisonOptions" :key="item.key" :value="item.key">{{ item.label }}</option></select></label><button class="btn" :disabled="compareBusy || !compareChoice">{{ compareBusy ? '读取中…' : '读取固定候选' }}</button></form><p v-if="compareError" role="alert">{{ compareError }}</p><div class="review-notice"><strong>{{ other && !comparisonIssues.length ? '固定映射一致，可直接对照' : '尚不可直接比较' }}</strong><p>{{ comparisonIssues.join('；') || '空间、机位参数、证据类型、帧段与画幅均已核对。' }}</p><p v-if="!other">A/B/C 真实候选未登记时不生成替代图，不据缺项判断路线优胜。</p></div><template v-if="other"><div class="review-actions"><label>共同机位 <select v-model="camera"><option value="">未匹配</option><option v-for="c in commonCameras" :key="c" :value="c">{{ c }}</option></select></label><label>候选图像 <select v-model="selectedOther"><option v-for="(e,i) in otherImages" :key="e.evidence_id" :value="e.evidence_id">{{ roleLabels[e.role] || e.role }} {{ i+1 }}</option></select></label><button class="btn" :disabled="targetChangeBlocked || switching" @click="changeTarget({ key: canonicalJSON(other.target_locator), label: '比较候选', locator: other.target_locator })">转到已加载候选写意见</button></div><div class="review-candidate-switch"><button class="btn" @click="narrowCandidate = 'current'">当前目标</button><button class="btn" @click="narrowCandidate = 'other'">另一候选</button></div><div class="review-comparison" :data-candidate="narrowCandidate"><article data-candidate="current"><h3>当前目标 · 意见归属</h3><p class="review-muted">{{ candidateOptions.find(item => item.key === currentCandidateKey)?.label || title }}</p><button v-if="image && selectedEvidence" class="review-image" @click="preview(page,selectedEvidence)"><img :src="image.url" alt="当前固定候选"></button></article><article data-candidate="other"><h3>已加载候选 · 仅比较</h3><p class="review-muted">{{ otherLabel }}</p><button v-if="imageOther && otherEvidence" class="review-image" @click="preview(other,otherEvidence)"><img :src="imageOther.url" alt="另一固定候选"></button><p v-else class="review-muted">图像尚未读取或不可用。</p></article></div></template></section>
       <section class="review-section"><h2>审阅范围与意见</h2><p class="review-muted">当前浏览版本、人工结论、项目选用与资产发布相互独立。</p><div class="review-two"><form class="review-panel review-padded" @submit.prevent><h3>本次检查范围</h3><label class="review-radio"><input v-model="scopeChoice" type="radio" value="current">当前图像 · 仅图像阅读</label><label class="review-radio"><input v-model="scopeChoice" type="radio" value="images">本目标全部图片 · 仅图像阅读</label><label class="review-radio"><input v-model="scopeChoice" type="radio" value="camera" :disabled="!cameraOptions.some(option => option.evidenceIDs.length)">指定机位 · 仅已读图片范围</label>
               <fieldset v-if="scopeChoice === 'camera'" class="review-scope-options"><legend>选择已登记机位</legend><label v-for="option in cameraOptions" :key="option.id" class="review-radio"><input v-model="scopeCameras" type="checkbox" :value="option.id" :disabled="!option.evidenceIDs.length"><span>{{ option.id }} · {{ option.evidenceIDs.length ? option.evidenceIDs.length + ' 张已读图片' : '无已读图片映射，不可选' }}</span></label></fieldset>
               <p v-if="!cameraOptions.some(option => option.evidenceIDs.length)" class="review-muted">当前没有已登记且具备已读图片映射的机位。</p>
@@ -260,7 +336,19 @@ onBeforeUnmount(() => { alive = false; epoch++; clearMedia(); client?.dispose();
               <p v-if="!regionOptions.some(option => option.evidenceIDs.length)" class="review-muted">当前没有已登记且具备已读图片映射的区域。</p>
               <label class="review-radio"><input v-model="scopeChoice" type="radio" value="full" :disabled="!fullEligible">完整版本 · {{ fullEligible ? '必需证据已齐备' : '证据缺项，不可批准' }}</label>
               <p v-if="scopeResult.reason" class="review-muted" role="status">{{ scopeResult.reason }}</p>
-              <p v-else-if="scope && (scope.kind === 'camera' || scope.kind === 'region')" class="review-muted">本次只包含所选{{ scope.kind === 'camera' ? '机位' : '区域' }}映射的 {{ scope.evidence_ids.length }} 张已读图片；未读图片与三维空间质量不在本次范围内。</p><label class="review-field">意见与定位<textarea v-model="text" maxlength="20000" :disabled="!page.capabilities.can_comment || saving || pending" placeholder="说明检查位置、机位、问题与适用范围。" /></label><p v-if="!page.capabilities.can_comment" class="review-muted">当前只读：{{ page.capabilities.reason_codes.map(labelGap).join('；') || '未取得审阅写权限。' }}</p><p v-else-if="!page.capabilities.can_decide" class="review-muted">可保存建议；当前会话不能记录人工结论。</p><div class="review-actions"><button class="btn" :disabled="!canComment" @click="prepare('comment',$event)">保存意见</button><button class="btn" :disabled="!canDecide" @click="prepare('request_changes',$event)">需修改</button><button class="btn primary" :disabled="!canDecide" @click="prepare('approve',$event)">通过本次范围</button></div></form><article class="review-panel review-padded"><h3>固定目标的记录 <span class="review-tag">{{ stateLabels[page.review_state] }}</span></h3><p v-if="!page.records.length" class="review-muted">此目标尚无当前有权读取的记录。</p><article v-for="r in page.records" :key="r.record_id" class="review-record"><div class="review-actions"><strong>{{ ({comment:'意见',request_changes:'需修改',approve:r.scope?.kind === 'full_target' ? '完整范围通过':'局部范围通过'} as Record<string,string>)[r.action || ''] || '受限记录' }}</strong><span class="review-tag">{{ r.actor?.origin === 'agent' ? 'AI 建议' : r.visibility === 'restricted' ? '受限记录' : '已认证用户' }}</span></div><p>{{ r.visibility === 'restricted' ? '当前权限不能读取此记录正文。' : r.body || r.record_view?.body || '正文未授权显示。' }}</p><small v-if="r.visibility !== 'restricted'">{{ r.scope?.kind === 'full_target' ? '完整版本范围' : '局部范围 · ' + (r.scope?.evidence_ids?.length || 0) + ' 项证据' }} · {{ r.created_at ? new Date(r.created_at).toLocaleString('zh-CN') : '' }}</small></article><button v-if="page.next_cursor" class="btn" @click="moreRecords">读取更多记录</button></article></div></section>
+              <p v-else-if="scope && (scope.kind === 'camera' || scope.kind === 'region')" class="review-muted">本次只包含所选{{ scope.kind === 'camera' ? '机位' : '区域' }}映射的 {{ scope.evidence_ids.length }} 张已读图片；未读图片与三维空间质量不在本次范围内。</p><label class="review-field">意见与定位<textarea v-model="text" maxlength="20000" :disabled="!page.capabilities.can_comment || saving || pending" placeholder="说明检查位置、机位、问题与适用范围。" /></label><p v-if="!page.capabilities.can_comment" class="review-muted">当前只读：{{ page.capabilities.reason_codes.map(labelGap).join('；') || '未取得审阅写权限。' }}</p><p v-else-if="!page.capabilities.can_decide" class="review-muted">可保存建议；当前会话不能记录人工结论。</p><div class="review-actions"><button class="btn" :disabled="!canComment" @click="prepare('comment',$event)">保存意见</button><button class="btn" :disabled="!canDecide" @click="prepare('request_changes',$event)">需修改</button><button class="btn primary" :disabled="!canDecide" @click="prepare('approve',$event)">通过本次范围</button></div></form><article class="review-panel review-padded"><h3>固定目标的记录 <span class="review-tag">{{ stateLabels[page.review_state] }}</span></h3><p v-if="!page.records.length" class="review-muted">此目标尚无当前有权读取的记录。</p><article v-for="r in page.records" :key="r.record_id" class="review-record"><div class="review-actions"><strong>{{ ({comment:'意见',request_changes:'需修改',approve:r.scope?.kind === 'full_target' ? '完整范围通过':'局部范围通过'} as Record<string,string>)[r.action || ''] || '受限记录' }}</strong><span class="review-tag">{{ r.actor?.origin === 'agent' ? 'AI 建议' : r.visibility === 'restricted' ? '受限记录' : '已认证用户' }}</span></div><p>{{ r.visibility === 'restricted' ? '当前权限不能读取此记录正文。' : r.body || r.record_view?.body || '正文未授权显示。' }}</p><small v-if="r.visibility !== 'restricted'">{{ r.scope?.kind === 'full_target' ? '完整版本范围' : '局部范围 · ' + (r.scope?.evidence_ids?.length || 0) + ' 项证据' }} · {{ r.created_at ? new Date(r.created_at).toLocaleString('zh-CN') : '' }}</small>
+                <details v-if="r.visibility !== 'restricted' && r.scope" class="review-scope-evidence">
+                  <summary>本条检查范围 · {{ scopeLabels[r.scope.kind] || '固定证据' }}</summary>
+                  <p class="review-muted">{{ r.scope.claims.map(claim => claimLabels[claim] || '固定证据检查').join('、') }}</p>
+                  <p v-if="recordMappings(r.scope, 'camera').length" class="review-muted">机位：{{ recordMappings(r.scope, 'camera').join('、') }}</p>
+                  <p v-if="recordMappings(r.scope, 'region').length" class="review-muted">区域：{{ recordMappings(r.scope, 'region').join('、') }}</p>
+                  <ul><li v-for="item in recordEvidence(r.scope)" :key="item.evidence_id">
+                    <span>{{ evidenceLabel(item) }}</span>
+                    <button class="btn" @click="item.mime.startsWith('image/') ? preview(page, item) : openAttachment(item)">{{ item.mime.startsWith('image/') ? '查看图像' : '阅读附件' }}</button>
+                  </li></ul>
+                  <p v-if="recordEvidence(r.scope).length < r.scope.evidence_ids.length || recordMappings(r.scope, 'camera').length < r.scope.camera_ids.length || recordMappings(r.scope, 'region').length < r.scope.region_ids.length" class="review-muted">部分范围当前不可读取，仅展示已授权的证据与映射。</p>
+                </details>
+              </article><button v-if="page.next_cursor" class="btn" @click="moreRecords">读取更多记录</button></article></div></section>
     </template>
     <dialog ref="dialog" class="review-dialog" @close="restoreTrigger">
       <h2>确认{{ ({comment:'保存意见',request_changes:'需修改',approve:'通过本次范围'} as Record<string,string>)[confirmAction] }}</h2>

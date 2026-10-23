@@ -54,6 +54,43 @@ export function reviewMessage(error: unknown): string {
   const messages: Record<string, string> = { PERMISSION_DENIED: '没有当前目标的访问或审阅权限。', SESSION_REVOKED: '会话已变化，请重新打开应用。', LEGACY_TARGET_UNMAPPED: '版本关联待补齐，历史附件仅供阅读。', TARGET_MISMATCH: '固定目标已变化，未迁移旧意见。请重新核对目标。', REVISION_CONFLICT: '项目已产生新修订，请保留意见并重新读取。', REVIEW_CONFLICT: '已有新的审阅记录，请重读后重新决定。', IDEMPOTENCY_CONFLICT: '原请求编号不匹配，已停止提交并保留恢复记录。', CONTENT_NOT_READY: '固定内容暂时不可读，请稍后重试。', NOT_FOUND: '未找到固定对象或原请求。不会改为读取最新版本。', REVIEW_SCOPE_INCOMPLETE: '本次检查范围缺少所需证据，不能提交此结论。', STORAGE_UNAVAILABLE: '无法保存请求恢复记录，本次未提交。', INVALID_RESPONSE: '返回内容与固定目标不一致，已停止操作。', READBACK_FAILED: '已提交，回读失败。请恢复原请求结果，不要重复新建。', STATE_UNKNOWN: '尚未确认提交结果，请查询原请求。' }
   return messages[code] || (error instanceof Error && error.name === 'AbortError' ? '页面已隐藏，恢复后会重新验证读取权限。' : '读取或保存未完成，请保留输入并重试原操作。')
 }
+export function reviewGapMessage(code: string): string {
+  if (!code) return ''
+  const messages: Record<string, string> = {
+    restricted: '部分内容没有读取权限',
+    read_only: '当前目标仅可阅读',
+    agent_suggestions_only: '当前会话仅可保存 AI 建议',
+    agent_advisory_only: '当前会话仅可保存 AI 建议',
+    legacy_unmapped: '历史附件尚未关联固定版本',
+    legacy_target_unmapped: '历史附件尚未关联固定版本',
+    evidence_missing: '此项检查所需证据尚未提供',
+    required_evidence_missing: '此项检查所需证据尚未提供',
+    space_mapping_unverified: '空间记录与实际场景的对应关系尚未核实',
+    recovery_report_unverified: '源工程的恢复结果尚未核实',
+    new_camera_report_unverified: '新机位复用结果尚未核实',
+    full_set_unverified: '完整片场所需的工程、空间与机位证据尚未核实',
+    camera_parameters_unverified: '机位参数与固定图像的对应关系尚未核实',
+    technical_report_not_verified: '已有检查说明，其结论尚未经过核实',
+    recovery_not_verified: '现有文件尚不足以核实工程恢复与空间可用性',
+    target_incomplete: '固定版本内容不完整，暂不能记录审阅结论',
+    restricted_or_unavailable_evidence: '部分证据无读取权限或暂不可用',
+    dependency_restricted: '部分依赖资产无读取权限或已不可用',
+    restricted_dependency: '没有部分依赖资产的读取权限',
+    dependency_unavailable: '部分固定依赖资产暂不可用',
+    source_unavailable: '固定来源清单暂不可读',
+    unavailable: '固定证据暂不可读',
+    deleted: '固定证据已删除，无法读取',
+    missing_source: '缺少源工程',
+    source_recovery_unverified: '工程恢复尚未核实',
+    missing_package: '固定片场包尚未提供',
+    missing_camera_mapping: '机位与图像的对应关系尚未登记',
+    metadata_unavailable: '固定文件信息暂不可用',
+    source_engineering_missing: '源工程尚未提供',
+    set_package_missing: '片场包尚未提供',
+  }
+  const key = code.toLowerCase()
+  return Object.hasOwn(messages, key) ? messages[key] : '此项证据暂不可确认，请检查固定文件与相关说明'
+}
 export function canonicalJSON(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value)
   if (Array.isArray(value)) return '[' + value.map(canonicalJSON).join(',') + ']'
