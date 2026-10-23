@@ -12,9 +12,10 @@ import ResultReferenceMedia from './ResultReferenceMedia.vue'
 import { provideReferenceMedia } from '../platform/reference-media'
 import { resultCode, businessOrder } from '../platform/result-locator'
 import ResultBrowser from './ResultBrowser.vue'
+import WorldTrail, {type TrailItem} from './WorldTrail.vue'
 import ResultContext from './ResultContext.vue'
 const emit=defineEmits<{'new-project':[result:LearningResult,variant:string];'use-project':[]}>()
-const props=defineProps<{asset:AssetOpen}>(),{appSDK}=useHost(),client=createReadClient(appSDK,'world')
+const props=defineProps<{asset:AssetOpen;parents:TrailItem[]}>(),{appSDK}=useHost(),client=createReadClient(appSDK,'world')
 provideReferenceMedia()
 const document=ref<LearningDocument|null>(null),loading=ref(false),error=ref('')
 const identity=publicationIdentity(appSDK.context.get())
@@ -32,19 +33,18 @@ onBeforeUnmount(()=>{alive=false;controller.abort();generation++;client.dispose(
 void load()
 </script>
 <template><section class="asset-results" aria-label="资产成果正文">
-<div v-if="loading" class="state" role="status">正在读取固定版本的成果正文…</div>
+<WorldTrail v-if="!document" :items="[...parents,{label:asset.manifest.name}]"/><slot v-if="!document"/><div v-if="loading" class="state" role="status">正在读取固定版本的成果正文…</div>
 <div v-else-if="error" class="state error" role="alert"><p>{{error}}</p><button class="btn" @click="load">重新读取正文</button></div>
 <div v-else-if="!document" class="state">这份资产没有类型化成果正文，已保存文件见下方清单。</div>
-<template v-else><header><div><h2>参考内容与使用方法</h2><p>共 {{document.results.length}} 项 · 当前资产的固定版本</p></div></header>
-<div v-if="!document.results.length" class="state">正文中尚未包含拆解或创作成果。</div>
-<template v-else><ResultBrowser :results="businessOrder(document.results)" :code="r=>resultCode(r,document!)">
+<template v-else><ResultBrowser :results="businessOrder(document.results)" :code="r=>resultCode(r,document!)" :parents="parents" :label="asset.manifest.name">
+<template #intro><header><h2>{{asset.manifest.name}}</h2><p>共 {{document.results.length}} 项 · 当前资产的固定版本</p></header><slot/></template>
 <template #thumbnail="{result}"><ResultReferenceMedia v-if="['character','scene','prop','shot'].includes(result.type_key)" :result="result" :document="document!" thumbnail/></template>
 <template #default="{result}">
 <PromptResult v-if="result.type_key==='prompt'&&result.type_version===1" :result="result" :asset="asset" :document="document" @new-project="variant=>emit('new-project',result,variant)"/>
 <HumanResult v-else :result="result" :document="document" :source-label="`世界资产 ${asset.asset_id} / 版本 ${asset.asset_version_id}`" can-use @use-project="emit('use-project')"/>
 <AgentReferenceCopy v-if="result.type_key==='prompt'" :result="result" :document="document" :source-label="`世界资产 ${asset.asset_id} / 版本 ${asset.asset_version_id}`"/>
 <details><summary>查看来源</summary><ResultContext :result="result" :document="document"/></details></template>
-</ResultBrowser></template></template></section></template>
+</ResultBrowser></template></section></template>
 <style scoped>
 .asset-results{margin:24px 0;color:var(--ink);min-width:0}header{margin-bottom:18px}h2{font-size:21px;margin:0 0 8px}header p{font-size:12px;color:var(--muted)}.state{padding:26px;border:1px dashed var(--line);border-radius:10px;color:var(--muted)}.error{color:var(--danger)}.notice{font-size:12px;color:var(--muted);margin-bottom:16px}
 </style>

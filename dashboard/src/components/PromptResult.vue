@@ -14,6 +14,9 @@ const samplePage=ref(0),showOriginals=ref(false)
 const sampleState=computed(()=>{try{return {items:promptSamples(current.value),error:''}}catch{return {items:[],error:'生成记录不完整，暂不能展示样例。'}}})
 const visibleSamples=computed(()=>sampleState.value.items.slice(samplePage.value*4,samplePage.value*4+4))
 watch(()=>[props.asset.asset_id,props.asset.asset_version_id,props.result.key,current.value.key,current.value.revision],()=>{samplePage.value=0;showOriginals.value=false})
+const tasks:Record<string,string>={text_planning:'文字策划',text:'文本创作',image:'图像创作',video:'视频创作',audio:'音频创作',music:'音乐创作',speech:'语音创作',image_generation:'图像生成',video_generation:'视频生成'}
+const inputs:Record<string,string>={messages:'对话输入','text-to-video':'文字生成视频','reference-to-video':'参考素材生成视频','image-to-video':'图片生成视频','text-to-image':'文字生成图片','reference-to-image':'参考素材生成图片',text:'文字输入',image:'图片参考',video:'视频参考',audio:'音频参考',multimodal:'多种素材参考',text_to_image:'文字生成图片',image_to_video:'图片生成视频',text_to_video:'文字生成视频'}
+const roles:Record<string,string>={system:'系统规则',developer:'任务约束',user:'创作要求',assistant:'参考回复'}
 const reviews:Record<string,string>={unreviewed:'尚未审核',accepted:'记录为已采纳',rejected:'记录为未采纳'}
 let copyGeneration=0
 onBeforeUnmount(()=>{copyGeneration++})
@@ -27,7 +30,7 @@ async function copy(config=false){
 <template><div class="prompt-result">
 <p class="intent">{{result.payload.creative_intent}}</p>
 <div class="variant-bar"><label>适用模型版本<select v-model="chosen"><option v-for="v in variants" :key="v.key" :value="v.key">{{v.requested_label}} · {{v.model_version||'未注明模型版本'}} · 配置 r{{v.revision}}</option></select></label><span class="badge">{{compatibilityLabels[current.compatibility]}}</span></div>
-<dl class="model-facts"><dt>实际模型</dt><dd>{{current.model_id||'待解析，尚无实际模型标识'}} · {{current.model_version||'版本未记录'}}</dd><dt>任务与输入</dt><dd>{{current.task_type}} · {{current.input_mode}}</dd><template v-if="current.provider||current.route"><dt>渠道</dt><dd>{{current.provider||'未记录'}} · {{current.route||'路由未记录'}}</dd></template></dl>
+<dl class="model-facts"><dt>实际模型</dt><dd>{{current.model_id||'待解析，尚无实际模型标识'}} · {{current.model_version||'版本未记录'}}</dd><dt>任务与输入</dt><dd>{{tasks[current.task_type]||'其他创作任务'}} · {{inputs[current.input_mode]||'参考输入方式待确认'}}</dd><template v-if="current.provider||current.route"><dt>渠道</dt><dd>{{current.provider||'未记录'}} · {{current.route||'路由未记录'}}</dd></template></dl>
 <div class="actions"><button class="btn primary" @click="copy()">复制正文</button><button class="btn" @click="copy(true)">复制完整配置</button><button class="btn" @click="emit('new-project',current.key)">新建项目创作</button></div><p v-if="copyStatus" class="copy-status" role="status">{{copyStatus}}</p><textarea v-if="manual" ref="manualInput" :value="manual" readonly rows="9" aria-label="待手动复制的内容"/>
 <p class="sample-note">样例只读。新建项目时会带入所选模型的固定配置，所有修改与创作在项目中完成。</p>
 <section class="samples" aria-label="提示词真实样例">
@@ -44,7 +47,7 @@ async function copy(config=false){
 <div v-if="result.source_refs.length" class="originals"><button class="btn" :aria-expanded="showOriginals" @click="showOriginals=!showOriginals">{{showOriginals?'收起':'查看'}}原作与来源参考</button><p>来源参考不代表生成效果。</p><template v-if="showOriginals"><PromptSampleMedia v-for="(reference,i) in result.source_refs.slice(0,4)" :key="`${asset.asset_id}:${asset.asset_version_id}:${result.key}:source:${i}`" :asset="asset" :document="document" :reference="reference" :title="`${result.title} · 来源参考`"/><p v-if="result.source_refs.length>4">其余来源引用见下方“来源依据”。</p></template></div>
 </section>
 <section v-if="current.prompt_text" class="text-block"><h4>提示词正文</h4><pre>{{current.prompt_text}}</pre></section>
-<section v-if="current.messages" class="text-block"><h4>对话提示词</h4><div v-for="(m,i) in current.messages" :key="i" class="message"><strong>{{m.role}}</strong><pre>{{m.content}}</pre></div></section>
+<section v-if="current.messages" class="text-block"><h4>对话提示词</h4><div v-for="(m,i) in current.messages" :key="i" class="message"><strong>{{roles[m.role]||'对话内容'}}</strong><pre>{{m.content}}</pre></div></section>
 <section v-if="current.negative_prompt" class="text-block"><h4>负向提示词</h4><pre>{{current.negative_prompt}}</pre></section>
 <section v-if="Array.isArray(result.payload.variables)&&result.payload.variables.length" class="configuration"><h4>可改变量</h4><ResultFields :value="result.payload.variables"/></section>
 <section v-if="current.parameters&&Object.keys(current.parameters).length" class="configuration"><h4>生成参数</h4><ResultFields :value="current.parameters"/></section>
