@@ -61,8 +61,8 @@ INSERT INTO studio.world_coord_fences VALUES('project',7),('world',9);`); err !=
 		t.Fatal("legacy state changed", err)
 	}
 	var count int
-	if err = db.QueryRow(ctx, "SELECT count(*) FROM studio.world_schema_history").Scan(&count); err != nil || count != 13 {
-		t.Fatal("upgrade history mismatch", err)
+	if err = db.QueryRow(ctx, "SELECT count(*) FROM studio.world_schema_history").Scan(&count); err != nil || count != 14 {
+		t.Fatal("upgrade history mismatch", "count", count, "error", err)
 	}
 	if _, err = db.Exec(ctx, "UPDATE studio.world_asset_versions SET manifest_json='{}'"); err == nil {
 		t.Fatal("immutable version was editable")
