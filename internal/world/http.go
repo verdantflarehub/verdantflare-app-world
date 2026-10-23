@@ -45,6 +45,11 @@ func (s *Service) HTTPHandler(serviceToken string, _ ...string) (http.Handler, e
 			return
 		}
 		mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if len(r.Header.Values("X-Review-Origin")) > 1 || (len(r.Header.Values("X-Review-Origin")) == 1 && r.Header.Get("X-Review-Origin") != "agent" && r.Header.Get("X-Review-Origin") != "human_interactive") {
+			httpError(w, p, ErrForbidden)
+			return
+		}
+		p.ReviewOrigin = r.Header.Get("X-Review-Origin")
 		if r.Method != "POST" || r.URL.RawQuery != "" || r.URL.ForceQuery || strings.Contains(r.URL.EscapedPath(), "%") || len(r.Header.Values("Content-Type")) != 1 || err != nil || mt != "application/json" || len(r.Header.Values("Content-Encoding")) != 0 {
 			httpError(w, p, ErrInvalid)
 			return
@@ -67,6 +72,27 @@ func (s *Service) HTTPHandler(serviceToken string, _ ...string) (http.Handler, e
 			path = "/internal/v1/world/" + strings.TrimPrefix(path, "/api/v1/world/")
 		}
 		switch path {
+		case "/internal/v1/world/review/open":
+			var request ReviewOpenRequest
+			if decodeReview(data, &request) != nil {
+				httpError(w, p, ErrInvalid)
+				return
+			}
+			result, err = s.ReviewOpen(r.Context(), p, request)
+		case "/internal/v1/world/review/append":
+			var request ReviewAppendRequest
+			if decodeReview(data, &request) != nil {
+				httpError(w, p, ErrInvalid)
+				return
+			}
+			result, err = s.ReviewAppend(r.Context(), p, request)
+		case "/internal/v1/world/review/status":
+			var request ReviewStatusRequest
+			if decodeReview(data, &request) != nil {
+				httpError(w, p, ErrInvalid)
+				return
+			}
+			result, err = s.ReviewStatus(r.Context(), p, request)
 		case "/internal/v1/world/analyze":
 			request, decodeErr := DecodeAnalyzeRequest(data)
 			if decodeErr != nil {
@@ -157,6 +183,9 @@ func (s *Service) HTTPHandler(serviceToken string, _ ...string) (http.Handler, e
 			err = ErrNotFound
 		}
 		if err != nil {
+			if strings.HasPrefix(path, "/internal/v1/world/review/") && errors.Is(err, ErrNotReady) {
+				err = ErrReviewNotReady
+			}
 			httpError(w, p, err)
 			return
 		}
@@ -169,7 +198,7 @@ func httpError(w http.ResponseWriter, p Principal, err error) {
 	for _, item := range []struct {
 		err    error
 		status int
-	}{{ErrInvalid, 400}, {ErrForbidden, 403}, {ErrNotFound, 404}, {ErrConflict, 409}, {ErrIdempotency, 409}, {ErrNotReady, 409}, {ErrDependency, 503}, {coordination.ErrPending, 409}} {
+	}{{ErrReviewNotReady, 503}, {ErrReviewConflict, 409}, {ErrTargetMismatch, 409}, {ErrReviewScope, 422}, {ErrInvalid, 400}, {ErrForbidden, 403}, {ErrNotFound, 404}, {ErrConflict, 409}, {ErrIdempotency, 409}, {ErrNotReady, 409}, {ErrDependency, 503}, {coordination.ErrPending, 409}} {
 		if errors.Is(err, item.err) {
 			status, code = item.status, item.err.Error()
 			break

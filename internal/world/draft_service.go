@@ -455,7 +455,7 @@ func (s *Service) recoverDrafts(ctx context.Context) error {
 	failures := []error{}
 	for _, v := range items {
 		c, cancel := context.WithTimeout(ctx, 2*time.Minute)
-		_, err = s.resumeDraft(c, Principal{v.org, v.actor, newID()}, v.commit)
+		_, err = s.resumeDraft(c, Principal{OrganizationID: v.org, SubjectID: v.actor, RequestID: newID()}, v.commit)
 		cancel()
 		if err != nil {
 			failures = append(failures, err)

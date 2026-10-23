@@ -24,7 +24,7 @@ export function metadata(appId, version, entries) {
     adapter: 'wujie', sdkMajor: 1, minimumSdkVersion: '1.1.0',
     requiredCapabilities: ['app.request', 'navigation.request'],
     optionalCapabilities: appId === 'project' ? ['artifact.read', 'navigation.openApp'] : ['artifact.read', 'artifact.write', 'navigation.openApp'],
-    appApiPolicyRef: appId === 'project' ? 'project-dashboard-v1' : 'world-analysis-v1', keepAlive: true,
+    appApiPolicyRef: appId === 'project' ? 'project-dashboard-v1' : 'world-set-review-v1', keepAlive: true,
   } }))
   const children = appId === 'world' ? [
     ['character', '人物', '/character'], ['scene', '场景', '/scene'],

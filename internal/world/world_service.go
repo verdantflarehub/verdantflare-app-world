@@ -238,6 +238,13 @@ func (s *Service) WorldRegister(ctx context.Context, p Principal, input WorldReg
 		if e = advisory(ctx, tx, "world-commit:"+p.OrganizationID+":"+asset+":"+r.CommitID); e != nil {
 			return WorldResult{}, e
 		}
+		var reviewUsed bool
+		if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM studio.world_set_review_requests WHERE organization_id=$1 AND asset_id=$2 AND commit_id=$3)", p.OrganizationID, asset, r.CommitID).Scan(&reviewUsed); e != nil {
+			return WorldResult{}, e
+		}
+		if reviewUsed {
+			return WorldResult{}, ErrIdempotency
+		}
 		c, err := loadWorldCommit(ctx, tx, p.OrganizationID, asset, r.CommitID)
 		if err == nil {
 			if c.Actor != p.SubjectID {

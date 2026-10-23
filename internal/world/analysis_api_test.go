@@ -93,7 +93,7 @@ func (c *capabilityReader) Capabilities(context.Context, string) (analysis.Capab
 	return c.value, c.err
 }
 func TestAnalysisAdmissionCapabilityProjection(t *testing.T) {
-	p := Principal{newID(), newID(), newID()}
+	p := Principal{OrganizationID: newID(), SubjectID: newID(), RequestID: newID()}
 	for _, name := range []string{"disabled", "runtime-off", "missing-audio", "small-input", "empty-models", "unavailable", "enabled"} {
 		t.Run(name, func(t *testing.T) {
 			c := &capabilityReader{value: analysis.Capabilities{State: "enabled", Models: []string{"gemini-3.1-pro-preview"}, MIME: []string{"video/mp4", "audio/wav"}, MaxMediaBytes: analysis.MaxMediaBytes}}

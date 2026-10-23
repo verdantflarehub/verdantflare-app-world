@@ -40,6 +40,7 @@ type Principal struct {
 	OrganizationID string `json:"organization_id"`
 	SubjectID      string `json:"subject_id"`
 	RequestID      string `json:"request_id"`
+	ReviewOrigin   string `json:"-"`
 }
 
 func (p Principal) Valid() bool {

@@ -22,7 +22,7 @@ func TestWorldCatalogFiltersAndIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc := &Service{db: db}
-	p := Principal{testID(30), testID(31), testID(32)}
+	p := Principal{OrganizationID: testID(30), SubjectID: testID(31), RequestID: testID(32)}
 	// Only query fixtures; no task completion or publication behavior is inferred.
 	seed := func(org, subject, kind, name, relation string, tags []string) string {
 		t.Helper()

@@ -67,7 +67,7 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 		t.Fatal(err)
 	}
 	content.svc = svc
-	p := Principal{testID(30), testID(31), newID()}
+	p := Principal{OrganizationID: testID(30), SubjectID: testID(31), RequestID: newID()}
 	subjects := []string{"reference"}
 	raw, err := svc.WorldDraft(ctx, p, DraftRequest{Mode: "create", CommitID: newID(), Name: "Synthetic bundle source", Purpose: "collection", Subjects: &subjects})
 	if err != nil {
@@ -204,7 +204,7 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 			}
 		}
 	}
-	for _, actor := range []Principal{{}, {newID(), p.SubjectID, newID()}, {p.OrganizationID, newID(), newID()}} {
+	for _, actor := range []Principal{{}, {OrganizationID: newID(), SubjectID: p.SubjectID, RequestID: newID()}, {OrganizationID: p.OrganizationID, SubjectID: newID(), RequestID: newID()}} {
 		if options.typed {
 			if options.saveLearning {
 				if _, err := svc.SaveAnalysisLearning(ctx, actor, task.TaskID); err == nil {
@@ -233,7 +233,7 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 		}
 	}
 	if len(targets) > 0 {
-		for _, actor := range []Principal{{}, {newID(), p.SubjectID, newID()}, {p.OrganizationID, newID(), newID()}} {
+		for _, actor := range []Principal{{}, {OrganizationID: newID(), SubjectID: p.SubjectID, RequestID: newID()}, {OrganizationID: p.OrganizationID, SubjectID: newID(), RequestID: newID()}} {
 			if _, err := svc.AnalysisPromptDrafts(ctx, actor, task.TaskID); err == nil {
 				t.Fatal("foreign prompt content leaked")
 			}

@@ -67,7 +67,7 @@ func (a *learningTestArtifact) Retain(context.Context, Principal, RetentionOwner
 	return ErrDependency
 }
 func TestDraftLearningReadsBytesAndRejectsInvalidContent(t *testing.T) {
-	p := Principal{testID(30), testID(31), testID(32)}
+	p := Principal{OrganizationID: testID(30), SubjectID: testID(31), RequestID: testID(32)}
 	m := draftFixture()
 	m.Purpose = "learning"
 	ref := ContentRef{testID(1), testID(2), testID(3)}
@@ -104,7 +104,7 @@ func TestDraftLearningReadsBytesAndRejectsInvalidContent(t *testing.T) {
 	}
 }
 func TestDraftLearningResolvesExactSourceObject(t *testing.T) {
-	p := Principal{testID(30), testID(31), testID(32)}
+	p := Principal{OrganizationID: testID(30), SubjectID: testID(31), RequestID: testID(32)}
 	data := learningPromptFixture(t)
 	doc, err := ValidateLearningContent(data, nil)
 	if err != nil {

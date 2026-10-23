@@ -32,7 +32,7 @@ func (p *provenanceProject) Authorize(_ context.Context, _ Principal, permission
 }
 
 func TestDraftNativeOutputRequiresAuthorizedSelectedFile(t *testing.T) {
-	p := Principal{testID(30), testID(31), testID(32)}
+	p := Principal{OrganizationID: testID(30), SubjectID: testID(31), RequestID: testID(32)}
 	m := draftFixture()
 	m.Purpose = "creation"
 	file := File{ID: testID(4), Path: "created.wav", Role: "audio", Content: ContentRef{testID(1), testID(2), testID(3)}}

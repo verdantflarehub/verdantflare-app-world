@@ -123,7 +123,7 @@ func TestDraftNormalizationDoesNotMutateAndPinsIntent(t *testing.T) {
 	}
 }
 func TestDraftCursorCannotCrossPrincipalOrFilters(t *testing.T) {
-	p := Principal{testID(30), testID(31), testID(32)}
+	p := Principal{OrganizationID: testID(30), SubjectID: testID(31), RequestID: testID(32)}
 	r := DraftRequest{Mode: "list", Purpose: "collection", Query: "视频", Subject: "镜头"}
 	r.Cursor = encodeDraftCursor(p, r, testID(70))
 	after, err := decodeDraftCursor(p, r)
@@ -150,7 +150,7 @@ func TestDraftCursorCannotCrossPrincipalOrFilters(t *testing.T) {
 	}
 }
 func TestDraftScopeRejectsForgedSourcesBeforeDatabase(t *testing.T) {
-	p := Principal{testID(30), testID(31), testID(32)}
+	p := Principal{OrganizationID: testID(30), SubjectID: testID(31), RequestID: testID(32)}
 	svc := &Service{}
 	good := Source{Kind: "user_edit", WorldDraftID: testID(70)}
 	if !draftUserSource(good, testID(70)) {

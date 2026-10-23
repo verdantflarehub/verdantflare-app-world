@@ -44,6 +44,9 @@ func (s *Service) MCPHandler(token string, _ ...string) (http.Handler, error) {
 	for _, tool := range tools {
 		routes[tool.Name] = "/internal/v1/" + strings.Replace(tool.Name, ".", "/", 1)
 	}
+	for _, action := range []string{"open", "append", "status"} {
+		routes["world.review_"+action] = "/internal/v1/world/review/" + action
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -93,6 +96,7 @@ func (s *Service) MCPHandler(token string, _ ...string) (http.Handler, error) {
 				return
 			}
 			inner := r.Clone(r.Context())
+			inner.Header.Set("X-Review-Origin", "agent")
 			inner.URL.Path = path
 			inner.Body = io.NopCloser(bytes.NewReader(args))
 			inner.ContentLength = int64(len(args))

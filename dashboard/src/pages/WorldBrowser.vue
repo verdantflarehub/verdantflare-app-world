@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import WorldTrail from '../components/WorldTrail.vue'
+import { reviewPath } from '../platform/set-review'
+import { rememberReviewContext, reviewContextKey } from '../platform/set-review-memory'
 import WorldConcept from '../components/WorldConcept.vue'
 import { worldDomains, catalogTypes, catalogDomain, catalogQuery, assetDomain, assetTypeLabel } from '../platform/world-catalog'
 import { promptProjectTarget } from '../platform/prompt-project-target'
@@ -15,6 +17,12 @@ import { isID, readAsset, readAssetList, type AssetItem, type AssetOpen } from '
 import { projectTarget, useAssetTarget } from '../platform/route-links'
 
 const route = useRoute(), router = useRouter()
+function openSetReview() {
+  const asset = selectedAsset.value
+  if (!asset) return
+  rememberReviewContext(reviewContextKey(appSDK.context.get(), asset.asset_id), route.fullPath, dashboardHost.getScroll())
+  void router.push(reviewPath({ kind: 'world', asset_id: asset.asset_id, asset_version_id: asset.asset_version_id }))
+}
 const { appSDK, dashboardHost } = useHost()
 const identity = publicationIdentity(appSDK.context.get())
 const detail = computed(() => route.query.asset !== undefined)
@@ -133,7 +141,7 @@ void loadWorld()
     <template v-else>
       <div v-if="detailLoading" class="state" role="status">正在读取固定版本…</div>
       <template v-else-if="selectedAsset">
-        <AssetResults :key="selectedAsset.asset_id+':'+selectedAsset.asset_version_id" :asset="selectedAsset" :parents="[{label:'数字世界',to:domain?'/':listRoute},...(domain?[{label:domain.label,to:listRoute}]:[])]" @new-project="newProject" @use-project="bringIntoProject"><div class="asset-actions"><span class="version-pill">固定版本 {{shortID(selectedAsset.asset_version_id)}}</span><button class="btn" @click="bringIntoProject">选择项目并引用此版本</button></div></AssetResults>
+        <AssetResults :key="selectedAsset.asset_id+':'+selectedAsset.asset_version_id" :asset="selectedAsset" :parents="[{label:'数字世界',to:domain?'/':listRoute},...(domain?[{label:domain.label,to:listRoute}]:[])]" @new-project="newProject" @use-project="bringIntoProject"><div class="asset-actions"><button v-if="assetDomain(selectedAsset.manifest.asset_type)?.key === 'scene'" class="btn" @click="openSetReview">片场审阅 →</button><span class="version-pill">固定版本 {{shortID(selectedAsset.asset_version_id)}}</span><button class="btn" @click="bringIntoProject">选择项目并引用此版本</button></div></AssetResults>
         <details class="detail-panel"><summary>资产信息与已保存文件</summary>
           <dl class="facts"><dt>资产类型</dt><dd>{{selectedAsset.manifest.asset_type}}</dd><dt>主体</dt><dd>{{selectedAsset.manifest.subjects.join('、') || '未标主体'}}</dd><template v-if="selectedAsset.manifest.source.kind === 'world_draft'"><dt>来源工作区修订</dt><dd>{{shortID(selectedAsset.manifest.source.draft_id)}} · {{shortID(selectedAsset.manifest.source.draft_revision_id)}}</dd></template><template v-else><dt>来源项目修订</dt><dd>{{shortID(selectedAsset.manifest.source.project_id)}} · {{shortID(selectedAsset.manifest.source.project_revision_id)}}</dd></template></dl>
           <ul class="plain-list"><li v-for="file in selectedAsset.manifest.files" :key="file.file_id"><span>{{file.path}}</span><small>{{file.role}} · {{shortID(file.file_id)}}</small></li></ul><button v-if="selectedAsset.manifest.source.kind !== 'world_draft'" class="btn detail-action" @click="openSource">查看来源项目的固定修订</button>

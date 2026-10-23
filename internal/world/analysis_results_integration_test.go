@@ -107,7 +107,7 @@ func verifyResultExecution(t *testing.T, svc *Service, p Principal, b analysis.B
 	c := &resultChannelFixture{associationChannelFixture: associationChannelFixture{observationChannel: observationChannel{call: analysis.Call{SchemaVersion: 1, Binding: analysis.Binding{CallID: newID(), TaskID: b.TaskID, ModelID: b.Receipts[0].ModelID}, Media: "analysis", Operation: "analyze", State: "queued", Accepted: &yes}, err: analysis.ErrUnavailable}}}
 	dispatch := true
 	worker := analysis.Scheduler{Queue: store, Dispatch: true, Advance: func(ctx context.Context, w analysis.Work) (string, error) {
-		actor := Principal{w.OrganizationID, w.OwnerID, w.LeaseID}
+		actor := Principal{OrganizationID: w.OrganizationID, SubjectID: w.OwnerID, RequestID: w.LeaseID}
 		if w.StepKey == analysis.ResultSetupStepKey {
 			return "results_planned", svc.PrepareAnalysisResults(ctx, actor, w.TaskID, dispatch)
 		}

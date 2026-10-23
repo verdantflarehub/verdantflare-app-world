@@ -107,7 +107,7 @@ func TestDraftPersistenceRecoveryIsolationAndCAS(t *testing.T) {
 		t.Fatal(err)
 	}
 	content.svc = svc
-	p := Principal{testID(30), testID(31), testID(32)}
+	p := Principal{OrganizationID: testID(30), SubjectID: testID(31), RequestID: testID(32)}
 	subjects := []string{"reference"}
 	req := DraftRequest{Mode: "create", CommitID: testID(72), Name: "仅收录", Purpose: "collection", Subjects: &subjects}
 	if _, err = svc.WorldDraft(ctx, p, req); !errors.Is(err, ErrDependency) {
@@ -147,7 +147,7 @@ func TestDraftPersistenceRecoveryIsolationAndCAS(t *testing.T) {
 	if err != nil || len(raw.(DraftList).Items) != 1 || raw.(DraftList).Items[0].HasContent {
 		t.Fatal("empty draft not labeled", err)
 	}
-	for _, guest := range []Principal{{p.OrganizationID, testID(90), p.RequestID}, {testID(91), p.SubjectID, p.RequestID}} {
+	for _, guest := range []Principal{{OrganizationID: p.OrganizationID, SubjectID: testID(90), RequestID: p.RequestID}, {OrganizationID: testID(91), SubjectID: p.SubjectID, RequestID: p.RequestID}} {
 		if _, err = svc.WorldDraft(ctx, guest, DraftRequest{Mode: "get", DraftID: created.DraftID}); !errors.Is(err, ErrForbidden) {
 			t.Fatal("private draft leaked", err)
 		}
@@ -256,7 +256,7 @@ func TestDraftPersistenceRecoveryIsolationAndCAS(t *testing.T) {
 			t.Fatal("private sibling retained as asset")
 		}
 	}
-	guest := Principal{p.OrganizationID, testID(120), p.RequestID}
+	guest := Principal{OrganizationID: p.OrganizationID, SubjectID: testID(120), RequestID: p.RequestID}
 	if _, err = svc.WorldCommitStatus(ctx, guest, WorldStatusRequest{CommitID: registration.CommitID}); !errors.Is(err, ErrNotFound) {
 		t.Fatal("creation lookup leaked to another user", err)
 	}

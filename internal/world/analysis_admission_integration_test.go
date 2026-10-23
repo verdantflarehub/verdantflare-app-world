@@ -42,7 +42,7 @@ func admissionFixture(t *testing.T) (*Service, Principal, AnalyzeRequest, *admis
 		t.Fatal(err)
 	}
 	a.svc = svc
-	p := Principal{newID(), newID(), newID()}
+	p := Principal{OrganizationID: newID(), SubjectID: newID(), RequestID: newID()}
 	subjects := []string{"reference"}
 	raw, err := svc.WorldDraft(ctx, p, DraftRequest{Mode: "create", CommitID: newID(), Name: "Synthetic admission source", Purpose: "collection", Subjects: &subjects})
 	if err != nil {
@@ -129,7 +129,7 @@ func TestAnalysisAdmissionDurableReplayOwnershipAndLease(t *testing.T) {
 	if _, err = restarted.WorldAnalyze(ctx, p, fresh); !errors.Is(err, ErrDependency) {
 		t.Fatal("disabled admission accepted new request", err)
 	}
-	for _, other := range []Principal{{newID(), p.SubjectID, newID()}, {p.OrganizationID, newID(), newID()}} {
+	for _, other := range []Principal{{OrganizationID: newID(), SubjectID: p.SubjectID, RequestID: newID()}, {OrganizationID: p.OrganizationID, SubjectID: newID(), RequestID: newID()}} {
 		if _, err = svc.WorldAnalyze(ctx, other, AnalyzeRequest{Mode: "get", TaskID: r.TaskID}); !errors.Is(err, ErrNotFound) {
 			t.Fatal("private task leaked", err)
 		}

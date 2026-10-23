@@ -34,7 +34,7 @@ func TestAnalysisSchedulerLeasesRecoveryAndIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 	content.svc = svc
-	p := Principal{testID(30), testID(31), newID()}
+	p := Principal{OrganizationID: testID(30), SubjectID: testID(31), RequestID: newID()}
 	subjects := []string{"reference"}
 	raw, err := svc.WorldDraft(ctx, p, DraftRequest{Mode: "create", CommitID: newID(), Name: "Synthetic scheduler source", Purpose: "collection", Subjects: &subjects})
 	if err != nil {
@@ -138,7 +138,7 @@ func TestAnalysisSchedulerLeasesRecoveryAndIsolation(t *testing.T) {
 	yes := true
 	channel := &observationChannel{call: analysis.Call{SchemaVersion: 1, Binding: analysis.Binding{CallID: newID(), TaskID: task.TaskID, ModelID: r.Request.ModelID}, Media: "analysis", Operation: "analyze", State: "queued", Accepted: &yes}}
 	worker := analysis.Scheduler{Queue: store, Advance: func(ctx context.Context, w analysis.Work) (string, error) {
-		r, err := svc.AdvanceAnalysisStep(ctx, Principal{w.OrganizationID, w.OwnerID, w.LeaseID}, w.TaskID, w.StepKey, analysis.Preparer{FFprobe: "must-not-run", FFmpeg: "must-not-run"}, channel)
+		r, err := svc.AdvanceAnalysisStep(ctx, Principal{OrganizationID: w.OrganizationID, SubjectID: w.OwnerID, RequestID: w.LeaseID}, w.TaskID, w.StepKey, analysis.Preparer{FFprobe: "must-not-run", FFmpeg: "must-not-run"}, channel)
 		return r.State, err
 	}}
 	if worked, e := worker.Tick(ctx); e != nil || !worked || channel.submits != 0 || channel.lookups != 1 {

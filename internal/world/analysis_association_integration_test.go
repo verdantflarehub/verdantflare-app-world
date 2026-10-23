@@ -46,7 +46,7 @@ func verifyAssociationExecution(t *testing.T, svc *Service, p Principal, b analy
 		if w.StepKey != analysis.AssociationStepKey || w.TaskID != b.TaskID {
 			t.Fatal("wrong automatic phase")
 		}
-		r, err := svc.AdvanceAnalysisAssociation(ctx, Principal{w.OrganizationID, w.OwnerID, w.LeaseID}, w.TaskID, c, dispatch)
+		r, err := svc.AdvanceAnalysisAssociation(ctx, Principal{OrganizationID: w.OrganizationID, SubjectID: w.OwnerID, RequestID: w.LeaseID}, w.TaskID, c, dispatch)
 		return r.State, err
 	}}
 	if worked, err := worker.Tick(ctx); !worked || !errors.Is(err, analysis.ErrUnavailable) || c.submits != 1 {

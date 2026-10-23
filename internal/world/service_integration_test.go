@@ -135,7 +135,7 @@ func TestWorldIndependentPublicationAndPendingRevocation(t *testing.T) {
 	if _, err = svc.WorldRevoke(ctx, p, WorldRevokeRequest{published.AssetID, guest}); err != nil {
 		t.Fatal("authorized retry could not finish", err)
 	}
-	if _, err = assetRole(ctx, db, Principal{p.OrganizationID, guest, p.RequestID}, published.AssetID); !errors.Is(err, ErrForbidden) {
+	if _, err = assetRole(ctx, db, Principal{OrganizationID: p.OrganizationID, SubjectID: guest, RequestID: p.RequestID}, published.AssetID); !errors.Is(err, ErrForbidden) {
 		t.Fatal("revoked grant retained", err)
 	}
 	if err = svc.coord.Store.Prepare(ctx, op, []coordination.Grant{{ResourceID: published.AssetID}}); err == nil {

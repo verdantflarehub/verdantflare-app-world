@@ -55,7 +55,7 @@ func TestAnalysisPersistenceRestartIsolationAndConcurrentClaim(t *testing.T) {
 		t.Fatal(err)
 	}
 	content.svc = svc
-	p := Principal{testID(30), testID(31), testID(32)}
+	p := Principal{OrganizationID: testID(30), SubjectID: testID(31), RequestID: testID(32)}
 	subjects := []string{"reference"}
 	raw, err := svc.WorldDraft(ctx, p, DraftRequest{Mode: "create", CommitID: newID(), Name: "Synthetic analysis source", Purpose: "collection", Subjects: &subjects})
 	if err != nil {

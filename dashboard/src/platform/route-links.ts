@@ -31,8 +31,9 @@ export function canonicalRoute(domain: Domain, path: string): string {
     if (files) url.pathname = uuid.test(url.searchParams.get('project') || '') ? '/workspace' : '/projects'
     else if (url.pathname === '/') url.pathname = '/projects'
   } else {
+    const reviewDetail = /^\/scene\/[0-9a-f-]{36}\/versions\/[0-9a-f-]{36}\/review$/.test(url.pathname) && url.pathname.split('/').filter(Boolean).filter((_,i)=>i===1||i===3).every(v=>uuid.test(v))
     const collectionDetail = url.pathname.startsWith('/collections/') && uuid.test(url.pathname.slice('/collections/'.length))
-    if ((!['/', '/world', '/projects', '/publish', '/collections', '/learn', '/character', '/scene', '/sound', '/music', '/shot', '/script', '/knowledge'].includes(url.pathname) && !collectionDetail) || (mode && mode !== 'world') || (url.pathname === '/projects' && mode !== 'world')) invalid()
+    if ((!['/', '/world', '/projects', '/publish', '/collections', '/learn', '/character', '/scene', '/sound', '/music', '/shot', '/script', '/knowledge'].includes(url.pathname) && !collectionDetail && !reviewDetail) || (mode && mode !== 'world') || (url.pathname === '/projects' && mode !== 'world')) invalid()
     if (['/', '/world', '/projects'].includes(url.pathname)) url.pathname = '/'
   }
   url.searchParams.delete('mode')

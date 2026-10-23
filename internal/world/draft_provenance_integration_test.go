@@ -39,7 +39,7 @@ func TestDraftNativeOriginPersistsWithoutProjectBinding(t *testing.T) {
 	if err := migrations.ActivateFresh(ctx, db); err != nil {
 		t.Fatal(err)
 	}
-	p := Principal{testID(30), testID(31), testID(32)}
+	p := Principal{OrganizationID: testID(30), SubjectID: testID(31), RequestID: testID(32)}
 	file := File{ID: testID(4), Path: "native-output.txt", Role: "reference", Content: ContentRef{testID(1), testID(2), testID(3)}}
 	project := &provenanceProject{source: OpenResult{Result: Result{ProjectID: testID(40), RevisionID: testID(41), Manifest: Manifest{Files: []File{file}}}}}
 	run := RunRef{ServiceID: "speech", RunID: "producer-runtime/opaque:1"}

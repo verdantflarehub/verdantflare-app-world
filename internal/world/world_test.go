@@ -216,7 +216,7 @@ func TestWorldHTTPAndAuthorityRejectProjectOperations(t *testing.T) {
 			t.Fatal("foreign operation accepted")
 		}
 	}
-	p := Principal{testID(30), testID(31), testID(32)}
+	p := Principal{OrganizationID: testID(30), SubjectID: testID(31), RequestID: testID(32)}
 	access := Access{ProjectID: testID(1), RevisionID: testID(9)}
 	v := ContentVersion{ContentRef: sourceFixture().ManifestRef, OrganizationID: p.OrganizationID}
 	if err = s.AuthorizeArtifact(context.Background(), p, Permission{Action: "read", Version: &v, Access: &access}); !errors.Is(err, ErrForbidden) {

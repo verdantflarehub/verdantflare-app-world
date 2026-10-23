@@ -258,7 +258,7 @@ func (s *Service) PrepareAnalysisSubmission(ctx context.Context, w analysis.Work
 	if err := store.CheckSubmissionLease(ctx, w); err != nil {
 		return "", err
 	}
-	p := Principal{w.OrganizationID, w.OwnerID, w.LeaseID}
+	p := Principal{OrganizationID: w.OrganizationID, SubjectID: w.OwnerID, RequestID: w.LeaseID}
 	row, err := store.Submission(ctx, p.OrganizationID, p.SubjectID, w.TaskID)
 	if err != nil {
 		return "", err
