@@ -15,8 +15,69 @@ import { callTool } from '../platform/mcp'
 import { useHost } from '../platform/host'
 import { isID, readAsset, readAssetList, type AssetItem, type AssetOpen } from '../platform/world-model'
 import { projectTarget, useAssetTarget } from '../platform/route-links'
+import {
+  buildWorldViewerOpenTarget,
+  classifyViewerOpenError,
+  detectWorldSetPackage,
+  type ViewerLaunchOutcome,
+} from '../platform/set-viewer-entry'
+import { controlledReviewPath } from '../platform/set-review'
 
 const route = useRoute(), router = useRouter()
+const setViewerState = ref<ViewerLaunchOutcome | 'idle'>('idle')
+const setViewerBusy = ref(false)
+const setPackageDownloadUrl = ref('')
+const detectedSetPackage = computed(() => detectWorldSetPackage(selectedAsset.value?.manifest.files))
+
+async function openWorldSetViewer() {
+  const asset = selectedAsset.value
+  const pkg = detectedSetPackage.value
+  if (!asset || !pkg || setViewerBusy.value) return
+  setViewerBusy.value = true
+  setViewerState.value = 'idle'
+  try {
+    const target = buildWorldViewerOpenTarget({
+      assetId: asset.asset_id,
+      versionId: asset.asset_version_id,
+      setId: pkg.setId,
+      cameraId: 'C1',
+    })
+    await appSDK.capabilities.call('navigation.openApp', target)
+    setViewerState.value = 'opened'
+  } catch (cause) {
+    setViewerState.value = classifyViewerOpenError(cause)
+  } finally {
+    setViewerBusy.value = false
+  }
+}
+
+async function prepareWorldSetPackageDownload() {
+  const asset = selectedAsset.value
+  const pkg = detectedSetPackage.value
+  const file = pkg?.sceneGlbFile || pkg?.setJsonFile
+  if (!asset || !file) return
+  try {
+    const res = (await appSDK.capabilities.call('artifact.read', {
+      mode: 'download',
+      content_ref: file.content_ref,
+      access: { asset_id: asset.asset_id, asset_version_id: asset.asset_version_id },
+    })) as { content_path?: string }
+    if (res?.content_path) {
+      setPackageDownloadUrl.value = controlledReviewPath(res.content_path)
+    }
+  } catch (cause) {
+    error.value = message(cause)
+  }
+}
+
+async function openSetViewerAppCenter() {
+  try {
+    await appSDK.navigation.request({ target: 'appcenter', path: '/?app=viewer' })
+  } catch {
+    // Ignore
+  }
+}
+
 function openSetReview() {
   const asset = selectedAsset.value
   if (!asset) return
@@ -141,7 +202,7 @@ void loadWorld()
     <template v-else>
       <div v-if="detailLoading" class="state" role="status">正在读取固定版本…</div>
       <template v-else-if="selectedAsset">
-        <AssetResults :key="selectedAsset.asset_id+':'+selectedAsset.asset_version_id" :asset="selectedAsset" :parents="[{label:'数字世界',to:domain?'/':listRoute},...(domain?[{label:domain.label,to:listRoute}]:[])]" @new-project="newProject" @use-project="bringIntoProject"><div class="asset-actions"><button v-if="assetDomain(selectedAsset.manifest.asset_type)?.key === 'scene'" class="btn" @click="openSetReview">片场审阅 →</button><span class="version-pill">固定版本 {{shortID(selectedAsset.asset_version_id)}}</span><button class="btn" @click="bringIntoProject">选择项目并引用此版本</button></div></AssetResults>
+        <AssetResults :key="selectedAsset.asset_id+':'+selectedAsset.asset_version_id" :asset="selectedAsset" :parents="[{label:'数字世界',to:domain?'/':listRoute},...(domain?[{label:domain.label,to:listRoute}]:[])]" @new-project="newProject" @use-project="bringIntoProject"><div class="asset-actions"><button v-if="assetDomain(selectedAsset.manifest.asset_type)?.key === 'scene'" class="btn" @click="openSetReview">片场审阅 →</button><template v-if="detectedSetPackage"><button class="btn primary" :disabled="setViewerBusy" @click="openWorldSetViewer">在片场查看器中打开</button><button v-if="!setPackageDownloadUrl" class="btn" @click="prepareWorldSetPackageDownload">准备下载片场包</button><a v-else class="btn" :href="setPackageDownloadUrl" download>下载片场包</a></template><span class="version-pill">固定版本 {{shortID(selectedAsset.asset_version_id)}}</span><button class="btn" @click="bringIntoProject">选择项目并引用此版本</button></div><div v-if="setViewerState === 'not_installed'" class="state" role="status" style="margin-top:12px"><strong>当前工作站尚未安装「片场查看器 (viewer)」</strong><span>安装后可在浏览器内三维环绕、第一人称漫游与核对 Blender 实拍机位；您仍可直接下载片场包。</span><button class="btn" @click="openSetViewerAppCenter">前往应用中心安装</button></div><div v-else-if="setViewerState === 'forbidden'" class="state error-state" role="alert" style="margin-top:12px"><strong>无访问权限</strong><span>当前会话无权打开片场查看器或读取此固定资产版本。</span></div></AssetResults>
         <details class="detail-panel"><summary>资产信息与已保存文件</summary>
           <dl class="facts"><dt>资产类型</dt><dd>{{selectedAsset.manifest.asset_type}}</dd><dt>主体</dt><dd>{{selectedAsset.manifest.subjects.join('、') || '未标主体'}}</dd><template v-if="selectedAsset.manifest.source.kind === 'world_draft'"><dt>来源工作区修订</dt><dd>{{shortID(selectedAsset.manifest.source.draft_id)}} · {{shortID(selectedAsset.manifest.source.draft_revision_id)}}</dd></template><template v-else><dt>来源项目修订</dt><dd>{{shortID(selectedAsset.manifest.source.project_id)}} · {{shortID(selectedAsset.manifest.source.project_revision_id)}}</dd></template></dl>
           <ul class="plain-list"><li v-for="file in selectedAsset.manifest.files" :key="file.file_id"><span>{{file.path}}</span><small>{{file.role}} · {{shortID(file.file_id)}}</small></li></ul><button v-if="selectedAsset.manifest.source.kind !== 'world_draft'" class="btn detail-action" @click="openSource">查看来源项目的固定修订</button>
