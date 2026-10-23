@@ -68,7 +68,7 @@ export function newReviewCommit() {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
 }
 export function validLocator(v: unknown): v is ReviewLocator {
-  const l = obj(v), key = (x: unknown) => typeof x === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(x)
+  const l = obj(v), key = (x: unknown) => typeof x === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(x)
   return l.kind === 'project' ? reviewID(l.project_id) && reviewID(l.content_revision_id) && key(l.material_key) && (l.state_key === '' || key(l.state_key)) && (l.version_key === '' || key(l.version_key)) : l.kind === 'world' && reviewID(l.asset_id) && reviewID(l.asset_version_id)
 }
 export function reviewPath(locator: ReviewLocator, hash?: string | null) {

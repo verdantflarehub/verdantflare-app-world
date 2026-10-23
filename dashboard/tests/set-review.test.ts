@@ -147,3 +147,15 @@ for (const domain of ['project','world'] as const) {
     for (const region_ids of [undefined,null,['courtyard',42]]) assert.throws(() => readReview({...p,target_view:{...p.target_view,evidence:[{...evidence(),region_ids}]}},p.target_locator),/INVALID_RESPONSE/)
   })
 }
+
+test('project review routes accept 65 and 128 ASCII key characters and reject 129', () => {
+  const original = locator('project')
+  if (original.kind !== 'project') throw Error('project fixture required')
+  for (const field of ['material_key','state_key','version_key'] as const) {
+    for (const length of [65,128,129]) {
+      const value = { ...original, [field]: 'A_0-'.repeat(Math.ceil(length / 4)).slice(0,length) }
+      const path = reviewPath(value,hash)
+      assert.deepEqual(parseReviewPath(path), length <= 128 ? { locator:value,hash } : undefined, `${field}: ${length} characters`)
+    }
+  }
+})
