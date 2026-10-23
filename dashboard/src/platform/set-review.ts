@@ -241,10 +241,14 @@ export function controlledReviewPath(value: unknown) {
   return value
 }
 /** Consume the viewer's approved fixed-package route; the host resolves installation and authority. */
-export function reviewViewerTarget(locator: ReviewLocator, manifest: unknown) {
+export function reviewViewerTarget(locator: ReviewLocator, manifest: unknown, cameraID?: string) {
   const value = obj(manifest)
   if (!validLocator(locator) || value.schema_version !== '1.0' || typeof value.package_id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value.package_id)) throw new ReviewError('INVALID_RESPONSE')
   const query = new URLSearchParams(locator.kind === 'project' ? { revision: locator.content_revision_id, pkg: value.package_id } : { version: locator.asset_version_id, pkg: value.package_id })
+  if (cameraID !== undefined) {
+    if (typeof cameraID !== 'string' || !/^[A-Za-z0-9_-]{1,32}$/.test(cameraID) || !Array.isArray(value.cameras) || value.cameras.filter(camera => obj(camera).id === cameraID).length !== 1) throw new ReviewError('INVALID_RESPONSE')
+    query.set('cam', cameraID)
+  }
   return { appId: 'viewer', path: `/${locator.kind}/${owner(locator)}?${query}` }
 }
 export async function readEvidence(sdk: AppSDK, locator: ReviewLocator, e: Evidence, signal: AbortSignal): Promise<Blob> {

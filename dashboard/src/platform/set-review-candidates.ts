@@ -5,7 +5,7 @@ import type { AppSDK } from './types.ts'
 
 export interface ReviewCandidate { key: string; label: string; title?: string; locator: ReviewLocator }
 export interface ReviewCandidateOptions { signal?: AbortSignal; cursor?: string }
-export interface ReviewCandidatePage { items: ReviewCandidate[]; nextCursor: string }
+export interface ReviewCandidatePage { items: ReviewCandidate[]; nextCursor: string; workTitle?: string }
 
 /** A catalog response fixes each advertised head now; no later implicit head lookup. */
 export function worldReviewCandidates(items: readonly AssetItem[]): ReviewCandidate[] {

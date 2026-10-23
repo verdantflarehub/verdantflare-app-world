@@ -159,3 +159,39 @@ test('project review routes accept 65 and 128 ASCII key characters and reject 12
     }
   }
 })
+
+for (const domain of ['project', 'world'] as const) {
+  test(`${domain}: viewer camera handoff preserves the fixed owner, revision and package`, () => {
+    const fixed = locator(domain)
+    const cameras = ['C1', 'match_002', 'N_0-'.repeat(8)]
+    const manifest = { schema_version: '1.0', package_id: 'fixed-set-v2', cameras: cameras.map(id => ({ id })) }
+    for (const cameraID of cameras) {
+      const target = reviewViewerTarget(fixed, manifest, cameraID)
+      const path = new URL(target.path, 'https://app.invalid')
+      assert.equal(target.appId, 'viewer')
+      assert.equal(path.pathname, `/${domain}/${id(1)}`)
+      assert.deepEqual([...path.searchParams], [[domain === 'project' ? 'revision' : 'version', id(2)], ['pkg', 'fixed-set-v2'], ['cam', cameraID]])
+      assert.equal(path.hash, '', 'the host path validator forbids fragments; Viewer consumes its existing cam query')
+    }
+    const ordinary = reviewViewerTarget(fixed, manifest)
+    assert.equal(new URL(ordinary.path, 'https://app.invalid').searchParams.has('cam'), false, 'no selection must not invent a default camera')
+    assert.deepEqual(reviewViewerTarget(fixed, manifest, undefined), ordinary)
+    const mutable = domain === 'project' ? { ...fixed, content_revision_id: 'latest' } : { ...fixed, asset_version_id: 'latest' }
+    assert.throws(() => reviewViewerTarget(mutable as ReviewLocator, manifest, 'C1'), /INVALID_RESPONSE/)
+    assert.throws(() => reviewViewerTarget(fixed, { ...manifest, package_id: '../other' }, 'C1'), /INVALID_RESPONSE/)
+    assert.throws(() => reviewViewerTarget(fixed, { ...manifest, schema_version: '2.0' }, 'C1'), /INVALID_RESPONSE/)
+  })
+  test(`${domain}: explicitly requested viewer cameras cannot fall back when absent or ambiguous`, () => {
+    const manifest = { schema_version: '1.0', package_id: 'fixed-set-v2', cameras: [{ id: 'C1' }] }
+    assert.throws(() => reviewViewerTarget(locator(domain), manifest, 'C2'), /INVALID_RESPONSE/)
+    for (const cameras of [undefined, null, {}, [], [{ label: 'C1' }], [{ id: 'c1' }], [{ id: 'C1' }, { id: 'C1' }]]) {
+      assert.throws(() => reviewViewerTarget(locator(domain), { ...manifest, cameras }, 'C1'), /INVALID_RESPONSE/)
+    }
+  })
+  test(`${domain}: viewer rejects malformed camera IDs even if a package repeats that ID`, () => {
+    for (const cameraID of ['', ' C1', 'C1 ', 'C.1', 'C/1', '../C1', 'C1&mode=walk', 'C1#cam=C2', '%43%31', 'C'.repeat(33)]) {
+      const manifest = { schema_version: '1.0', package_id: 'fixed-set-v2', cameras: [{ id: cameraID }] }
+      assert.throws(() => reviewViewerTarget(locator(domain), manifest, cameraID), /INVALID_RESPONSE/, cameraID)
+    }
+  })
+}
