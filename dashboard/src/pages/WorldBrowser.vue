@@ -14,7 +14,7 @@ import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vu
 import { callTool } from '../platform/mcp'
 import { useHost } from '../platform/host'
 import { isID, readAsset, readAssetList, type AssetItem, type AssetOpen } from '../platform/world-model'
-import { projectTarget, useAssetTarget } from '../platform/route-links'
+import { projectTarget, useAssetTarget, resultRouteBase } from '../platform/route-links'
 import {
   buildWorldViewerOpenTarget,
   classifyViewerOpenError,
@@ -87,7 +87,7 @@ function openSetReview() {
 const { appSDK, dashboardHost } = useHost()
 const identity = publicationIdentity(appSDK.context.get())
 const detail = computed(() => route.query.asset !== undefined)
-const listRoute = computed(() => ({ path: route.path, query: { ...route.query, asset: undefined, version: undefined } }))
+const listRoute = computed(() => ({ path: resultRouteBase(route.path), query: { ...route.query, asset: undefined, version: undefined, result_type:undefined, result_q:undefined, result_page:undefined } }))
 const assets = ref<AssetItem[]>([]), selectedAsset = ref<AssetOpen | null>(null)
 const loading = ref(false), detailLoading = ref(false), error = ref(''), cursor = ref('')
 const assetType = computed({
@@ -172,7 +172,7 @@ async function openSource() {
 }
 function refresh() { void loadWorld(); void loadAsset() }
 watch(filters, (value,old) => { query.value=typeof route.query.q==='string'?route.query.q:'';if(JSON.stringify(value)!==JSON.stringify(old))void loadWorld() })
-watch(() => [route.query.asset, route.query.version], () => void loadAsset(), { immediate: true })
+watch([() => route.query.asset, () => route.query.version], () => void loadAsset(), { immediate: true })
 const unsubscribe = appSDK.lifecycle.subscribe(event => {
   if (event === 'hidden' || event === 'dispose') { rememberPosition(scrollScope, route.fullPath, dashboardHost.getScroll()); navigationRequest?.abort() }
   hidden = event === 'hidden'

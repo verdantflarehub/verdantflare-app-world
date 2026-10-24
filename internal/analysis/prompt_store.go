@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"regexp"
 
 	"github.com/jackc/pgx/v5"
@@ -40,7 +39,31 @@ func (s PGStore) PromptRecords(ctx context.Context, org, owner, task string) ([]
 	if err != nil {
 		return nil, err
 	}
-	if len(keys) == 0 {
+	t, err := s.Task(ctx, org, owner, task)
+	if err != nil {
+		return nil, err
+	}
+	var plan []PromptBatch
+	if t.PipelineVersion == 2 {
+		var saved string
+		if err = s.DB.QueryRow(ctx, `SELECT plan_sha256 FROM studio.world_analysis_prompt_plans WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, task).Scan(&saved); errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrMissing
+		} else if err != nil {
+			return nil, err
+		}
+		b, a, _, err := s.resultContext(ctx, org, owner, task)
+		if err != nil {
+			return nil, err
+		}
+		var hash string
+		plan, hash, err = s.PlannedPrompts(ctx, t, b, a)
+		if err != nil {
+			return nil, err
+		}
+		if saved != hash || len(keys) != len(plan) {
+			return nil, ErrInvalid
+		}
+	} else if len(keys) == 0 {
 		return nil, ErrMissing
 	}
 	records := []PromptRecord{}
@@ -51,13 +74,25 @@ func (s PGStore) PromptRecords(ctx context.Context, org, owner, task string) ([]
 		}
 		records = append(records, r)
 	}
+	if len(records) == 0 {
+		return records, nil
+	}
 	first := records[0].Request
-	expected := (len(first.Batch.Scopes)*len(first.Batch.Targets) + 7) / 8
-	if len(records) != expected {
+	if t.PipelineVersion != 2 {
+		b, a, _, err := s.resultContext(ctx, org, owner, task)
+		if err != nil {
+			return nil, err
+		}
+		plan, err = PlanPrompts(b, a, AllPromptScopes(a), t.PromptTargets)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(records) != len(plan) {
 		return nil, ErrInvalid
 	}
 	for i, r := range records {
-		if r.Request.Batch.Key != fmt.Sprintf("prompts-v1-%04d", i) || r.Request.Batch.PlanHash != first.Batch.PlanHash || r.Request.ModelID != first.ModelID || r.Request.AccountID != first.AccountID || r.Request.BudgetLimit != first.BudgetLimit {
+		if canonicalHash(r.Request.Batch) != canonicalHash(plan[i]) || r.Request.ModelID != first.ModelID || r.Request.AccountID != first.AccountID || r.Request.BudgetLimit != first.BudgetLimit {
 			return nil, ErrInvalid
 		}
 	}
@@ -67,41 +102,35 @@ func (s PGStore) PromptRecords(ctx context.Context, org, owner, task string) ([]
 // All requests become visible in one transaction. A failed insert cannot leave
 // an apparently complete prefix of a plan for the scheduler to consume.
 func (s PGStore) CreatePromptBatches(ctx context.Context, org, owner string, requests []PromptRequest) error {
-	if s.DB == nil || !validUUID(org) || !validUUID(owner) || len(requests) == 0 {
+	if len(requests) == 0 {
 		return ErrInvalid
 	}
-	first := requests[0]
-	if first.Validate() != nil {
+	return s.SavePromptPlan(ctx, org, owner, requests[0].TaskID, requests)
+}
+
+// SavePromptPlan includes a zero-call plan receipt; empty applicability must
+// never trigger an endless preparation loop or fabricated native completion.
+func (s PGStore) SavePromptPlan(ctx context.Context, org, owner, taskID string, requests []PromptRequest) error {
+	if s.DB == nil || !validUUID(org) || !validUUID(owner) || !validUUID(taskID) {
 		return ErrInvalid
 	}
-	task, err := s.Task(ctx, org, owner, first.TaskID)
+	task, err := s.Task(ctx, org, owner, taskID)
 	if err != nil {
 		return err
 	}
-	b, err := s.Bundle(ctx, org, owner, first.TaskID)
+	b, a, ar, err := s.resultContext(ctx, org, owner, taskID)
 	if err != nil {
 		return err
 	}
-	ar, err := s.LoadAssociation(ctx, org, owner, first.TaskID)
+	plan, hash, err := s.PlannedPrompts(ctx, task, b, a)
 	if err != nil {
 		return err
 	}
-	if ar.State != "association_ready" {
-		return ErrObservationsIncomplete
-	}
-	a, err := VerifyAssociationNative(b, ar.Request, ar.CallID, ar.Result)
-	if err != nil {
-		return err
-	}
-	plan, err := PlanPrompts(b, a, AllPromptScopes(a), task.PromptTargets)
-	if err != nil {
-		return err
-	}
-	if len(plan) != len(requests) {
+	if len(plan) != len(requests) || (task.PipelineVersion != 2 && len(plan) == 0) {
 		return ErrInvalid
 	}
 	for i, f := range requests {
-		if f.Validate() != nil || f.TaskID != first.TaskID || canonicalHash(f.Batch) != canonicalHash(plan[i]) || f.ModelID != ar.Request.ModelID || f.AccountID != ar.Request.AccountID || f.BudgetLimit != ar.Request.BudgetLimit {
+		if f.Validate() != nil || f.TaskID != taskID || canonicalHash(f.Batch) != canonicalHash(plan[i]) || f.ModelID != ar.Request.ModelID || f.AccountID != ar.Request.AccountID || f.BudgetLimit != ar.Request.BudgetLimit {
 			return ErrInvalid
 		}
 		text, err := promptText(b, a, f.Batch)
@@ -118,7 +147,7 @@ func (s PGStore) CreatePromptBatches(ctx context.Context, org, owner string, req
 	}
 	defer tx.Rollback(context.Background())
 	var state string
-	if err = tx.QueryRow(ctx, `SELECT state FROM studio.world_analysis_associations WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 FOR UPDATE`, org, owner, first.TaskID).Scan(&state); err != nil {
+	if err = tx.QueryRow(ctx, `SELECT state FROM studio.world_analysis_associations WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 FOR UPDATE`, org, owner, taskID).Scan(&state); err != nil {
 		return err
 	}
 	if state != "association_ready" {
@@ -139,11 +168,25 @@ func (s PGStore) CreatePromptBatches(ctx context.Context, org, owner string, req
 		}
 	}
 	var count int
-	if err = tx.QueryRow(ctx, `SELECT count(*) FROM studio.world_analysis_prompt_batches WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, first.TaskID).Scan(&count); err != nil {
+	if err = tx.QueryRow(ctx, `SELECT count(*) FROM studio.world_analysis_prompt_batches WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, taskID).Scan(&count); err != nil {
 		return err
 	}
 	if count != len(requests) {
 		return ErrChanged
+	}
+	if task.PipelineVersion == 2 {
+		_, err = tx.Exec(ctx, `INSERT INTO studio.world_analysis_prompt_plans(organization_id,owner_id,task_id,plan_sha256,batch_count) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, org, owner, taskID, hash, len(plan))
+		if err != nil {
+			return err
+		}
+		var saved string
+		var n int
+		if err = tx.QueryRow(ctx, `SELECT plan_sha256,batch_count FROM studio.world_analysis_prompt_plans WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, taskID).Scan(&saved, &n); err != nil {
+			return err
+		}
+		if saved != hash || n != len(plan) {
+			return ErrChanged
+		}
 	}
 	return tx.Commit(ctx)
 }

@@ -72,6 +72,10 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
   FROM studio.world_analysis_associations a
   WHERE $1 AND a.organization_id=q.organization_id AND a.owner_id=q.owner_id AND a.task_id=q.task_id
    AND a.state='association_ready' AND jsonb_array_length(t.prompt_targets)>0
+   AND (t.pipeline_version=0 OR (
+    EXISTS(SELECT 1 FROM studio.world_analysis_result_batches rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id)
+    AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_result_batches rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id AND rb.state<>'result_ready')))
+   AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_prompt_plans pp WHERE pp.organization_id=q.organization_id AND pp.owner_id=q.owner_id AND pp.task_id=q.task_id)
    AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_prompt_batches pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id)
   UNION ALL
   SELECT pb.batch_key,CASE WHEN pb.state='planned' THEN 4 ELSE 3 END,pb.batch_index::bigint
@@ -85,7 +89,7 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
   FROM studio.world_analysis_associations a
   WHERE $1 AND t.include_typed_results AND a.organization_id=q.organization_id AND a.owner_id=q.owner_id AND a.task_id=q.task_id
    AND a.state='association_ready'
-   AND (jsonb_array_length(t.prompt_targets)=0 OR (
+   AND (t.pipeline_version=2 OR jsonb_array_length(t.prompt_targets)=0 OR (
     EXISTS(SELECT 1 FROM studio.world_analysis_prompt_batches pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id)
     AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_prompt_batches pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id AND pb.state<>'prompt_ready')))
    AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_result_batches rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id)
@@ -101,6 +105,10 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
   FROM (SELECT 1) seed
   LEFT JOIN studio.world_analysis_learning l ON l.organization_id=q.organization_id AND l.owner_id=q.owner_id AND l.task_id=q.task_id
   WHERE t.save_learning AND t.include_typed_results AND COALESCE(l.state,'pending')='pending'
+   AND (jsonb_array_length(t.prompt_targets)=0 OR (
+    (EXISTS(SELECT 1 FROM studio.world_analysis_prompt_batches pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id)
+     OR (t.pipeline_version=2 AND EXISTS(SELECT 1 FROM studio.world_analysis_prompt_plans pp WHERE pp.organization_id=q.organization_id AND pp.owner_id=q.owner_id AND pp.task_id=q.task_id)))
+    AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_prompt_batches pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id AND pb.state<>'prompt_ready')))
    AND EXISTS(SELECT 1 FROM studio.world_analysis_result_batches rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id)
    AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_result_batches rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id AND rb.state<>'result_ready')
   ) picked ORDER BY picked.priority,picked.position LIMIT 1
@@ -348,12 +356,28 @@ func (s PGStore) Progress(ctx context.Context, org, owner, task string) (Progres
 	switch {
 	case p.LearningState == "conflict" || p.LearningState == "failed":
 		p.Stage = "learning_save_failed"
-	case p.LearningState == "saved" && p.ResultInsufficient > 0:
+	case p.LearningState == "saved" && (p.ResultInsufficient > 0 || t.PipelineVersion == 2 && len(t.PromptTargets) > 0 && p.PromptTotal == 0):
 		p.Stage = "learning_saved_need_evidence"
 	case p.LearningState == "saved":
 		p.Stage = "learning_saved"
 	case p.Failed > 0 || p.Unknown > 0 || p.LastErrorCode != "" || p.AssociationState == "failed" || p.AssociationState == "acceptance_unknown" || p.PromptFailed > 0 || p.PromptUnknown > 0 || p.ResultFailed > 0 || p.ResultUnknown > 0:
 		p.Stage = "needs_attention"
+	case t.PipelineVersion == 2 && p.ResultTotal > 0 && p.ResultReady < p.ResultTotal:
+		p.Stage = "producing_results"
+	case t.PipelineVersion == 2 && p.ResultTotal == 0 && p.AssociationState == "association_ready":
+		p.Stage = "preparing_results"
+	case t.PipelineVersion == 2 && p.ResultTotal > 0 && p.ResultReady == p.ResultTotal && len(t.PromptTargets) > 0 && p.PromptTotal == 0 && p.LearningState == "":
+		// A completed empty plan advances to saving, never endless adaptation.
+		records, e := s.PromptRecords(ctx, org, owner, task)
+		if errors.Is(e, ErrMissing) {
+			p.Stage = "preparing_prompts"
+		} else if e != nil {
+			return p, e
+		} else if len(records) == 0 {
+			p.Stage = "saving_learning"
+		}
+	case t.PipelineVersion == 2 && p.PromptTotal > 0 && p.PromptReady < p.PromptTotal:
+		p.Stage = "producing_prompts"
 	case t.SaveLearning && p.ResultTotal > 0 && p.ResultReady == p.ResultTotal:
 		p.Stage = "saving_learning"
 	case p.ResultTotal > 0 && p.ResultReady == p.ResultTotal && p.ResultInsufficient > 0:

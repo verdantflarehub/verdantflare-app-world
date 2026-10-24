@@ -3,11 +3,12 @@ package analysis
 // LearningMaterial is an internal, fully checked snapshot for deterministic
 // document assembly. It is not a saved asset or a public request body.
 type LearningMaterial struct {
-	Bundle      Bundle         `json:"bundle"`
-	Association Association    `json:"association"`
-	Prompts     []PromptDraft  `json:"prompts"`
-	Results     []ResultDraft  `json:"results"`
-	Calls       []LearningCall `json:"calls"`
+	Bundle          Bundle           `json:"bundle"`
+	Association     Association      `json:"association"`
+	Prompts         []PromptDraft    `json:"prompts"`
+	Results         []ResultDraft    `json:"results"`
+	Calls           []LearningCall   `json:"calls"`
+	PromptOmissions []PromptOmission `json:"prompt_omissions,omitempty"`
 }
 
 // LearningCall retains the original native identity without copying account
@@ -44,9 +45,35 @@ func AssembleLearningMaterial(t Task, b Bundle, ar AssociationRecord, prompts []
 		}
 		seenCalls[r.CallID] = true
 	}
+	resultPlan, err := PlanResultsVersion(b, a, t.PipelineVersion)
+	if err != nil {
+		return LearningMaterial{}, err
+	}
+	if len(results) != len(resultPlan) {
+		return LearningMaterial{}, ErrObservationsIncomplete
+	}
+	for i, r := range results {
+		if r.Validate() != nil || r.OrganizationID != t.OrganizationID || r.OwnerID != t.OwnerID || canonicalHash(r.Request.Batch) != canonicalHash(resultPlan[i]) || r.Request.ModelID != ar.Request.ModelID || r.Request.AccountID != ar.Request.AccountID || r.Request.BudgetLimit != ar.Request.BudgetLimit || seenCalls[r.CallID] {
+			return LearningMaterial{}, ErrInvalid
+		}
+		if r.State != "result_ready" {
+			return LearningMaterial{}, ErrObservationsIncomplete
+		}
+		drafts, err := ResultDraftsFromNative(b, a, r.Request, r.CallID, r.Result)
+		if err != nil {
+			return LearningMaterial{}, err
+		}
+		seenCalls[r.CallID] = true
+		out.Results = append(out.Results, drafts...)
+		out.Calls = append(out.Calls, LearningCall{r.Request.Batch.Key, r.CallID, r.Request.ModelID, r.RequestHash, hashBytes(r.Result)})
+	}
 	plan := []PromptBatch{}
 	if len(t.PromptTargets) > 0 {
-		plan, err = PlanPrompts(b, a, AllPromptScopes(a), t.PromptTargets)
+		if t.PipelineVersion == 2 {
+			plan, out.PromptOmissions, _, err = PlanDerivedPrompts(b, a, out.Results, t.PromptTargets)
+		} else {
+			plan, err = PlanPrompts(b, a, AllPromptScopes(a), t.PromptTargets)
+		}
 		if err != nil {
 			return LearningMaterial{}, err
 		}
@@ -69,27 +96,12 @@ func AssembleLearningMaterial(t Task, b Bundle, ar AssociationRecord, prompts []
 		out.Prompts = append(out.Prompts, drafts...)
 		out.Calls = append(out.Calls, LearningCall{r.Request.Batch.Key, r.CallID, r.Request.ModelID, r.RequestHash, hashBytes(r.Result)})
 	}
-	resultPlan, err := PlanResults(b, a)
-	if err != nil {
-		return LearningMaterial{}, err
-	}
-	if len(results) != len(resultPlan) {
-		return LearningMaterial{}, ErrObservationsIncomplete
-	}
-	for i, r := range results {
-		if r.Validate() != nil || r.OrganizationID != t.OrganizationID || r.OwnerID != t.OwnerID || canonicalHash(r.Request.Batch) != canonicalHash(resultPlan[i]) || r.Request.ModelID != ar.Request.ModelID || r.Request.AccountID != ar.Request.AccountID || r.Request.BudgetLimit != ar.Request.BudgetLimit || seenCalls[r.CallID] {
-			return LearningMaterial{}, ErrInvalid
-		}
-		if r.State != "result_ready" {
-			return LearningMaterial{}, ErrObservationsIncomplete
-		}
-		drafts, err := ResultDraftsFromNative(b, a, r.Request, r.CallID, r.Result)
-		if err != nil {
-			return LearningMaterial{}, err
-		}
-		seenCalls[r.CallID] = true
-		out.Results = append(out.Results, drafts...)
-		out.Calls = append(out.Calls, LearningCall{r.Request.Batch.Key, r.CallID, r.Request.ModelID, r.RequestHash, hashBytes(r.Result)})
+	// Keep legacy assembled documents byte-for-byte stable.
+	if t.PipelineVersion != 2 && len(prompts) > 0 {
+		calls := append([]LearningCall{}, out.Calls[:1]...)
+		calls = append(calls, out.Calls[1+len(results):]...)
+		calls = append(calls, out.Calls[1:1+len(results)]...)
+		out.Calls = calls
 	}
 	return out, nil
 }

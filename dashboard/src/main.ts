@@ -17,11 +17,14 @@ async function mount() {
   const router = createRouter({ history: createMemoryHistory(), routes: [
     { path: '/', component: Browser },
     { path: '/scene/:assetId/versions/:assetVersionId/review', component: SetReviewPage },
+    { path: '/item/:resultKey', component: Browser },
     ...worldDomains.map(d=>({path:'/'+d.key,component:Browser})),
+    ...worldDomains.map(d=>({path:'/'+d.key+'/item/:resultKey',component:Browser})),
     { path: '/publish', component: PublicationPage },
     { path: '/collections', component: CollectionsPage },
     { path: '/collections/:draftId', component: CollectionsPage },
     { path: '/learn', component: LearnPage },
+    { path: '/learn/item/:resultKey', component: LearnPage },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ] })
   const app = createApp({ render: () => h(RouterView) }).use(router)

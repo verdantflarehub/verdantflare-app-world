@@ -27,6 +27,7 @@ func testAnalysisBundle(t *testing.T, targets []analysis.PromptTarget, failPromp
 }
 
 type bundleOptions struct {
+	pipeline                        int
 	targets                         []analysis.PromptTarget
 	failPrompts, typed, failResults bool
 	saveLearning                    bool
@@ -93,7 +94,7 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	task := analysis.Task{OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: newID(), DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: fileID, Plan: plan, PromptTargets: targets, IncludeTypedResults: options.typed, SaveLearning: options.saveLearning}
+	task := analysis.Task{PipelineVersion: options.pipeline, OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: newID(), DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: fileID, Plan: plan, PromptTargets: targets, IncludeTypedResults: options.typed, SaveLearning: options.saveLearning}
 	step := plan.Steps[0]
 	prepared := analysis.Prepared{SourceHash: hash, MediaHash: hash, MIME: "video/mp4", Range: step.Input}
 	request, err := analysis.Freeze(task.TaskID, "gemini-3.1-pro-preview", "", "1.00", step, prepared, 10)
@@ -168,6 +169,10 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 		t.Fatal("head edit changed fixed evidence", err)
 	}
 	t.Run("persistent association recovery", func(t *testing.T) { verifyAssociationExecution(t, svc, p, bundle) })
+	if options.pipeline == 2 {
+		verifyQualityPipeline(t, svc, p, bundle, options)
+		return
+	}
 	if len(targets) > 0 {
 		if options.failPrompts {
 			t.Run("failed prompt stops new spending", func(t *testing.T) { verifyPromptFailure(t, svc, p, bundle) })

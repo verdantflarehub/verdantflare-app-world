@@ -7,8 +7,8 @@ export interface DraftManifest {
   files: DraftFile[]; domain_documents: { document_type: string; file_id: string }[]
   source_refs: Record<string, unknown>[]; asset_refs: Record<string, unknown>[]; run_refs: { service_id: string; run_id: string }[]
 }
-export interface DraftRevision { kind: 'revision'; draft_id: string; revision_id: string; head_revision_id: string; created_at: string; manifest_ref: ContentRef; manifest: DraftManifest }
-export interface DraftItem { draft_id: string; head_revision_id: string; name: string; purpose: Purpose; subjects: string[]; has_content: boolean; created_at: string; updated_at: string }
+export interface DraftRevision { lifecycle?: DraftLifecycle; kind: 'revision'; draft_id: string; revision_id: string; head_revision_id: string; created_at: string; manifest_ref: ContentRef; manifest: DraftManifest }
+export interface DraftItem { lifecycle?: DraftLifecycle; draft_id: string; head_revision_id: string; name: string; purpose: Purpose; subjects: string[]; has_content: boolean; created_at: string; updated_at: string }
 export const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('返回的数据结构不完整。')
   return value as Record<string, unknown>
@@ -29,6 +29,7 @@ export function readDraftList(v: unknown, purpose: Purpose): { items: DraftItem[
   for (const value of data.items as unknown[]) {
     const item = object(value)
     if (!isID(item.draft_id) || !isID(item.head_revision_id) || item.purpose !== purpose || !text(item.name) || !strings(item.subjects) || typeof item.has_content !== 'boolean' || !text(item.created_at) || !text(item.updated_at) || seen.has(item.draft_id)) invalid()
+    readLifecycle(item.lifecycle)
     seen.add(item.draft_id as string)
   }
   return data as unknown as { items: DraftItem[]; next_cursor: string | null }
@@ -38,6 +39,7 @@ export function readDraft(v: unknown, draft?: string, revision?: string, purpose
   if (data.kind !== 'revision' || !isID(data.draft_id) || !isID(data.revision_id) || !isID(data.head_revision_id) || !text(data.created_at) ||
     draft && data.draft_id !== draft || revision && data.revision_id !== revision || purpose && m.purpose !== purpose ||
     m.schema_version !== 1 || m.kind !== 'world-draft' || m.draft_id !== data.draft_id || !purposes.includes(String(m.purpose)) || !text(m.name) || !strings(m.subjects)) invalid()
+  readLifecycle(data.lifecycle)
   contentRef(data.manifest_ref)
   for (const [key, limit] of [['files', 10000], ['domain_documents', 256], ['source_refs', 1000], ['asset_refs', 10000], ['run_refs', 1000]] as const) {
     if (!Array.isArray(m[key]) || (m[key] as unknown[]).length > limit) invalid()
@@ -54,6 +56,16 @@ export function readDraft(v: unknown, draft?: string, revision?: string, purpose
     domains.add(String(d.document_type))
   }
   return data as unknown as DraftRevision
+}
+export interface DraftLifecycle { state: 'active' | 'trashed'; version: number; trashed_at: string | null; trashed_by: string | null; can_trash: boolean; can_restore: boolean }
+export function readLifecycle(value: unknown): DraftLifecycle | undefined {
+  if (value === undefined) return undefined
+  const v = object(value)
+  if (!['active','trashed'].includes(String(v.state)) || !Number.isSafeInteger(v.version) || Number(v.version)<1 || typeof v.can_trash !== 'boolean' || typeof v.can_restore !== 'boolean') invalid()
+  if (v.state === 'trashed') {
+    if (!isID(v.trashed_by) || typeof v.trashed_at !== 'string' || !Number.isFinite(Date.parse(v.trashed_at)) || v.can_trash) invalid()
+  } else if (v.trashed_by !== null || v.trashed_at !== null || v.can_restore) invalid()
+  return v as unknown as DraftLifecycle
 }
 export interface CollectionForm { name: string; text: string; url: string }
 export interface CollectionDocument extends Record<string, unknown> { schema_version: 1; document_kind: 'reference-learning'; origin: string; sources: Record<string, unknown>[]; results: unknown[]; coverage: unknown[]; relations: unknown[]; uses: unknown[] }

@@ -97,6 +97,8 @@ func (s *Service) WorldDraft(ctx context.Context, p Principal, input DraftReques
 			return nil, err
 		}
 		return DraftStatus{Kind: "status", State: c.State, RequestHash: c.Hash, Result: c.Result, ErrorCode: c.Error, CurrentRevisionID: c.ConflictHead}, nil
+	case "trash", "restore":
+		return s.changeDraftLifecycle(ctx, p, r)
 	case "create", "commit":
 		return s.saveDraft(ctx, p, r)
 	default:
@@ -121,6 +123,11 @@ func (s *Service) getDraft(ctx context.Context, p Principal, id, revision string
 	if h1 != h2 {
 		return DraftRevision{}, ErrNotReady
 	}
+	lifecycle, _, err := readDraftLifecycle(ctx, s.db, p, id, false)
+	if err != nil {
+		return DraftRevision{}, err
+	}
+	out.Lifecycle = &lifecycle
 	return out, nil
 }
 func (s *Service) listDrafts(ctx context.Context, p Principal, r DraftRequest) (DraftList, error) {
@@ -133,20 +140,26 @@ func (s *Service) listDrafts(ctx context.Context, p Principal, r DraftRequest) (
 	if limit == 0 {
 		limit = 50
 	}
-	rows, err := s.db.Query(ctx, `SELECT draft_id::text,head_revision_id::text,name,purpose,subjects,created_at,updated_at,has_content FROM studio.world_drafts WHERE organization_id=$1 AND owner_id=$2 AND head_revision_id IS NOT NULL AND ($3='' OR purpose=$3) AND ($4='' OR strpos(lower(name),lower($4))>0) AND ($5='' OR subjects ? $5) AND ($6='' OR draft_id>NULLIF($6,'')::uuid) ORDER BY draft_id LIMIT $7`, p.OrganizationID, p.SubjectID, r.Purpose, r.Query, r.Subject, cursor, limit+1)
+	state := r.LifecycleState
+	if state == "" {
+		state = "active"
+	}
+	rows, err := s.db.Query(ctx, `SELECT draft_id::text,head_revision_id::text,name,purpose,subjects,created_at,updated_at,has_content,lifecycle_state,lifecycle_version,trashed_at,trashed_by::text FROM studio.world_drafts WHERE organization_id=$1 AND owner_id=$2 AND head_revision_id IS NOT NULL AND lifecycle_state=$8 AND ($3='' OR purpose=$3) AND ($4='' OR strpos(lower(name),lower($4))>0) AND ($5='' OR subjects ? $5) AND ($6='' OR draft_id>NULLIF($6,'')::uuid) ORDER BY draft_id LIMIT $7`, p.OrganizationID, p.SubjectID, r.Purpose, r.Query, r.Subject, cursor, limit+1, state)
 	if err != nil {
 		return out, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var v DraftListItem
+		v.Lifecycle = &DraftLifecycle{}
 		var subjects []byte
-		if err = rows.Scan(&v.DraftID, &v.HeadRevisionID, &v.Name, &v.Purpose, &subjects, &v.CreatedAt, &v.UpdatedAt, &v.HasContent); err != nil {
+		if err = rows.Scan(&v.DraftID, &v.HeadRevisionID, &v.Name, &v.Purpose, &subjects, &v.CreatedAt, &v.UpdatedAt, &v.HasContent, &v.Lifecycle.State, &v.Lifecycle.Version, &v.Lifecycle.TrashedAt, &v.Lifecycle.TrashedBy); err != nil {
 			return out, err
 		}
 		if json.Unmarshal(subjects, &v.Subjects) != nil {
 			return out, ErrNotReady
 		}
+		v.Lifecycle.permissions(v.Purpose)
 		v.CreatedAt = v.CreatedAt.UTC()
 		v.UpdatedAt = v.UpdatedAt.UTC()
 		out.Items = append(out.Items, v)

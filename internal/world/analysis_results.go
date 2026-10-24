@@ -39,7 +39,7 @@ func (s *Service) PrepareAnalysisResults(ctx context.Context, p Principal, taskI
 	if err = store.ResultPrerequisites(ctx, p.OrganizationID, p.SubjectID, taskID, b, a); err != nil {
 		return err
 	}
-	plan, err := analysis.PlanResults(b, a)
+	plan, err := analysis.PlanResultsVersion(b, a, task.PipelineVersion)
 	if err != nil {
 		return err
 	}

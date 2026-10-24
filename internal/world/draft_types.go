@@ -98,28 +98,32 @@ type DraftManifest struct {
 	RunRefs         []RunRef         `json:"run_refs"`
 }
 type DraftRequest struct {
-	Mode               string         `json:"mode"`
-	CommitID           string         `json:"commit_id,omitempty"`
-	DraftID            string         `json:"draft_id,omitempty"`
-	RevisionID         string         `json:"revision_id,omitempty"`
-	ExpectedRevisionID string         `json:"expected_revision_id,omitempty"`
-	Name               string         `json:"name,omitempty"`
-	Purpose            string         `json:"purpose,omitempty"`
-	Subjects           *[]string      `json:"subjects,omitempty"`
-	Manifest           *DraftManifest `json:"manifest,omitempty"`
-	Query              string         `json:"q,omitempty"`
-	Subject            string         `json:"subject,omitempty"`
-	Cursor             string         `json:"cursor,omitempty"`
-	Limit              int            `json:"limit,omitempty"`
+	LifecycleState           string         `json:"lifecycle_state,omitempty"`
+	OperationID              string         `json:"operation_id,omitempty"`
+	ExpectedLifecycleVersion *int64         `json:"expected_lifecycle_version,omitempty"`
+	Mode                     string         `json:"mode"`
+	CommitID                 string         `json:"commit_id,omitempty"`
+	DraftID                  string         `json:"draft_id,omitempty"`
+	RevisionID               string         `json:"revision_id,omitempty"`
+	ExpectedRevisionID       string         `json:"expected_revision_id,omitempty"`
+	Name                     string         `json:"name,omitempty"`
+	Purpose                  string         `json:"purpose,omitempty"`
+	Subjects                 *[]string      `json:"subjects,omitempty"`
+	Manifest                 *DraftManifest `json:"manifest,omitempty"`
+	Query                    string         `json:"q,omitempty"`
+	Subject                  string         `json:"subject,omitempty"`
+	Cursor                   string         `json:"cursor,omitempty"`
+	Limit                    int            `json:"limit,omitempty"`
 }
 type DraftRevision struct {
-	Kind           string        `json:"kind"`
-	DraftID        string        `json:"draft_id"`
-	RevisionID     string        `json:"revision_id"`
-	HeadRevisionID string        `json:"head_revision_id"`
-	CreatedAt      time.Time     `json:"created_at"`
-	ManifestRef    ContentRef    `json:"manifest_ref"`
-	Manifest       DraftManifest `json:"manifest"`
+	Lifecycle      *DraftLifecycle `json:"lifecycle,omitempty"`
+	Kind           string          `json:"kind"`
+	DraftID        string          `json:"draft_id"`
+	RevisionID     string          `json:"revision_id"`
+	HeadRevisionID string          `json:"head_revision_id"`
+	CreatedAt      time.Time       `json:"created_at"`
+	ManifestRef    ContentRef      `json:"manifest_ref"`
+	Manifest       DraftManifest   `json:"manifest"`
 }
 type DraftStatus struct {
 	Kind              string         `json:"kind"`
@@ -130,14 +134,15 @@ type DraftStatus struct {
 	CurrentRevisionID string         `json:"current_revision_id,omitempty"`
 }
 type DraftListItem struct {
-	DraftID        string    `json:"draft_id"`
-	HeadRevisionID string    `json:"head_revision_id"`
-	Name           string    `json:"name"`
-	Purpose        string    `json:"purpose"`
-	Subjects       []string  `json:"subjects"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
-	HasContent     bool      `json:"has_content"`
+	Lifecycle      *DraftLifecycle `json:"lifecycle,omitempty"`
+	DraftID        string          `json:"draft_id"`
+	HeadRevisionID string          `json:"head_revision_id"`
+	Name           string          `json:"name"`
+	Purpose        string          `json:"purpose"`
+	Subjects       []string        `json:"subjects"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+	HasContent     bool            `json:"has_content"`
 }
 type DraftList struct {
 	Kind       string          `json:"kind"`
@@ -287,7 +292,11 @@ type draftCursor struct {
 }
 
 func draftCursorBinding(p Principal, r DraftRequest) string {
-	return coordination.Fingerprint([]string{p.OrganizationID, p.SubjectID, r.Purpose, r.Query, r.Subject})
+	fields := []string{p.OrganizationID, p.SubjectID, r.Purpose, r.Query, r.Subject}
+	if r.LifecycleState == "trashed" {
+		fields = append(fields, "trashed")
+	}
+	return coordination.Fingerprint(fields)
 }
 func decodeDraftCursor(p Principal, r DraftRequest) (string, error) {
 	if r.Cursor == "" {

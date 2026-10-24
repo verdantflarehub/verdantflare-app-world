@@ -48,7 +48,7 @@ func (c *resultChannelFixture) SubmitResults(_ context.Context, _ string, f anal
 	if json.Unmarshal(f.Payload, &request) != nil || json.Unmarshal([]byte(request.Text), &textInput) != nil || len(textInput.Observations.Nodes) == 0 {
 		return analysis.Call{}, analysis.ErrInvalid
 	}
-	out := analysis.ResultCandidates{Version: 1, BatchKey: f.Batch.Key, Type: f.Batch.Type, Items: []analysis.ResultCandidate{}}
+	out := analysis.ResultCandidates{Version: f.Batch.Version, BatchKey: f.Batch.Key, Type: f.Batch.Type, Items: []analysis.ResultCandidate{}}
 	for _, scope := range f.Batch.Scopes {
 		evidence := append([]string{}, scope.Evidence...)
 		if len(evidence) == 0 {

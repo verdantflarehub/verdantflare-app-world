@@ -18,7 +18,7 @@ export function createDraftAPI(sdk: AppSDK) {
   stops.push(sdk.lifecycle.subscribe(event => { if (event === 'dispose') dispose(); else { hidden = event === 'hidden'; if (hidden) controllers.forEach((read,c) => { if (read) c.abort() }) } }))
   async function request(input: Record<string, unknown>, capability?: 'artifact.read' | 'artifact.write', assetMode?: 'register' | 'status' | 'get', analyze = false): Promise<unknown> {
     live(); if (hidden) throw new DraftError('DASHBOARD_HIDDEN')
-    if (!capability && !assetMode && !analyze && !['list','get','status','create','commit'].includes(String(input.mode))) throw new DraftError('INVALID_ARGUMENT')
+    if (!capability && !assetMode && !analyze && !['list','get','status','create','commit','trash','restore'].includes(String(input.mode))) throw new DraftError('INVALID_ARGUMENT')
     if (['organization_id','user_id','subject_id','token','endpoint','project_id'].some(k => k in input)) throw new DraftError('INVALID_ARGUMENT')
     if (analyze && !['capabilities','submit','get','list'].includes(String(input.mode))) throw new DraftError('INVALID_ARGUMENT')
     if (assetMode && !['register','status','get'].includes(assetMode)) throw new DraftError('INVALID_ARGUMENT')

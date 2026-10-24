@@ -19,7 +19,7 @@ const search=ref(''),loading=ref(false),loadingSource=ref(false),error=ref(''),s
 const availability=ref<AnalysisAvailability|null>(null),model=ref(''),fileID=ref(''),targets=ref(promptTargets.map(t=>t.key)),budget=ref(''),perCall=ref(''),submitting=ref(false),pending=ref(false)
 const tasks=ref<AnalysisTask[]>([]),nextTask=ref(''),task=ref<AnalysisTask|null>(null),learning=ref<LearningDocument|null>(null),learningRevision=ref<DraftRevision|null>(null),loadingTask=ref(false)
 const mediaFiles=computed(()=>source.value?.manifest.files.filter(f=>/\.mp4$/i.test(f.path))||[])
-const canSubmit=computed(()=>availability.value?.enabled&&source.value&&fileID.value&&model.value&&targets.value.length&&budget.value&&perCall.value&&!submitting.value&&!pending.value)
+const canSubmit=computed(()=>availability.value?.enabled&&source.value&&source.value.lifecycle?.state!=='trashed'&&fileID.value&&model.value&&targets.value.length&&budget.value&&perCall.value&&!submitting.value&&!pending.value)
 let generation=0,selection=0,taskGeneration=0,alive=true,hidden=false,revoked=false,timer:ReturnType<typeof setTimeout>|undefined
 const live=()=>alive&&!hidden&&!revoked
 function stopPolling(){if(timer)clearTimeout(timer);timer=undefined}
@@ -47,7 +47,7 @@ async function select(){
  if(data.mode!=='text'||typeof data.text!=='string'||v.store_id!==file.content_ref.store_id||v.artifact_id!==file.content_ref.artifact_id||v.version_id!==file.content_ref.version_id)throw Error('来源正文与所选版本不一致。')
  parsed=readCollectionDocument(data.text)}
  if(!live()||current!==selection)return
- source.value=opened;document.value=parsed;fileID.value=mediaFiles.value[0]?.file_id||''
+ source.value=opened;if(opened.lifecycle?.state==='trashed')error.value='这份来源已移入回收站，请先在收录内容中恢复，再开始新拆解。';document.value=parsed;fileID.value=mediaFiles.value[0]?.file_id||''
  }catch(e){if(live()&&current===selection)error.value=draftError(e)}finally{if(live()&&current===selection)loadingSource.value=false}
 }
 async function capabilities(){
@@ -95,7 +95,7 @@ async function submit(resume=false){
 function choose(item:DraftItem){void router.push({path:'/learn',query:{draft:item.draft_id,revision:item.head_revision_id}})}
 function textOf(raw:Record<string,unknown>){const c=raw.content;return c&&typeof c==='object'&&'text'in c&&typeof c.text==='string'?c.text:''}
 function boot(){if(!live())return;refreshPending();void load();void capabilities();void listTasks();void select();if(route.query.task)void loadTask()}
-watch(()=>[route.query.draft,route.query.revision,route.query.task],()=>{stopPolling();taskGeneration++;task.value=null;learning.value=null;learningRevision.value=null;taskError.value='';void select();if(route.query.task)void loadTask()})
+watch([()=>route.query.draft,()=>route.query.revision,()=>route.query.task],()=>{stopPolling();taskGeneration++;task.value=null;learning.value=null;learningRevision.value=null;taskError.value='';void select();if(route.query.task)void loadTask()})
 const stop=appSDK.lifecycle.subscribe(event=>{if(event==='hidden'||event==='dispose'){hidden=true;generation++;selection++;taskGeneration++;stopPolling();loading.value=false;loadingSource.value=false;loadingTask.value=false}if(event==='active'){hidden=false;submitting.value=false;boot()}})
 const stopContext=appSDK.context.subscribe(()=>{if(publicationIdentity(appSDK.context.get())===identity)return;revoked=true;generation++;selection++;taskGeneration++;stopPolling();items.value=[];tasks.value=[];task.value=null;source.value=null;document.value=null;learning.value=null;learningRevision.value=null;error.value='会话已变化，请重新打开数字世界。'})
 onBeforeUnmount(()=>{alive=false;generation++;selection++;taskGeneration++;stopPolling();api.dispose();submission.dispose();stop();stopContext()})

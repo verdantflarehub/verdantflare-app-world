@@ -229,3 +229,38 @@ func TestAnalysisLearningBoundsAndMissingEvidence(t *testing.T) {
 		}
 	})
 }
+
+func TestAnalysisLearningBindsStyleEvidenceWithoutMutatingNative(t *testing.T) {
+	m := learningMaterialFixture(t)
+	for i := range m.Results {
+		if m.Results[i].Type == "style" && m.Results[i].State == "ready" {
+			m.Results[i].RuleEvidence = []analysis.RuleEvidence{{RuleKey: "hold", Evidence: []string{"obs-2"}}}
+		}
+	}
+	m.PromptOmissions = []analysis.PromptOmission{{ResultKey: "result.character", TargetKey: "h3", Reason: "task_type_not_applicable"}, {ResultKey: "result.missing", TargetKey: "text", Reason: "result_insufficient_evidence"}}
+	m.Prompts[0].Scope = "result.shot"
+	before, _ := json.Marshal(m)
+	raw, err := assembleAnalysisLearning(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, _ := json.Marshal(m)
+	if string(before) != string(after) {
+		t.Fatal("native candidate mutated")
+	}
+	doc, err := ValidateLearningContent(raw, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules := listOf(objectOf(doc.Results["result.style"]["payload"])["rules"])
+	refs := listOf(objectOf(rules[0])["evidence_refs"])
+	if len(refs) == 0 || doc.Sources[str(objectOf(refs[0])["key"])] == nil {
+		t.Fatal("unbound style rule")
+	}
+	if !strings.Contains(string(raw), "obs-2") || !strings.Contains(string(raw), "prompt_applicability") || !strings.Contains(string(raw), "result_insufficient_evidence") {
+		t.Fatal("missing exact evidence/disposition")
+	}
+	if !strings.Contains(string(raw), "adapt.prompt.h3.result.shot") {
+		t.Fatal("missing concrete prompt/result link")
+	}
+}

@@ -470,7 +470,7 @@
   },
   {
     "name": "world.draft",
-    "description": "Create, list, read, commit or recover private World references and editable learning/creation drafts without a project. Native-run verification depends on available service support.",
+    "description": "Create, list, read, commit or recover private World references and editable learning/creation drafts without a project; move collections to trash or restore them with lifecycle version and operation_id, preserving fixed sources. Native-run verification depends on available service support.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "WorldDraftRequest",
@@ -554,8 +554,38 @@
               "minimum": 1,
               "maximum": 100,
               "default": 50
+            },
+            "lifecycle_state": {
+              "enum": [
+                "active",
+                "trashed"
+              ]
             }
-          }
+          },
+          "allOf": [
+            {
+              "if": {
+                "required": [
+                  "lifecycle_state"
+                ],
+                "properties": {
+                  "lifecycle_state": {
+                    "const": "trashed"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "purpose"
+                ],
+                "properties": {
+                  "purpose": {
+                    "const": "collection"
+                  }
+                }
+              }
+            }
+          ]
         },
         {
           "type": "object",
@@ -925,6 +955,62 @@
             "commit_id": {
               "type": "string",
               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "draft_id",
+            "operation_id",
+            "expected_lifecycle_version"
+          ],
+          "properties": {
+            "mode": {
+              "const": "trash"
+            },
+            "draft_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "operation_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "expected_lifecycle_version": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "draft_id",
+            "operation_id",
+            "expected_lifecycle_version"
+          ],
+          "properties": {
+            "mode": {
+              "const": "restore"
+            },
+            "draft_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "operation_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "expected_lifecycle_version": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
             }
           }
         }

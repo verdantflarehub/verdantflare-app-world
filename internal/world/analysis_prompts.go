@@ -53,7 +53,7 @@ func (s *Service) PrepareAnalysisPrompts(ctx context.Context, p Principal, taskI
 	if len(task.PromptTargets) == 0 {
 		return ErrNotReady
 	}
-	plan, err := analysis.PlanPrompts(b, a, analysis.AllPromptScopes(a), task.PromptTargets)
+	plan, _, err := store.PlannedPrompts(ctx, task, b, a)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (s *Service) PrepareAnalysisPrompts(ctx context.Context, p Principal, taskI
 		}
 		requests = append(requests, f)
 	}
-	return store.CreatePromptBatches(ctx, p.OrganizationID, p.SubjectID, requests)
+	return store.SavePromptPlan(ctx, p.OrganizationID, p.SubjectID, taskID, requests)
 }
 
 func (s *Service) AdvanceAnalysisPrompt(ctx context.Context, p Principal, taskID, key string, channel analysis.PromptChannel, dispatch bool) (analysis.PromptRecord, error) {

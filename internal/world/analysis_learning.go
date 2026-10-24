@@ -129,6 +129,23 @@ func assembleAnalysisLearning(m analysis.LearningMaterial) ([]byte, error) {
 		}
 	}
 	candidates := map[string]learningEvidencePosition{}
+	omissionPositions := map[string]learningEvidencePosition{}
+	omissionGroups := map[string][]analysis.PromptOmission{}
+	for _, o := range m.PromptOmissions {
+		omissionGroups[o.TargetKey] = append(omissionGroups[o.TargetKey], o)
+	}
+	omissionKeys := []string{}
+	for target := range omissionGroups {
+		omissionKeys = append(omissionKeys, target)
+	}
+	sort.Strings(omissionKeys)
+	for _, target := range omissionKeys {
+		pos, err := a.add("prompt_applicability", omissionGroups[target])
+		if err != nil {
+			return nil, err
+		}
+		omissionPositions[target] = pos
+	}
 	for _, r := range m.Prompts {
 		if _, exists := candidates[r.Key]; exists {
 			return nil, ErrInvalid
@@ -242,7 +259,39 @@ func assembleAnalysisLearning(m analysis.LearningMaterial) ([]byte, error) {
 			if len(r.Payloads) != 1 {
 				return nil, ErrInvalid
 			}
-			if err := addResult(r.Key, r.Title, r.Type, r.Basis, r.BasisNote, r.Evidence, r.MissingInputs, r.Payloads[0]); err != nil {
+			payload := r.Payloads[0]
+			if r.Type == "style" && len(r.RuleEvidence) > 0 {
+				// Copy before binding: the native candidate and its hash stay immutable.
+				raw, _ := json.Marshal(payload)
+				payload = nil
+				if json.Unmarshal(raw, &payload) != nil {
+					return nil, ErrInvalid
+				}
+				refsByRule := map[string][]any{}
+				for _, rule := range r.RuleEvidence {
+					seen := map[string]bool{}
+					for _, node := range rule.Evidence {
+						pos, ok := positions[node]
+						if !ok {
+							return nil, ErrInvalid
+						}
+						key := learningArchiveKey(pos.Chunk)
+						if !seen[key] {
+							refsByRule[rule.RuleKey] = append(refsByRule[rule.RuleKey], learningLocalRef("source", key))
+							seen[key] = true
+						}
+					}
+				}
+				for _, v := range payload["rules"].([]any) {
+					rule := v.(map[string]any)
+					refs := refsByRule[str(rule["key"])]
+					if len(refs) == 0 {
+						return nil, ErrInvalid
+					}
+					rule["evidence_refs"] = refs
+				}
+			}
+			if err := addResult(r.Key, r.Title, r.Type, r.Basis, r.BasisNote, r.Evidence, r.MissingInputs, payload); err != nil {
 				return nil, err
 			}
 			addCoverage(r.Key, "complete", "已整理此范围的候选；未代表人工审核或可执行工程交付。")
@@ -266,7 +315,7 @@ func assembleAnalysisLearning(m analysis.LearningMaterial) ([]byte, error) {
 			continue
 		}
 		for _, result := range m.Results {
-			if result.State != "ready" || result.Scope != prompt.Scope {
+			if result.State != "ready" || (result.Scope != prompt.Scope && result.Key != prompt.Scope) {
 				continue
 			}
 			relations = append(relations, contentObject{
@@ -276,6 +325,22 @@ func assembleAnalysisLearning(m analysis.LearningMaterial) ([]byte, error) {
 				"attributes": contentObject{"change_summary": "按请求模型整理该对象的提示词候选，未验证目标模型执行效果。"},
 			})
 		}
+	}
+	for _, target := range omissionKeys {
+		pos := omissionPositions[target]
+		locator := contentObject{"kind": "lines", "start_line": pos.Line, "end_line": pos.Line}
+		pending := false
+		for _, o := range omissionGroups[target] {
+			if o.Reason != "task_type_not_applicable" {
+				pending = true
+			}
+		}
+		state, note := "not_applicable", "已逐项记录不适用组合；仅对符合用途的成果生成候选。"
+		if pending {
+			state = "pending"
+			note = "部分成果证据不足，未生成适配提示词；完整原因见本段。"
+		}
+		coverage = append(coverage, contentObject{"source_key": learningArchiveKey(pos.Chunk), "dimension": "prompt-target." + target, "state": state, "requested_scope": locator, "covered_scopes": []any{}, "note": note})
 	}
 	doc := contentObject{"schema_version": 1, "document_kind": "reference-learning", "origin": "generated", "sources": sources, "results": results, "relations": relations, "uses": []any{}, "coverage": coverage, "provenance": contentObject{"producer": "world-analysis", "version": "1", "run_refs": []RunRef{{ServiceID: "world", RunID: "analysis-v1:" + b.TaskID}}}}
 	if len(sources) > 1000 || len(results) > 10000 || len(relations) > 10000 || len(coverage) > 1000 {

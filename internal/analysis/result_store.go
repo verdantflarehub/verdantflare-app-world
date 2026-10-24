@@ -36,7 +36,7 @@ func (s PGStore) ResultPrerequisites(ctx context.Context, org, owner, task strin
 	if !t.IncludeTypedResults || b.TaskID != task {
 		return ErrInvalid
 	}
-	if len(t.PromptTargets) == 0 {
+	if t.PipelineVersion == 2 || len(t.PromptTargets) == 0 {
 		return nil
 	}
 	records, err := s.PromptRecords(ctx, org, owner, task)
@@ -110,7 +110,7 @@ func (s PGStore) ResultRecords(ctx context.Context, org, owner, task string) ([]
 	if err != nil {
 		return nil, err
 	}
-	plan, err := PlanResults(b, a)
+	plan, err := PlanResultsVersion(b, a, t.PipelineVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (s PGStore) CreateResultBatches(ctx context.Context, org, owner string, req
 	if err = s.ResultPrerequisites(ctx, org, owner, first.TaskID, b, a); err != nil {
 		return err
 	}
-	plan, err := PlanResults(b, a)
+	plan, err := PlanResultsVersion(b, a, task.PipelineVersion)
 	if err != nil {
 		return err
 	}

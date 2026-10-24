@@ -259,8 +259,38 @@
             "minimum": 1,
             "maximum": 100,
             "default": 50
+          },
+          "lifecycle_state": {
+            "enum": [
+              "active",
+              "trashed"
+            ]
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "lifecycle_state"
+              ],
+              "properties": {
+                "lifecycle_state": {
+                  "const": "trashed"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "purpose"
+              ],
+              "properties": {
+                "purpose": {
+                  "const": "collection"
+                }
+              }
+            }
+          }
+        ]
       },
       {
         "type": "object",
@@ -322,6 +352,58 @@
           },
           "commit_id": {
             "$ref": "content-ref.schema.json#/properties/store_id"
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "draft_id",
+          "operation_id",
+          "expected_lifecycle_version"
+        ],
+        "properties": {
+          "mode": {
+            "const": "trash"
+          },
+          "draft_id": {
+            "$ref": "content-ref.schema.json#/properties/store_id"
+          },
+          "operation_id": {
+            "$ref": "content-ref.schema.json#/properties/store_id"
+          },
+          "expected_lifecycle_version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "draft_id",
+          "operation_id",
+          "expected_lifecycle_version"
+        ],
+        "properties": {
+          "mode": {
+            "const": "restore"
+          },
+          "draft_id": {
+            "$ref": "content-ref.schema.json#/properties/store_id"
+          },
+          "operation_id": {
+            "$ref": "content-ref.schema.json#/properties/store_id"
+          },
+          "expected_lifecycle_version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
           }
         }
       }
@@ -947,6 +1029,9 @@
                 },
                 "has_content": {
                   "type": "boolean"
+                },
+                "lifecycle": {
+                  "$ref": "#/$defs/lifecycle"
                 }
               }
             }
@@ -1069,6 +1154,30 @@
             ]
           }
         }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "draft_id",
+          "operation_id",
+          "lifecycle"
+        ],
+        "properties": {
+          "kind": {
+            "const": "lifecycle"
+          },
+          "draft_id": {
+            "$ref": "content-ref.schema.json#/properties/store_id"
+          },
+          "operation_id": {
+            "$ref": "content-ref.schema.json#/properties/store_id"
+          },
+          "lifecycle": {
+            "$ref": "#/$defs/lifecycle"
+          }
+        }
       }
     ],
     "$defs": {
@@ -1107,6 +1216,62 @@
           },
           "manifest": {
             "$ref": "world-draft-manifest.schema.json"
+          },
+          "lifecycle": {
+            "$ref": "#/$defs/lifecycle"
+          }
+        }
+      },
+      "lifecycle": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "state",
+          "version",
+          "trashed_at",
+          "trashed_by",
+          "can_trash",
+          "can_restore"
+        ],
+        "properties": {
+          "state": {
+            "enum": [
+              "active",
+              "trashed"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "trashed_at": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "Z$"
+              }
+            ]
+          },
+          "trashed_by": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "content-ref.schema.json#/properties/store_id"
+              }
+            ]
+          },
+          "can_trash": {
+            "type": "boolean"
+          },
+          "can_restore": {
+            "type": "boolean"
           }
         }
       }

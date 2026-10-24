@@ -1,6 +1,9 @@
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 type Domain = 'project' | 'world'
 export interface AppTarget { appId: Domain; path: string }
+const resultPath = /^(\/(?:learn|character|scene|sound|music|shot|script|knowledge))?\/item\/([a-zA-Z0-9][a-zA-Z0-9_.-]{0,127})$/
+export function resultRouteBase(path: string): string { const m=resultPath.exec(path);return m?m[1]||'/':path }
+export function resultRouteKey(path: string): string { return resultPath.exec(path)?.[2]||'' }
 const invalid = (): never => { throw new Error('应用地址无效。') }
 function parsed(path: string): URL {
   if (typeof path !== 'string' || path.length > 4096 || !path.startsWith('/') || path.startsWith('//') || /[\\#\r\n]/.test(path)) invalid()
@@ -33,7 +36,9 @@ export function canonicalRoute(domain: Domain, path: string): string {
   } else {
     const reviewDetail = /^\/scene\/[0-9a-f-]{36}\/versions\/[0-9a-f-]{36}\/review$/.test(url.pathname) && url.pathname.split('/').filter(Boolean).filter((_,i)=>i===1||i===3).every(v=>uuid.test(v))
     const collectionDetail = url.pathname.startsWith('/collections/') && uuid.test(url.pathname.slice('/collections/'.length))
-    if ((!['/', '/world', '/projects', '/publish', '/collections', '/learn', '/character', '/scene', '/sound', '/music', '/shot', '/script', '/knowledge'].includes(url.pathname) && !collectionDetail && !reviewDetail) || (mode && mode !== 'world') || (url.pathname === '/projects' && mode !== 'world')) invalid()
+    const resultDetail = resultPath.test(url.pathname)
+    if (resultDetail && (resultRouteBase(url.pathname)==='/learn' ? !uuid.test(url.searchParams.get('task')||'') : !uuid.test(url.searchParams.get('asset')||'') || !uuid.test(url.searchParams.get('version')||''))) invalid()
+    if ((!['/', '/world', '/projects', '/publish', '/collections', '/learn', '/character', '/scene', '/sound', '/music', '/shot', '/script', '/knowledge'].includes(url.pathname) && !collectionDetail && !reviewDetail && !resultDetail) || (mode && mode !== 'world') || (url.pathname === '/projects' && mode !== 'world')) invalid()
     if (['/', '/world', '/projects'].includes(url.pathname)) url.pathname = '/'
   }
   url.searchParams.delete('mode')

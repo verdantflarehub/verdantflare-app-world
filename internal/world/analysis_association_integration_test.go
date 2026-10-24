@@ -130,7 +130,7 @@ func verifyAssociationExecution(t *testing.T, svc *Service, p Principal, b analy
 	if task.IncludeTypedResults {
 		expectedStage = "preparing_results"
 	}
-	if len(task.PromptTargets) > 0 {
+	if len(task.PromptTargets) > 0 && task.PipelineVersion != 2 {
 		expectedStage = "preparing_prompts"
 	}
 	if err != nil || progress.Stage != expectedStage || progress.AssociationState != "association_ready" {

@@ -35,6 +35,12 @@ type ResultBatch struct {
 // PlanResults covers every observed object, not just representative examples.
 // Whole-work synthesis may report insufficient evidence; that remains a result.
 func PlanResults(b Bundle, a Association) ([]ResultBatch, error) {
+	return PlanResultsVersion(b, a, 0)
+}
+func PlanResultsVersion(b Bundle, a Association, version int) ([]ResultBatch, error) {
+	if version != 0 && version != 1 && version != 2 {
+		return nil, ErrInvalid
+	}
 	if _, err := promptScopes(b, a); err != nil {
 		return nil, err
 	}
@@ -66,6 +72,12 @@ func PlanResults(b Bundle, a Association) ([]ResultBatch, error) {
 		Task, Bundle, Association string
 		Scopes                    map[string][]ResultScope
 	}{b.TaskID, b.SHA256, canonicalHash(a), byType})
+	if version == 2 {
+		planHash = canonicalHash(struct {
+			Version int
+			Hash    string
+		}{2, planHash})
+	}
 	plan := []ResultBatch{}
 	for _, kind := range resultKinds {
 		scopes := byType[kind]
@@ -74,11 +86,16 @@ func PlanResults(b Bundle, a Association) ([]ResultBatch, error) {
 				fmt.Sprintf("results-v1-%s-%04d", kind, start/8), kind, append([]ResultScope(nil), scopes[start:min(start+8, len(scopes))]...)})
 		}
 	}
+	if version == 2 {
+		for i := range plan {
+			plan[i].Version = 2
+		}
+	}
 	return plan, nil
 }
 
 func resultText(b Bundle, a Association, batch ResultBatch) (string, error) {
-	plan, err := PlanResults(b, a)
+	plan, err := PlanResultsVersion(b, a, batch.Version)
 	if err != nil {
 		return "", err
 	}
@@ -111,12 +128,17 @@ func resultText(b Bundle, a Association, batch ResultBatch) (string, error) {
 
 // The transport dialect has no regex or exclusive numeric bounds. The original
 // canonical schema is still used on output; this never relaxes final validation.
-func resultSchema(kind string) (map[string]any, error) {
+func resultSchema(kind string) (map[string]any, error) { return resultSchemaVersion(kind, 1) }
+func resultSchemaVersion(kind string, version int) (map[string]any, error) {
+	key := "results-" + kind
+	if version == 2 {
+		key = "results-v2-" + kind
+	}
 	var schemas map[string]map[string]any
-	if json.Unmarshal(schemaBytes, &schemas) != nil || schemas["results-"+kind] == nil {
+	if json.Unmarshal(schemaBytes, &schemas) != nil || schemas[key] == nil {
 		return nil, ErrInvalid
 	}
-	schema := schemas["results-"+kind]
+	schema := schemas[key]
 	var project func(any)
 	project = func(v any) {
 		switch x := v.(type) {
@@ -157,11 +179,11 @@ func FreezeResults(b Bundle, a Association, batch ResultBatch, model, account, b
 	if err != nil {
 		return ResultRequest{}, err
 	}
-	schema, err := resultSchema(batch.Type)
+	schema, err := resultSchemaVersion(batch.Type, batch.Version)
 	if err != nil {
 		return ResultRequest{}, err
 	}
-	payload, err := json.Marshal(associationPayload{resultInstruction, text, schema, 32768})
+	payload, err := json.Marshal(associationPayload{resultInstructionFor(batch.Version), text, schema, 32768})
 	if err != nil {
 		return ResultRequest{}, ErrInvalid
 	}
@@ -175,7 +197,7 @@ func (f ResultRequest) Validate() error {
 		return ErrInvalid
 	}
 	batch := f.Batch
-	if batch.Version != 1 || !digestPattern.MatchString(batch.BundleHash) || !digestPattern.MatchString(batch.AssociationHash) || !digestPattern.MatchString(batch.PlanHash) || len(batch.Scopes) < 1 || len(batch.Scopes) > 8 || !strings.HasPrefix(batch.Key, "results-v1-"+batch.Type+"-") || !IsResultBatchKey(batch.Key) {
+	if (batch.Version != 1 && batch.Version != 2) || !digestPattern.MatchString(batch.BundleHash) || !digestPattern.MatchString(batch.AssociationHash) || !digestPattern.MatchString(batch.PlanHash) || len(batch.Scopes) < 1 || len(batch.Scopes) > 8 || !strings.HasPrefix(batch.Key, "results-v1-"+batch.Type+"-") || !IsResultBatchKey(batch.Key) {
 		return ErrInvalid
 	}
 	seen := map[string]bool{}
@@ -199,10 +221,10 @@ func (f ResultRequest) Validate() error {
 	var p associationPayload
 	d := json.NewDecoder(bytes.NewReader(clean))
 	d.DisallowUnknownFields()
-	if d.Decode(&p) != nil || p.Prompt != resultInstruction || p.Tokens != 32768 || utf8.RuneCountInString(p.Text) > MaxAssociationCharacters || hashBytes([]byte(p.Text)) != f.TextHash {
+	if d.Decode(&p) != nil || p.Prompt != resultInstructionFor(batch.Version) || p.Tokens != 32768 || utf8.RuneCountInString(p.Text) > MaxAssociationCharacters || hashBytes([]byte(p.Text)) != f.TextHash {
 		return ErrInvalid
 	}
-	schema, err := resultSchema(batch.Type)
+	schema, err := resultSchemaVersion(batch.Type, batch.Version)
 	if err != nil || canonicalHash(schema) != canonicalHash(p.Schema) {
 		return ErrInvalid
 	}
@@ -220,7 +242,12 @@ func (f ResultRequest) Validate() error {
 	return nil
 }
 
+type RuleEvidence struct {
+	RuleKey  string   `json:"rule_key"`
+	Evidence []string `json:"evidence_keys"`
+}
 type ResultCandidate struct {
+	RuleEvidence  []RuleEvidence   `json:"rule_evidence,omitempty"`
 	Scope         string           `json:"scope_key"`
 	Title         string           `json:"title"`
 	State         string           `json:"state"`
@@ -248,7 +275,11 @@ func ValidateResults(b Bundle, a Association, batch ResultBatch, raw []byte) (Re
 		return ResultCandidates{}, ErrInvalid
 	}
 	schemas, err := compiledSchemas()
-	if err != nil || schemas["results-"+batch.Type] == nil || schemas["results-"+batch.Type].Validate(value) != nil {
+	key := "results-" + batch.Type
+	if batch.Version == 2 {
+		key = "results-v2-" + batch.Type
+	}
+	if err != nil || schemas[key] == nil || schemas[key].Validate(value) != nil {
 		return ResultCandidates{}, ErrInvalid
 	}
 	var out ResultCandidates
@@ -296,6 +327,9 @@ func ValidateResults(b Bundle, a Association, batch ResultBatch, raw []byte) (Re
 			}
 			continue
 		}
+		if batch.Version == 2 && validateResultQuality(batch.Type, item, nodes) != nil {
+			return ResultCandidates{}, ErrInvalid
+		}
 		if len(item.Payloads) != 1 || validateResultPayload(batch.Type, item.Payloads[0], scope, b.Source.DurationMS) != nil {
 			return ResultCandidates{}, ErrInvalid
 		}
@@ -311,7 +345,7 @@ func VerifyResultsNative(b Bundle, a Association, f ResultRequest, callID string
 	if err != nil || hashBytes([]byte(text)) != f.TextHash {
 		return ResultCandidates{}, ErrInvalid
 	}
-	schema, _ := resultSchema(f.Batch.Type)
+	schema, _ := resultSchemaVersion(f.Batch.Type, f.Batch.Version)
 	raw, err := verifyTextNative(Binding{callID, f.TaskID, f.ModelID}, f.TextHash, schema, data)
 	if err != nil {
 		return ResultCandidates{}, err

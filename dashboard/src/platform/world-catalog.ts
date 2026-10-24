@@ -1,3 +1,4 @@
+import { resultRouteBase } from './route-links.ts'
 export const worldDomains = [
   {key:'character',label:'人物',types:['character','character-image'],glyph:'人 · 物'},
   {key:'scene',label:'场景',types:['scene'],glyph:'场 · 景'},
@@ -14,7 +15,7 @@ export const catalogTypes = [
   {value:'shot',label:'镜头与运镜'}, {value:'video-project',label:'视频工程'},
   {value:'script',label:'剧本与场次'}, {value:'knowledge',label:'知识与方法'}, {value:'prompt',label:'提示词'},
 ]
-export function catalogDomain(path:string) { return worldDomains.find(d=>path==='/'+d.key) }
+export function catalogDomain(path:string) { return worldDomains.find(d=>resultRouteBase(path)==='/'+d.key) }
 export function assetDomain(type:string) { return worldDomains.find(d=>(d.types as readonly string[]).includes(type)) }
 export function assetTypeLabel(type:string) { return catalogTypes.find(t=>t.value===type)?.label||type }
 export function catalogQuery(path:string,query:Record<string,unknown>) {

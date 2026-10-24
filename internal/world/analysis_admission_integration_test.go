@@ -80,6 +80,11 @@ func admissionFrozenTask(t *testing.T, svc *Service, p Principal, r AnalyzeReque
 		t.Fatal(err)
 	}
 	task := analysis.Task{OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: r.TaskID, DraftID: r.Source.DraftID, RevisionID: r.Source.RevisionID, FileID: r.Source.FileID, Plan: plan, PromptTargets: r.PromptTargets, IncludeTypedResults: true, SaveLearning: true, TotalBudget: r.BudgetLimit}
+	if admitted, err := (analysis.PGStore{DB: svc.db}).Submission(t.Context(), p.OrganizationID, p.SubjectID, r.TaskID); err == nil {
+		task.PipelineVersion = admitted.PipelineVersion
+	} else if !errors.Is(err, analysis.ErrMissing) {
+		t.Fatal(err)
+	}
 	requests := []analysis.FrozenRequest{}
 	for _, s := range plan.Steps {
 		f, err := analysis.Freeze(task.TaskID, r.ModelID, "", r.BudgetPerCall, s, analysis.Prepared{SourceHash: v.SHA256, MediaHash: v.SHA256, MIME: "video/mp4", Range: s.Input}, v.Size)
@@ -333,11 +338,11 @@ func TestAnalysisBudgetIncludesAllFourPhases(t *testing.T) {
 	exec(`UPDATE studio.world_analysis_associations SET state='dispatching',revision=2`)
 	exec(`UPDATE studio.world_analysis_associations SET state='association_ready',revision=3,call_id=$1,native_result='{}'`, newID())
 	targets, _ := json.Marshal(r.PromptTargets)
-	exec(`INSERT INTO studio.world_analysis_prompt_batches(organization_id,owner_id,task_id,batch_key,batch_index,request_sha256,request) VALUES($1,$2,$3,'prompts-v1-0000',0,repeat('b',64),jsonb_build_object('task_id',$3::uuid::text,'budget_limit','0.1','batch',jsonb_build_object('batch_key','prompts-v1-0000','targets',$4::jsonb)))`, p.OrganizationID, p.SubjectID, r.TaskID, targets)
+	exec(`INSERT INTO studio.world_analysis_prompt_batches(organization_id,owner_id,task_id,batch_key,batch_index,request_sha256,request) VALUES($1,$2,$3,'prompts-v1-0000',0,repeat('b',64),jsonb_build_object('task_id',$3::uuid::text,'budget_limit','0.1','batch',jsonb_build_object('schema_version',1,'batch_key','prompts-v1-0000','targets',$4::jsonb)))`, p.OrganizationID, p.SubjectID, r.TaskID, targets)
 	exec(`UPDATE studio.world_analysis_prompt_batches SET state='dispatching',revision=2`)
 	exec(`UPDATE studio.world_analysis_prompt_batches SET state='prompt_ready',revision=3,call_id=$1,native_result='{}'`, newID())
 	for i, key := range []string{"results-v1-shot-0000", "results-v1-scene-0001"} {
-		exec(`INSERT INTO studio.world_analysis_result_batches(organization_id,owner_id,task_id,batch_key,batch_index,request_sha256,request) VALUES($1,$2,$3,$4,$5,repeat('c',64),jsonb_build_object('task_id',$3::uuid::text,'budget_limit','0.1','batch',jsonb_build_object('batch_key',$4::text)))`, p.OrganizationID, p.SubjectID, r.TaskID, key, i)
+		exec(`INSERT INTO studio.world_analysis_result_batches(organization_id,owner_id,task_id,batch_key,batch_index,request_sha256,request) VALUES($1,$2,$3,$4,$5,repeat('c',64),jsonb_build_object('task_id',$3::uuid::text,'budget_limit','0.1','batch',jsonb_build_object('schema_version',1,'batch_key',$4::text)))`, p.OrganizationID, p.SubjectID, r.TaskID, key, i)
 	}
 	exec(`UPDATE studio.world_analysis_result_batches SET state='dispatching',revision=2 WHERE batch_index=0`)
 	if _, err := svc.db.Exec(ctx, `UPDATE studio.world_analysis_result_batches SET state='dispatching',revision=2 WHERE batch_index=1`); err == nil {

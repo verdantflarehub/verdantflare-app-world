@@ -97,13 +97,18 @@ func resultPayload(kind string, scope ResultScope) map[string]any {
 	panic("unexpected result type")
 }
 func resultOutput(b Bundle, batch ResultBatch) ResultCandidates {
-	out := ResultCandidates{Version: 1, BatchKey: batch.Key, Type: batch.Type, Items: []ResultCandidate{}}
+	out := ResultCandidates{Version: batch.Version, BatchKey: batch.Key, Type: batch.Type, Items: []ResultCandidate{}}
 	for _, scope := range batch.Scopes {
 		evidence := append([]string{}, scope.Evidence...)
 		if len(evidence) == 0 {
 			evidence = []string{b.Nodes[0].Key}
 		}
-		out.Items = append(out.Items, ResultCandidate{scope.Key, "Synthetic " + batch.Type, "ready", "inferred", "Synthetic candidate, not human reviewed", evidence, []string{}, []string{"Original uncertainty retained"}, []map[string]any{resultPayload(batch.Type, scope)}})
+		out.Items = append(out.Items, ResultCandidate{Scope: scope.Key, Title: "Synthetic " + batch.Type, State: "ready", Basis: "inferred", BasisNote: "Synthetic candidate, not human reviewed", Evidence: evidence, MissingInputs: []string{}, Uncertainties: []string{"Original uncertainty retained"}, Payloads: []map[string]any{resultPayload(batch.Type, scope)}})
+	}
+	if batch.Version == 2 && batch.Type == "style" {
+		for i := range out.Items {
+			out.Items[i].RuleEvidence = []RuleEvidence{{RuleKey: "pause", Evidence: append([]string{}, out.Items[i].Evidence...)}}
+		}
 	}
 	return out
 }
@@ -114,7 +119,7 @@ func resultNative(t *testing.T, b Bundle, a Association, batch ResultBatch) (Res
 		t.Fatal(err)
 	}
 	call := uuid.NewString()
-	schema, _ := resultSchema(batch.Type)
+	schema, _ := resultSchemaVersion(batch.Type, batch.Version)
 	out := resultOutput(b, batch)
 	return f, call, map[string]any{"schema_version": 1, "call_id": call, "task_id": f.TaskID, "model_id": f.ModelID, "media": "analysis", "operation": "analyze", "state": "completed", "accepted": true,
 		"analysis": map[string]any{"text": string(promptBytes(t, out)), "document": out, "model_id": f.ModelID, "finish_reason": "STOP", "response_schema_verified": true,
