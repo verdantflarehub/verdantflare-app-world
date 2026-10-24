@@ -8,6 +8,7 @@ import LearnPage from './pages/LearnPage.vue'
 import PublicationPage from './pages/PublicationPage.vue'
 import { connectHost, disconnectHost } from './platform/host'
 import { canonicalRoute } from './platform/route-links'
+import { createNavigationQueue } from './platform/navigation-queue'
 import './base.css'
 
 const root = document.querySelector<HTMLElement>('#app')!
@@ -34,29 +35,30 @@ async function mount() {
   app.mount(root)
   let disposed = false, revision = sdk.navigation.get().revision
   const hostPaths = new Set<string>()
+  const navigation = createNavigationQueue(() => canonicalRoute('world', sdk.navigation.get().path),
+    path => sdk.navigation.request({ target: 'app', path }), path => {
+      if (disposed) return
+      hostPaths.add(path)
+      void router.replace(path).finally(() => hostPaths.delete(path))
+    })
   const stopTheme = sdk.theme.subscribe(theme => { if (!disposed) document.body.dataset.theme = theme })
   const stopRoute = sdk.navigation.subscribe(route => {
     if (disposed || route.revision <= revision) return
     revision = route.revision
     const path = canonicalRoute('world', route.path)
-    if (path === router.currentRoute.value.fullPath) return
+    if (navigation.staleEcho(path) || path === router.currentRoute.value.fullPath) return
     hostPaths.add(path)
     void router.replace(path).finally(() => hostPaths.delete(path))
   })
   const stopAfter = router.afterEach((to, _from, failure) => {
-    if (failure || disposed || hostPaths.has(to.fullPath) || to.fullPath === sdk.navigation.get().path) return
-    void sdk.navigation.request({ target: 'app', path: to.fullPath }).catch(() => {
-      if (disposed) return
-      const path = sdk.navigation.get().path
-      hostPaths.add(path)
-      void router.replace(path).finally(() => hostPaths.delete(path))
-    })
+    if (failure || disposed || hostPaths.has(to.fullPath)) return
+    navigation.request(to.fullPath)
   })
   const resize = new ResizeObserver(() => { if (!disposed) host.resize(Math.ceil(root.getBoundingClientRect().height)) })
   resize.observe(root)
   const stopLifecycle = sdk.lifecycle.subscribe(event => {
     if (event !== 'dispose' || disposed) return
-    disposed = true; resize.disconnect(); stopTheme(); stopRoute(); stopAfter(); stopLifecycle(); app.unmount(); disconnectHost()
+    disposed = true; navigation.dispose(); resize.disconnect(); stopTheme(); stopRoute(); stopAfter(); stopLifecycle(); app.unmount(); disconnectHost()
   })
   host.ready()
   host.setDirty(false)

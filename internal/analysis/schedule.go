@@ -52,10 +52,10 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
  CROSS JOIN LATERAL (
   SELECT picked.step_key FROM (
   SELECT s.step_key,CASE WHEN s.state='planned' THEN 1 ELSE 0 END AS priority,p.position FROM jsonb_array_elements(t.plan->'steps') WITH ORDINALITY p(item,position)
-  JOIN studio.world_analysis_steps s ON s.organization_id=q.organization_id AND s.owner_id=q.owner_id AND s.task_id=q.task_id AND s.step_key=p.item->>'key'
+  JOIN studio.world_analysis_current_steps s ON s.organization_id=q.organization_id AND s.owner_id=q.owner_id AND s.task_id=q.task_id AND s.step_key=p.item->>'key'
   WHERE s.state IN ('dispatching','running','acceptance_unknown') OR (
    $1 AND q.last_error_code<>'budget_exhausted' AND s.state='planned' AND NOT EXISTS (
-    SELECT 1 FROM studio.world_analysis_steps other
+    SELECT 1 FROM studio.world_analysis_current_steps other
     WHERE other.organization_id=q.organization_id AND other.owner_id=q.owner_id AND other.task_id=q.task_id
     AND other.state IN ('dispatching','running','acceptance_unknown','failed')))
   UNION ALL
@@ -65,7 +65,7 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
   WHERE (a.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND q.last_error_code<>'budget_exhausted' AND COALESCE(a.state,'planned')='planned'))
    AND jsonb_array_length(t.plan->'steps')>0 AND NOT EXISTS (
     SELECT 1 FROM jsonb_array_elements(t.plan->'steps') p(item)
-    LEFT JOIN studio.world_analysis_steps s ON s.organization_id=q.organization_id AND s.owner_id=q.owner_id AND s.task_id=q.task_id AND s.step_key=p.item->>'key'
+    LEFT JOIN studio.world_analysis_current_steps s ON s.organization_id=q.organization_id AND s.owner_id=q.owner_id AND s.task_id=q.task_id AND s.step_key=p.item->>'key'
     WHERE s.state IS DISTINCT FROM 'observation_ready')
   UNION ALL
   SELECT 'prompts-prepare-v1',3,0::bigint
@@ -272,7 +272,7 @@ func (s PGStore) Progress(ctx context.Context, org, owner, task string) (Progres
 	if err != nil {
 		return p, err
 	}
-	err = s.DB.QueryRow(ctx, `SELECT count(*) FILTER(WHERE state='planned'),count(*) FILTER(WHERE state IN ('dispatching','running')),count(*) FILTER(WHERE state='acceptance_unknown'),count(*) FILTER(WHERE state='observation_ready'),count(*) FILTER(WHERE state='failed') FROM studio.world_analysis_steps WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, task).Scan(&p.Planned, &p.Running, &p.Unknown, &p.Ready, &p.Failed)
+	err = s.DB.QueryRow(ctx, `SELECT count(*) FILTER(WHERE state='planned'),count(*) FILTER(WHERE state IN ('dispatching','running')),count(*) FILTER(WHERE state='acceptance_unknown'),count(*) FILTER(WHERE state='observation_ready'),count(*) FILTER(WHERE state='failed') FROM studio.world_analysis_current_steps WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, task).Scan(&p.Planned, &p.Running, &p.Unknown, &p.Ready, &p.Failed)
 	if err != nil {
 		return p, err
 	}

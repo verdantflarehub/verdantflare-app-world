@@ -29,6 +29,7 @@ func (s *Service) ConfigureAnalysis(cfg AnalysisRuntime) error {
 }
 
 type AnalyzeRequest struct {
+	RetryID       string                  `json:"retry_id,omitempty"`
 	Mode          string                  `json:"mode"`
 	TaskID        string                  `json:"task_id,omitempty"`
 	Source        *AnalysisSource         `json:"source,omitempty"`
@@ -126,6 +127,18 @@ func (s *Service) WorldAnalyze(ctx context.Context, p Principal, input AnalyzeRe
 	switch r.Mode {
 	case "capabilities":
 		return s.analysisAvailability(ctx, p)
+	case "retry":
+		task, e := store.Task(ctx, p.OrganizationID, p.SubjectID, r.TaskID)
+		if e != nil {
+			return nil, analysisAPIError(e)
+		}
+		if _, _, e = s.analysisSource(ctx, p, AnalysisSource{task.DraftID, task.RevisionID, task.FileID}); e != nil {
+			return nil, e
+		}
+		if e = store.RetryObservation(ctx, p.OrganizationID, p.SubjectID, r.TaskID, r.RetryID); e != nil {
+			return nil, analysisAPIError(e)
+		}
+		return s.analysisTaskView(ctx, p, r.TaskID, true)
 	case "get":
 		return s.analysisTaskView(ctx, p, r.TaskID, true)
 	case "list":

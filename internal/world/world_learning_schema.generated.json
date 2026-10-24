@@ -156,6 +156,26 @@
         "required": [
           "mode"
         ]
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "const": "retry"
+          },
+          "task_id": {
+            "$ref": "content-ref.schema.json#/properties/store_id"
+          },
+          "retry_id": {
+            "$ref": "content-ref.schema.json#/properties/store_id"
+          }
+        },
+        "required": [
+          "mode",
+          "task_id",
+          "retry_id"
+        ]
       }
     ]
   },

@@ -115,7 +115,7 @@ func (s PGStore) Load(ctx context.Context, org, owner, task, key string) (StepRe
 		return r, ErrInvalid
 	}
 	var request, report []byte
-	err := s.DB.QueryRow(ctx, `SELECT request,request_sha256,revision,state,COALESCE(call_id::text,''),native_result,report,COALESCE(error_code,'') FROM studio.world_analysis_steps WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 AND step_key=$4`, org, owner, task, key).Scan(&request, &r.RequestHash, &r.Revision, &r.State, &r.CallID, &r.Result, &report, &r.ErrorCode)
+	err := s.DB.QueryRow(ctx, `SELECT request,request_sha256,revision,state,COALESCE(call_id::text,''),native_result,report,COALESCE(error_code,'') FROM studio.world_analysis_current_steps WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 AND step_key=$4`, org, owner, task, key).Scan(&request, &r.RequestHash, &r.Revision, &r.State, &r.CallID, &r.Result, &report, &r.ErrorCode)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return r, ErrMissing
 	}
@@ -135,7 +135,11 @@ func (s PGStore) CompareAndSwap(ctx context.Context, old, next StepRecord) (bool
 	if next.Report != nil {
 		report, _ = json.Marshal(next.Report)
 	}
-	tag, err := s.DB.Exec(ctx, `UPDATE studio.world_analysis_steps SET revision=$1,state=$2,call_id=NULLIF($3,'')::uuid,native_result=$4,report=$5,error_code=NULLIF($6,''),updated_at=now() WHERE organization_id=$7 AND owner_id=$8 AND task_id=$9 AND step_key=$10 AND revision=$11 AND request_sha256=$12`, next.Revision, next.State, next.CallID, []byte(next.Result), report, next.ErrorCode, old.OrganizationID, old.OwnerID, old.Request.TaskID, old.Request.Step.Key, old.Revision, old.RequestHash)
+	table := "studio.world_analysis_steps"
+	if old.Request.Retry != nil {
+		table = "studio.world_analysis_step_retries"
+	}
+	tag, err := s.DB.Exec(ctx, `UPDATE `+table+` SET revision=$1,state=$2,call_id=NULLIF($3,'')::uuid,native_result=$4,report=$5,error_code=NULLIF($6,''),updated_at=now() WHERE organization_id=$7 AND owner_id=$8 AND task_id=$9 AND step_key=$10 AND revision=$11 AND request_sha256=$12`, next.Revision, next.State, next.CallID, []byte(next.Result), report, next.ErrorCode, old.OrganizationID, old.OwnerID, old.Request.TaskID, old.Request.Step.Key, old.Revision, old.RequestHash)
 	if err != nil {
 		return false, budgetError(err)
 	}

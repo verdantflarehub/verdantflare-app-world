@@ -23,15 +23,16 @@ var (
 // FrozenRequest contains no credentials, source bytes or externally supplied
 // receipt. It is built by the authorized worker after media preparation.
 type FrozenRequest struct {
-	TaskID      string          `json:"task_id"`
-	OperationID string          `json:"idempotency_key"`
-	ModelID     string          `json:"model_id"`
-	AccountID   string          `json:"account_id,omitempty"`
-	BudgetLimit string          `json:"budget_limit"`
-	Step        Step            `json:"step"`
-	Prepared    Prepared        `json:"prepared"`
-	MediaSize   int64           `json:"media_size"`
-	Payload     json.RawMessage `json:"payload"`
+	Retry       *ObservationRetry `json:"retry,omitempty"`
+	TaskID      string            `json:"task_id"`
+	OperationID string            `json:"idempotency_key"`
+	ModelID     string            `json:"model_id"`
+	AccountID   string            `json:"account_id,omitempty"`
+	BudgetLimit string            `json:"budget_limit"`
+	Step        Step              `json:"step"`
+	Prepared    Prepared          `json:"prepared"`
+	MediaSize   int64             `json:"media_size"`
+	Payload     json.RawMessage   `json:"payload"`
 }
 
 var identifier = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,199}$`)
@@ -56,7 +57,7 @@ func Freeze(taskID, model, account, budget string, step Step, prepared Prepared,
 }
 
 func (f FrozenRequest) Validate() error {
-	if !validUUID(f.TaskID) || f.OperationID != f.TaskID+":"+f.Step.Key || !identifier.MatchString(f.ModelID) ||
+	if !validUUID(f.TaskID) || !f.validOperation() || !identifier.MatchString(f.ModelID) ||
 		f.AccountID != "" && !validUUID(f.AccountID) || !positiveAmount.MatchString(f.BudgetLimit) || strings.Trim(f.BudgetLimit, "0.") == "" ||
 		f.Step.Validate() != nil || f.Prepared.SourceHash != f.Step.SourceHash || !digestPattern.MatchString(f.Prepared.MediaHash) ||
 		f.Prepared.Range != f.Step.Input || f.MediaSize < 1 || f.MediaSize > 48<<20 || len(f.Payload) > 64<<10 {
@@ -172,7 +173,7 @@ type Call struct {
 }
 
 func (c Call) valid(f FrozenRequest, callID string) bool {
-	return c.matches(f.TaskID, f.ModelID, callID)
+	return (f.Retry == nil || c.CallID != f.Retry.PreviousCallID) && c.matches(f.TaskID, f.ModelID, callID)
 }
 func (c Call) matches(task, model, callID string) bool {
 	if c.SchemaVersion != 1 || !validUUID(c.CallID) || c.TaskID != task || c.ModelID != model || c.Media != "analysis" || c.Operation != "analyze" || callID != "" && c.CallID != callID {
