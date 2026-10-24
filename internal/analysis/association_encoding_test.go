@@ -159,3 +159,57 @@ func TestFinalAssociationCorrectionOnlyRepairsEntityOmissions(t *testing.T) {
 		})
 	}
 }
+
+func TestVoiceLinkUsesCharacterBoundVisualBeatAndIndependentAudio(t *testing.T) {
+	b, a := associationFixture(t)
+	if len(a.VoiceLinks) == 0 {
+		t.Fatal("fixture lacks voice link")
+	}
+	link := a.VoiceLinks[0]
+	var entity AssociationGroup
+	for _, e := range a.Entities {
+		if e.Key == link.Entity {
+			entity = e
+		}
+	}
+	nodes := map[string]EvidenceNode{}
+	for _, n := range b.Nodes {
+		nodes[n.Key] = n
+	}
+	beat := ""
+	for _, n := range b.Nodes {
+		if n.Kind == "beats" {
+			for _, parent := range n.Links["shot"] {
+				for _, m := range entity.Members {
+					if containsKey(nodes[parent].Links["entities"], m) {
+						beat = n.Key
+					}
+				}
+			}
+		}
+	}
+	if beat == "" {
+		t.Fatal("fixture lacks character bound beat")
+	}
+	audio := []string{}
+	for _, k := range link.Evidence {
+		if nodes[k].Kind == "speakers" || nodes[k].Kind == "speech" {
+			audio = append(audio, k)
+		}
+	}
+	if len(audio) == 0 {
+		t.Fatal("fixture lacks independent audio")
+	}
+	a.VoiceLinks[0].Evidence = append(audio, beat)
+	if _, e := ValidateAssociation(b, associationBytes(t, a)); e != nil {
+		t.Fatal("valid visual chain", e)
+	}
+	a.VoiceLinks[0].Evidence = []string{beat}
+	if _, e := ValidateAssociation(b, associationBytes(t, a)); e == nil {
+		t.Fatal("beat without independent audio accepted")
+	}
+	a.VoiceLinks[0].Evidence = audio
+	if _, e := ValidateAssociation(b, associationBytes(t, a)); e == nil {
+		t.Fatal("audio without visual evidence accepted")
+	}
+}

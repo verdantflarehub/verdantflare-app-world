@@ -330,6 +330,14 @@ func validateAssociationCoverage(b Bundle, raw []byte, complete bool) (Associati
 				if n.Kind == "entities" && k == m || n.Kind == "shots" && containsKey(n.Links["entities"], m) {
 					visual = true
 				}
+				if n.Kind == "beats" {
+					for _, parent := range n.Links["shot"] {
+						shot := nodes[parent]
+						if shot.Kind == "shots" && shot.StepKey == n.StepKey && containsKey(shot.Links["entities"], m) {
+							visual = true
+						}
+					}
+				}
 			}
 		}
 		if !audio || !visual {
