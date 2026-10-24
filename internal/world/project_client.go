@@ -119,9 +119,23 @@ func (c *ProjectClient) Open(ctx context.Context, p Principal, projectID, revisi
 	delete(fields, "extensions")
 	raw["manifest"], _ = json.Marshal(fields)
 	bounded, _ := json.Marshal(raw)
-	if strictjson.Decode(bytes.NewReader(bounded), MaxManifestBytes, &out) != nil {
+	// Project lifecycle metadata is part of the upstream open response. Keep
+	// it in a bounded wire envelope; it must not grant write rights in World.
+	var wire struct {
+		OpenResult
+		ParentRevisionID *string    `json:"parent_revision_id,omitempty"`
+		CreatedAt        *time.Time `json:"created_at,omitempty"`
+		CanWrite         *bool      `json:"can_write,omitempty"`
+		CanDelete        *bool      `json:"can_delete,omitempty"`
+		LifecycleVersion *int64     `json:"lifecycle_version,omitempty"`
+	}
+	if strictjson.Decode(bytes.NewReader(bounded), MaxManifestBytes, &wire) != nil {
 		return out, ErrDependency
 	}
+	if wire.ParentRevisionID != nil && *wire.ParentRevisionID != "" && !ValidID(*wire.ParentRevisionID) || wire.LifecycleVersion != nil && *wire.LifecycleVersion < 0 {
+		return out, ErrDependency
+	}
+	out = wire.OpenResult
 	out.Manifest = manifest
 	if out.ProjectID != projectID || out.RevisionID != revisionID || out.Manifest.ProjectID != projectID || !ValidID(out.HeadRevisionID) || !out.ManifestRef.Valid() {
 		return OpenResult{}, ErrDependency

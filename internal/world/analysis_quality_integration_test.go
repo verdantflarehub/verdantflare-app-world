@@ -29,6 +29,9 @@ func TestAnalysisQualityStyleRevalidationPreservesNativeAndSave(t *testing.T) {
 func TestAnalysisQualityMethodDiagnosticsAndSave(t *testing.T) {
 	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: syntheticPromptTargets(), methodDiagnostic: true})
 }
+func TestAnalysisQualityPromptDiagnosticAndSave(t *testing.T) {
+	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: syntheticPromptTargets(), promptDiagnostic: true})
+}
 func TestAnalysisQualityEmptyPlanPersistsAndSaves(t *testing.T) {
 	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: []analysis.PromptTarget{{Key: "unavailable", RequestedLabel: "Unknown", TaskType: "unsupported", InputMode: "unknown", Guidance: "Keep limitations"}}})
 }
@@ -91,6 +94,7 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 			seenPrompts = true
 			return "planned", svc.PrepareAnalysisPrompts(ctx, p, b.TaskID, true)
 		case analysis.IsPromptBatchKey(w.StepKey):
+			pc.emptyNegative = options.promptDiagnostic && pc.submits < 3
 			pc.corrupt = options.retryBatches && pc.submits == 0
 			pc.schemaReject = options.schemaRejections && pc.corrupt
 			pc.call.State = "completed"
@@ -120,7 +124,7 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 		if err != nil {
 			t.Fatal(err)
 		}
-		if (options.retryBatches || options.styleCorrection || options.styleRevalidate || options.methodDiagnostic) && (progress.ResultFailed > 0 || progress.PromptFailed > 0) {
+		if (options.retryBatches || options.styleCorrection || options.styleRevalidate || options.methodDiagnostic || options.promptDiagnostic) && (progress.ResultFailed > 0 || progress.PromptFailed > 0) {
 			kind := "result"
 			if progress.PromptFailed > 0 {
 				kind = "prompt"
@@ -168,10 +172,13 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 			t.Fatal("pipeline did not finish")
 		}
 	}
-	if options.retryBatches || options.styleCorrection || options.styleRevalidate || options.methodDiagnostic {
+	if options.retryBatches || options.styleCorrection || options.styleRevalidate || options.methodDiagnostic || options.promptDiagnostic {
 		wantResult, wantPrompt := 2, 1
 		if options.styleCorrection || options.methodDiagnostic {
 			wantResult, wantPrompt = 3, 0
+		}
+		if options.promptDiagnostic {
+			wantResult, wantPrompt = 0, 3
 		}
 		if options.styleRevalidate {
 			wantResult, wantPrompt = 1, 0

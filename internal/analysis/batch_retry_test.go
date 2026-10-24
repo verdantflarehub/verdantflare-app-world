@@ -250,3 +250,75 @@ func TestMethodDiagnosticPreservesNativeAndBounds(t *testing.T) {
 		t.Fatal("malformed native diagnostic")
 	}
 }
+
+func TestPromptEmptyNegativeDiagnosticStrictAndBounded(t *testing.T) {
+	task, b, a, _, _, drafts := qualityFixture(t)
+	plan, _, _, err := PlanDerivedPrompts(b, a, drafts, task.PromptTargets)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, call, native := promptNative(t, b, a, plan[0])
+	var n map[string]any
+	json.Unmarshal(promptBytes(t, native), &n)
+	o := n["analysis"].(map[string]any)
+	d := o["document"].(map[string]any)
+	d["items"].([]any)[0].(map[string]any)["negative_prompt"] = ""
+	o["text"] = string(promptBytes(t, d))
+	o["response_schema_verified"] = false
+	n["state"] = "failed"
+	n["reason_code"] = "output_schema_mismatch"
+	r := PromptRecord{OrganizationID: task.OrganizationID, OwnerID: task.OwnerID, Request: f, RequestHash: f.Digest(), Revision: 4, State: "failed", CallID: call, Result: promptBytes(t, n), ErrorCode: "native_failed"}
+	before := string(r.Result)
+	for i := 1; i <= 3; i++ {
+		next, e := RetryPromptRequest(b, a, r, uuid.NewString())
+		if e != nil {
+			t.Fatal(i, e)
+		}
+		if !strings.Contains(string(next.Payload), "negative_prompt") || !strings.Contains(string(next.Payload), "未使用变量") {
+			t.Fatal("missing actionable format feedback")
+		}
+		if i == 3 && next.Retry.Diagnostic != "prompt-empty-negative-v1" {
+			t.Fatal("missing bound diagnostic")
+		}
+		r.Request = next
+		r.RequestHash = next.Digest()
+	}
+	if string(r.Result) != before {
+		t.Fatal("native modified")
+	}
+	if _, e := RetryPromptRequest(b, a, r, uuid.NewString()); e == nil {
+		t.Fatal("fourth attempt")
+	}
+	for _, bad := range []string{"scope", "evidence", "unused_variable", "unknown_field", "finish", "identity", "text", "valid"} {
+		t.Run(bad, func(t *testing.T) {
+			var x map[string]any
+			json.Unmarshal(r.Result, &x)
+			out := x["analysis"].(map[string]any)
+			doc := out["document"].(map[string]any)
+			item := doc["items"].([]any)[0].(map[string]any)
+			switch bad {
+			case "scope":
+				item["scope_key"] = "foreign"
+			case "evidence":
+				item["evidence_keys"] = []any{"unknown"}
+			case "unused_variable":
+				item["variables"] = []any{map[string]any{"key": "unused", "description": "unused", "required": true}}
+			case "unknown_field":
+				item["unknown"] = true
+			case "finish":
+				out["finish_reason"] = "MAX_TOKENS"
+			case "identity":
+				x["call_id"] = uuid.NewString()
+			case "valid":
+				delete(item, "negative_prompt")
+			}
+			out["text"] = string(promptBytes(t, doc))
+			if bad == "text" {
+				out["text"] = "{}"
+			}
+			if promptEmptyNegativeOnly(b, a, f, call, promptBytes(t, x)) == nil {
+				t.Fatal("unexplained failure accepted")
+			}
+		})
+	}
+}

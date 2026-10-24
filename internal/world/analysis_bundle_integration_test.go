@@ -32,6 +32,7 @@ type bundleOptions struct {
 	styleCorrection                 bool
 	styleRevalidate                 bool
 	methodDiagnostic                bool
+	promptDiagnostic                bool
 	pipeline                        int
 	targets                         []analysis.PromptTarget
 	failPrompts, typed, failResults bool

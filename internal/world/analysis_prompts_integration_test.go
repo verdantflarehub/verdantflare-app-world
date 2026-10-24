@@ -34,8 +34,9 @@ func syntheticPromptTargets() []analysis.PromptTarget {
 
 type promptChannelFixture struct {
 	associationChannelFixture
-	corrupt      bool
-	schemaReject bool
+	corrupt       bool
+	schemaReject  bool
+	emptyNegative bool
 }
 
 func (c *promptChannelFixture) SubmitPrompts(_ context.Context, _ string, f analysis.PromptRequest) (analysis.Call, error) {
@@ -65,12 +66,16 @@ func (c *promptChannelFixture) SubmitPrompts(_ context.Context, _ string, f anal
 	c.result, _ = json.Marshal(map[string]any{"schema_version": 1, "call_id": c.call.CallID, "task_id": f.TaskID, "model_id": f.ModelID, "media": "analysis", "operation": "analyze", "state": "completed", "accepted": true, "analysis": map[string]any{
 		"text": string(text), "document": result, "model_id": f.ModelID, "finish_reason": "STOP", "response_schema_verified": true, "input": map[string]any{"source_text_sha256": f.TextHash, "response_schema_sha256": hex.EncodeToString(digest[:]), "media": nil, "video_range": nil},
 	}})
-	if c.schemaReject {
+	if c.schemaReject || c.emptyNegative {
 		var n map[string]any
 		json.Unmarshal(c.result, &n)
 		output := n["analysis"].(map[string]any)
 		doc := output["document"].(map[string]any)
-		delete(doc, "items")
+		if c.emptyNegative {
+			doc["items"].([]any)[0].(map[string]any)["negative_prompt"] = ""
+		} else {
+			delete(doc, "items")
+		}
 		encoded, _ := json.Marshal(doc)
 		output["text"] = string(encoded)
 		output["response_schema_verified"] = false

@@ -162,7 +162,7 @@ type projectRoundTripper func(*http.Request) (*http.Response, error)
 
 func (f projectRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 func TestWorldProjectClientVerifiesExactSourceAndFailsClosed(t *testing.T) {
-	for _, kind := range []string{"valid", "foreign", "duplicate", "denied", "offline"} {
+	for _, kind := range []string{"valid", "lifecycle", "read_only", "unknown", "wrong_type", "foreign", "duplicate", "denied", "offline"} {
 		t.Run(kind, func(t *testing.T) {
 			p := Principal{OrganizationID: testID(30), SubjectID: testID(31), RequestID: testID(32)}
 			c, err := NewProjectClient("https://project.invalid", strings.Repeat("p", 32))
@@ -178,6 +178,22 @@ func TestWorldProjectClientVerifiesExactSourceAndFailsClosed(t *testing.T) {
 					opened.RevisionID = testID(90)
 				}
 				data, _ := json.Marshal(opened)
+				if kind == "lifecycle" || kind == "read_only" || kind == "unknown" || kind == "wrong_type" {
+					var wire map[string]any
+					json.Unmarshal(data, &wire)
+					wire["parent_revision_id"] = ""
+					wire["created_at"] = "2026-10-24T12:00:00Z"
+					wire["can_write"] = kind != "read_only"
+					wire["can_delete"] = false
+					wire["lifecycle_version"] = 0
+					if kind == "unknown" {
+						wire["unexpected"] = true
+					}
+					if kind == "wrong_type" {
+						wire["can_write"] = "true"
+					}
+					data, _ = json.Marshal(wire)
+				}
 				if kind == "duplicate" {
 					data = []byte(strings.Replace(string(data), `"project_id":`, `"project_id":"`+testID(91)+`","project_id":`, 1))
 				}
@@ -191,7 +207,7 @@ func TestWorldProjectClientVerifiesExactSourceAndFailsClosed(t *testing.T) {
 				return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(string(data))), Header: http.Header{}}, nil
 			})
 			_, err = c.Open(context.Background(), p, testID(1), testID(9))
-			if (kind == "valid") != (err == nil) {
+			if (kind == "valid" || kind == "lifecycle" || kind == "read_only") != (err == nil) {
 				t.Fatal("source binding result", err)
 			}
 		})
