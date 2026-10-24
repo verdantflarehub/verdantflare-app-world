@@ -120,7 +120,7 @@ func (s PGStore) Retry(ctx context.Context, org, owner, task, id string, readers
 		return ErrInvalid
 	}
 	var existingTask string
-	err := s.DB.QueryRow(ctx, `SELECT task_id::text FROM studio.world_analysis_association_retries WHERE organization_id=$1 AND owner_id=$2 AND retry_id=$3 UNION ALL SELECT task_id::text FROM studio.world_analysis_association_validations WHERE organization_id=$1 AND owner_id=$2 AND retry_id=$3 UNION ALL SELECT task_id::text FROM studio.world_analysis_result_retries WHERE organization_id=$1 AND owner_id=$2 AND retry_id=$3 UNION ALL SELECT task_id::text FROM studio.world_analysis_prompt_retries WHERE organization_id=$1 AND owner_id=$2 AND retry_id=$3`, org, owner, id).Scan(&existingTask)
+	err := s.DB.QueryRow(ctx, `SELECT task_id::text FROM studio.world_analysis_association_retries WHERE organization_id=$1 AND owner_id=$2 AND retry_id=$3 UNION ALL SELECT task_id::text FROM studio.world_analysis_association_validations WHERE organization_id=$1 AND owner_id=$2 AND retry_id=$3 UNION ALL SELECT task_id::text FROM studio.world_analysis_result_retries WHERE organization_id=$1 AND owner_id=$2 AND retry_id=$3 UNION ALL SELECT task_id::text FROM studio.world_analysis_prompt_retries WHERE organization_id=$1 AND owner_id=$2 AND retry_id=$3 UNION ALL SELECT task_id::text FROM studio.world_analysis_result_validations WHERE organization_id=$1 AND owner_id=$2 AND retry_id=$3`, org, owner, id).Scan(&existingTask)
 	if err == nil {
 		if existingTask != task {
 			return ErrChanged

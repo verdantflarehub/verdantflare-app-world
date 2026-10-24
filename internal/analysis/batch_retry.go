@@ -187,6 +187,11 @@ func (s PGStore) retryBatch(ctx context.Context, org, owner, task, id string, re
 		if e != nil {
 			return e
 		}
+		if old.ErrorCode == "result_invalid" && old.Request.Batch.Version == 2 && old.Request.Batch.Type == "style" {
+			if _, e := VerifyResultsNative(b, a, old.Request, old.CallID, old.Result); e == nil {
+				return s.revalidateResult(ctx, org, owner, task, id, old)
+			}
+		}
 		next, e := RetryResultRequest(b, a, old, id)
 		if e != nil {
 			return e

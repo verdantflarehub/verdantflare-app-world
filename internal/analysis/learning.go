@@ -3,6 +3,7 @@ package analysis
 // LearningMaterial is an internal, fully checked snapshot for deterministic
 // document assembly. It is not a saved asset or a public request body.
 type LearningMaterial struct {
+	ResultValidations     []ResultValidation     `json:"result_validations,omitempty"`
 	AssociationValidation *AssociationValidation `json:"association_validation,omitempty"`
 	Bundle                Bundle                 `json:"bundle"`
 	Association           Association            `json:"association"`
@@ -67,6 +68,9 @@ func AssembleLearningMaterial(t Task, b Bundle, ar AssociationRecord, prompts []
 		}
 		seenCalls[r.CallID] = true
 		out.Results = append(out.Results, drafts...)
+		if r.Validation != nil {
+			out.ResultValidations = append(out.ResultValidations, *r.Validation)
+		}
 		out.Calls = append(out.Calls, LearningCall{r.Request.Batch.Key, r.CallID, r.Request.ModelID, r.RequestHash, hashBytes(r.Result)})
 	}
 	plan := []PromptBatch{}

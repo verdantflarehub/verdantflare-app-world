@@ -29,9 +29,10 @@ func TestAnalysisResultsRequireSuccessfulPrompts(t *testing.T) {
 
 type resultChannelFixture struct {
 	associationChannelFixture
-	corrupt         bool
-	schemaReject    bool
-	styleCorrection bool
+	corrupt          bool
+	schemaReject     bool
+	styleCorrection  bool
+	independentStyle bool
 }
 
 func (c *resultChannelFixture) SubmitResults(_ context.Context, _ string, f analysis.ResultRequest) (analysis.Call, error) {
@@ -70,15 +71,23 @@ func (c *resultChannelFixture) SubmitResults(_ context.Context, _ string, f anal
 		case "style":
 			item.State = "not_applicable"
 			item.MissingInputs = []string{"No distinctive style in synthetic source"}
-			if c.styleCorrection {
+			if c.styleCorrection || c.independentStyle {
 				item.State = "ready"
 				item.MissingInputs = []string{}
 				color := "#123456 (fixture)"
-				if f.Retry != nil && f.Retry.Number == 3 {
+				if c.independentStyle || f.Retry != nil && f.Retry.Number == 3 {
 					color = "#123456"
 				}
 				item.Payloads = []map[string]any{{"scope_note": "Synthetic isolated style", "rules": []any{map[string]any{"key": "pause", "domain": "shot", "instruction": "Pause briefly before the reveal", "evidence_refs": []any{}}}, "palette": []any{color}, "positive_examples": []any{"Static pause"}, "counterexamples": []any{"Continuous pan"}}}
 				item.RuleEvidence = []analysis.RuleEvidence{{RuleKey: "pause", Evidence: evidence}}
+				if c.independentStyle {
+					for _, n := range textInput.Observations.Nodes {
+						if n.Kind != "uncertainties" && n.Key != evidence[0] {
+							item.RuleEvidence[0].Evidence = []string{n.Key}
+							break
+						}
+					}
+				}
 			}
 		case "method":
 			item.Payloads = []map[string]any{{"purpose": "creative_reuse", "objective": "Plan a new scene", "applicability": "Static scenes", "inputs": []any{map[string]any{"key": "brief", "value_type": "string", "required": true, "description": "New scene intent"}}, "steps": []any{map[string]any{"key": "plan", "instruction": "Write a new scene", "input_keys": []string{"brief"}, "output_keys": []string{"outline"}}}, "constraints": []any{map[string]any{"key": "scope", "condition": "New brief", "effect": "Rebuild scene"}}, "expected_outputs": []any{map[string]any{"key": "outline", "type_key": "script_unit", "description": "New outline", "checks": []string{"Matches brief"}}}, "counterexamples": []string{"Copying original dialogue"}}}

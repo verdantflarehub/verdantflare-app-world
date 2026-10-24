@@ -205,20 +205,31 @@ func (s PGStore) CreateResultBatches(ctx context.Context, org, owner string, req
 	return tx.Commit(ctx)
 }
 
+type ResultValidation struct {
+	ID         string `json:"validation_id"`
+	Policy     string `json:"policy"`
+	NativeHash string `json:"native_result_sha256"`
+	BatchKey   string `json:"batch_key"`
+}
+
 type ResultRecord struct {
-	OrganizationID string          `json:"organization_id"`
-	OwnerID        string          `json:"owner_id"`
-	Request        ResultRequest   `json:"request"`
-	RequestHash    string          `json:"request_sha256"`
-	Revision       int64           `json:"revision"`
-	State          string          `json:"state"`
-	CallID         string          `json:"call_id,omitempty"`
-	Result         json.RawMessage `json:"native_result,omitempty"`
-	ErrorCode      string          `json:"error_code,omitempty"`
+	Validation     *ResultValidation `json:"validation,omitempty"`
+	OrganizationID string            `json:"organization_id"`
+	OwnerID        string            `json:"owner_id"`
+	Request        ResultRequest     `json:"request"`
+	RequestHash    string            `json:"request_sha256"`
+	Revision       int64             `json:"revision"`
+	State          string            `json:"state"`
+	CallID         string            `json:"call_id,omitempty"`
+	Result         json.RawMessage   `json:"native_result,omitempty"`
+	ErrorCode      string            `json:"error_code,omitempty"`
 }
 
 func (r ResultRecord) Validate() error {
 	if !validUUID(r.OrganizationID) || !validUUID(r.OwnerID) || r.Request.Validate() != nil || r.RequestHash != r.Request.Digest() || r.Revision < 1 || r.CallID != "" && !validUUID(r.CallID) {
+		return ErrInvalid
+	}
+	if r.Validation != nil && (!validUUID(r.Validation.ID) || r.Validation.Policy != "style-evidence-v1" || r.Validation.BatchKey != r.Request.Batch.Key || r.Validation.NativeHash != hashBytes(r.Result) || r.State != "result_ready" || r.Request.Batch.Type != "style" || r.Request.Batch.Version != 2) {
 		return ErrInvalid
 	}
 	switch r.State {
@@ -256,12 +267,17 @@ func (s PGStore) LoadResult(ctx context.Context, org, owner, task, key string) (
 		return r, ErrInvalid
 	}
 	var raw []byte
-	err := s.DB.QueryRow(ctx, `SELECT request,request_sha256,revision,state,COALESCE(call_id::text,''),native_result,COALESCE(error_code,'') FROM studio.world_analysis_current_results WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 AND batch_key=$4`, org, owner, task, key).Scan(&raw, &r.RequestHash, &r.Revision, &r.State, &r.CallID, &r.Result, &r.ErrorCode)
+	var validation ResultValidation
+	err := s.DB.QueryRow(ctx, `SELECT request,request_sha256,revision,state,COALESCE(call_id::text,''),native_result,COALESCE(error_code,''),COALESCE(validation_id::text,''),COALESCE(validation_policy,''),COALESCE(validation_native_sha256,'') FROM studio.world_analysis_current_results WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 AND batch_key=$4`, org, owner, task, key).Scan(&raw, &r.RequestHash, &r.Revision, &r.State, &r.CallID, &r.Result, &r.ErrorCode, &validation.ID, &validation.Policy, &validation.NativeHash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return r, ErrMissing
 	}
 	if err != nil {
 		return r, err
+	}
+	if validation.ID != "" {
+		validation.BatchKey = key
+		r.Validation = &validation
 	}
 	if json.Unmarshal(raw, &r.Request) != nil || r.Request.TaskID != task || r.Request.Batch.Key != key || r.Validate() != nil {
 		return r, ErrInvalid

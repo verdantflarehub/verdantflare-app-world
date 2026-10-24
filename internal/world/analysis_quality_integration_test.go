@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/verdantflarehub/verdantflare-app-world/internal/analysis"
+	"strings"
 	"testing"
 )
 
@@ -21,6 +22,9 @@ func TestAnalysisQualitySchemaRejectionsRecoverAndSave(t *testing.T) {
 }
 func TestAnalysisQualityStyleDiagnosticCorrectionAndSave(t *testing.T) {
 	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: syntheticPromptTargets(), styleCorrection: true})
+}
+func TestAnalysisQualityStyleRevalidationPreservesNativeAndSave(t *testing.T) {
+	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: syntheticPromptTargets(), styleRevalidate: true})
 }
 func TestAnalysisQualityEmptyPlanPersistsAndSaves(t *testing.T) {
 	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: []analysis.PromptTarget{{Key: "unavailable", RequestedLabel: "Unknown", TaskType: "unsupported", InputMode: "unknown", Guidance: "Keep limitations"}}})
@@ -56,9 +60,24 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 		case analysis.IsResultBatchKey(w.StepKey):
 			rc.corrupt = options.retryBatches && rc.submits < 2
 			rc.schemaReject = options.schemaRejections && rc.corrupt
-			rc.styleCorrection = options.styleCorrection
+			rc.styleCorrection = options.styleCorrection || options.styleRevalidate
 			rc.call.State = "completed"
 			rc.call.CallID = newID()
+			if options.styleRevalidate && w.StepKey == "results-v1-style-0000" {
+				rc.styleCorrection = false
+				rc.independentStyle = true
+				ar, err := store.LoadAssociation(ctx, p.OrganizationID, p.SubjectID, b.TaskID)
+				if err != nil {
+					return "", err
+				}
+				a, err := analysis.VerifyAssociationNative(b, ar.Request, ar.CallID, ar.Result)
+				if err != nil {
+					return "", err
+				}
+				executor := analysis.ResultExecutor{Store: legacyStyleFailureStore{store}, Channel: rc}
+				r, e := executor.Advance(ctx, p.OrganizationID, p.SubjectID, b.TaskID, w.StepKey, b, a, true)
+				return r.State, e
+			}
 			r, e := svc.AdvanceAnalysisResult(ctx, p, b.TaskID, w.StepKey, rc, true)
 			return r.State, e
 		case w.StepKey == analysis.PromptSetupStepKey:
@@ -97,7 +116,7 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 		if err != nil {
 			t.Fatal(err)
 		}
-		if (options.retryBatches || options.styleCorrection) && (progress.ResultFailed > 0 || progress.PromptFailed > 0) {
+		if (options.retryBatches || options.styleCorrection || options.styleRevalidate) && (progress.ResultFailed > 0 || progress.PromptFailed > 0) {
 			kind := "result"
 			if progress.PromptFailed > 0 {
 				kind = "prompt"
@@ -145,10 +164,13 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 			t.Fatal("pipeline did not finish")
 		}
 	}
-	if options.retryBatches || options.styleCorrection {
+	if options.retryBatches || options.styleCorrection || options.styleRevalidate {
 		wantResult, wantPrompt := 2, 1
 		if options.styleCorrection {
 			wantResult, wantPrompt = 3, 0
+		}
+		if options.styleRevalidate {
+			wantResult, wantPrompt = 1, 0
 		}
 		if retryCounts["result"] != wantResult || retryCounts["prompt"] != wantPrompt {
 			t.Fatal("retry stages not covered", retryCounts)
@@ -159,6 +181,10 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 				t.Fatal("original failure changed", kind, e)
 			}
 			var rows []json.RawMessage
+			if options.styleRevalidate {
+				verifyResultValidation(t, svc, p, b.TaskID)
+				continue
+			}
 			if e := svc.db.QueryRow(ctx, `SELECT jsonb_agg(to_jsonb(r)) FROM studio.world_analysis_`+kind+`_retries r WHERE task_id=$1`, b.TaskID).Scan(&rows); e != nil || len(rows) != retryCounts[kind] {
 				t.Fatal("retry history lost", kind, e)
 			}
@@ -192,5 +218,43 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 	}
 	if _, err = store.Claim(ctx, true); !errors.Is(err, analysis.ErrMissing) {
 		t.Fatal("finished task claimed again", err)
+	}
+}
+
+// Simulates the previously deployed validator; writes an ordinary immutable
+// failure with the valid original native bytes, before any terminal state.
+type legacyStyleFailureStore struct{ analysis.PGStore }
+
+func (s legacyStyleFailureStore) SwapResult(ctx context.Context, old, next analysis.ResultRecord) (bool, error) {
+	if next.State == "result_ready" {
+		next.State = "failed"
+		next.ErrorCode = "result_invalid"
+	}
+	return s.PGStore.SwapResult(ctx, old, next)
+}
+func verifyResultValidation(t *testing.T, svc *Service, p Principal, task string) {
+	t.Helper()
+	ctx := t.Context()
+	store := analysis.PGStore{DB: svc.db}
+	r, err := store.LoadResult(ctx, p.OrganizationID, p.SubjectID, task, "results-v1-style-0000")
+	if err != nil || r.State != "result_ready" || r.Validation == nil || r.Request.Retry != nil {
+		t.Fatal("missing model-free validation", err)
+	}
+	var count int
+	if err = svc.db.QueryRow(ctx, `SELECT count(*) FROM studio.world_analysis_result_retries WHERE task_id=$1`, task).Scan(&count); err != nil || count != 0 {
+		t.Fatal("unexpected new generation", err)
+	}
+	var raw string
+	if err = svc.db.QueryRow(ctx, `SELECT native_result::text FROM studio.world_analysis_result_batches WHERE task_id=$1 AND batch_key=$2 AND state='failed'`, task, r.Request.Batch.Key).Scan(&raw); err != nil || raw != string(r.Result) {
+		t.Fatal("native changed", err)
+	}
+	for _, q := range []string{`UPDATE studio.world_analysis_result_validations SET policy='style-evidence-v1' WHERE task_id=$1`, `DELETE FROM studio.world_analysis_result_validations WHERE task_id=$1`} {
+		if _, err = svc.db.Exec(ctx, q, task); err == nil {
+			t.Fatal("mutable validation")
+		}
+	}
+	rawDoc, err := svc.AnalysisLearningDocument(ctx, p, task)
+	if err != nil || !strings.Contains(string(rawDoc), "result_validation") {
+		t.Fatal("lost archived receipt", err)
 	}
 }

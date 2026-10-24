@@ -120,6 +120,11 @@ func assembleAnalysisLearning(m analysis.LearningMaterial) ([]byte, error) {
 		}
 		positions[n.Key] = pos
 	}
+	for _, validation := range m.ResultValidations {
+		if _, e := a.add("result_validation", validation); e != nil {
+			return nil, e
+		}
+	}
 	if m.AssociationValidation != nil {
 		if _, e := a.add("association_validation", m.AssociationValidation); e != nil {
 			return nil, e
@@ -264,6 +269,7 @@ func assembleAnalysisLearning(m analysis.LearningMaterial) ([]byte, error) {
 			if len(r.Payloads) != 1 {
 				return nil, ErrInvalid
 			}
+			evidenceKeys := append([]string{}, r.Evidence...)
 			payload := r.Payloads[0]
 			if r.Type == "style" && len(r.RuleEvidence) > 0 {
 				// Copy before binding: the native candidate and its hash stay immutable.
@@ -273,12 +279,20 @@ func assembleAnalysisLearning(m analysis.LearningMaterial) ([]byte, error) {
 					return nil, ErrInvalid
 				}
 				refsByRule := map[string][]any{}
+				allEvidence := map[string]bool{}
+				for _, key := range evidenceKeys {
+					allEvidence[key] = true
+				}
 				for _, rule := range r.RuleEvidence {
 					seen := map[string]bool{}
 					for _, node := range rule.Evidence {
 						pos, ok := positions[node]
 						if !ok {
 							return nil, ErrInvalid
+						}
+						if !allEvidence[node] {
+							evidenceKeys = append(evidenceKeys, node)
+							allEvidence[node] = true
 						}
 						key := learningArchiveKey(pos.Chunk)
 						if !seen[key] {
@@ -296,7 +310,7 @@ func assembleAnalysisLearning(m analysis.LearningMaterial) ([]byte, error) {
 					rule["evidence_refs"] = refs
 				}
 			}
-			if err := addResult(r.Key, r.Title, r.Type, r.Basis, r.BasisNote, r.Evidence, r.MissingInputs, payload); err != nil {
+			if err := addResult(r.Key, r.Title, r.Type, r.Basis, r.BasisNote, evidenceKeys, r.MissingInputs, payload); err != nil {
 				return nil, err
 			}
 			addCoverage(r.Key, "complete", "已整理此范围的候选；未代表人工审核或可执行工程交付。")

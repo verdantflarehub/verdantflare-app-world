@@ -31,10 +31,6 @@ func validateResultQuality(kind string, item ResultCandidate, nodes map[string]b
 		}
 		return nil
 	}
-	evidence := map[string]bool{}
-	for _, key := range item.Evidence {
-		evidence[key] = true
-	}
 	rules, _ := item.Payloads[0]["rules"].([]any)
 	wanted := map[string]bool{}
 	for _, r := range rules {
@@ -52,7 +48,7 @@ func validateResultQuality(kind string, item ResultCandidate, nodes map[string]b
 		delete(wanted, rule.RuleKey)
 		seen := map[string]bool{}
 		for _, key := range rule.Evidence {
-			if !nodes[key] || !evidence[key] || seen[key] {
+			if !nodes[key] || seen[key] {
 				return ErrInvalid
 			}
 			seen[key] = true

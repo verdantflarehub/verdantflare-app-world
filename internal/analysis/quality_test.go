@@ -139,3 +139,60 @@ func TestQualityRejectsPlaceholdersAndUnboundStyleRules(t *testing.T) {
 		}
 	}
 }
+
+func TestStyleRuleEvidenceIsIndependentAndStrict(t *testing.T) {
+	_, b, a, _, _, _ := qualityFixture(t)
+	plan, _ := PlanResultsVersion(b, a, 2)
+	for _, batch := range plan {
+		if batch.Type != "style" {
+			continue
+		}
+		out := resultOutput(b, batch)
+		root := out.Items[0].Evidence
+		var independent, uncertainty string
+		for _, n := range b.Nodes {
+			if n.Kind == "uncertainties" {
+				uncertainty = n.Key
+				continue
+			}
+			present := false
+			for _, k := range root {
+				if k == n.Key {
+					present = true
+				}
+			}
+			if !present {
+				independent = n.Key
+			}
+		}
+		if independent == "" {
+			t.Fatal("fixture needs independent evidence")
+		}
+		out.Items[0].RuleEvidence = []RuleEvidence{{RuleKey: "pause", Evidence: []string{independent}}}
+		if _, err := ValidateResults(b, a, batch, promptBytes(t, out)); err != nil {
+			t.Fatal("valid nested evidence rejected", err)
+		}
+		for _, bad := range [][]string{{"unknown"}, {independent, independent}, {uncertainty}} {
+			out.Items[0].RuleEvidence[0].Evidence = bad
+			if _, err := ValidateResults(b, a, batch, promptBytes(t, out)); err == nil {
+				t.Fatal("invalid evidence accepted", bad)
+			}
+		}
+	}
+}
+func TestResultValidationReceiptBoundToNative(t *testing.T) {
+	_, _, _, _, records, _ := qualityFixture(t)
+	for _, r := range records {
+		if r.Request.Batch.Type != "style" {
+			continue
+		}
+		r.Validation = &ResultValidation{ID: execOwner, Policy: "style-evidence-v1", NativeHash: hashBytes(r.Result), BatchKey: r.Request.Batch.Key}
+		if err := r.Validate(); err != nil {
+			t.Fatal(err)
+		}
+		r.Validation.NativeHash = "incorrect"
+		if r.Validate() == nil {
+			t.Fatal("mismatched native hash accepted")
+		}
+	}
+}
