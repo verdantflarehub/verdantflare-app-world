@@ -209,6 +209,43 @@ func TestClientClaimsOrWrongNativeCallCannotAttestOutput(t *testing.T) {
 	}
 }
 
+func TestVisibleTextMaySpanCutsButMustOverlapItsShotWithinCore(t *testing.T) {
+	step := plan(t).Steps[0]
+	for _, tc := range []struct {
+		name       string
+		start, end int64
+		code       string
+	}{
+		{"cross_cut", 250, 1500, ""},
+		{"within_shot", 1000, 1500, ""},
+		{"ends_at_cut_without_overlap", 250, 1000, "text_outside_shot"},
+		{"unrelated_earlier_text", 100, 500, "text_outside_shot"},
+		{"outside_core", 1000, 46000, "range_outside_source"},
+		{"zero_length", 1500, 1500, "range_outside_source"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := visualFixture()
+			first := doc["shots"].([]any)[0].(map[string]any)
+			second := visualFixture()["shots"].([]any)[0].(map[string]any)
+			first["end_ms"], first["continues_after"] = 1000, false
+			first["beats"].([]any)[0].(map[string]any)["end_ms"] = 1000
+			second["key"], second["start_ms"] = "s2", 1000
+			second["beats"].([]any)[0].(map[string]any)["start_ms"] = 1000
+			second["visible_text"] = []any{map[string]any{"start_ms": tc.start, "end_ms": tc.end, "text": "test subtitle"}}
+			doc["shots"] = []any{first, second}
+			p, receipt, data := attested(t, step, doc)
+			before := append([]byte(nil), data...)
+			report := Verify(step, p, receipt, data)
+			if report.Passed != (tc.code == "") || tc.code != "" && !hasIssue(report, tc.code) {
+				t.Fatalf("unexpected subtitle verification: %+v", report)
+			}
+			if !reflect.DeepEqual(data, before) {
+				t.Fatal("verification changed native subtitle timestamps")
+			}
+		})
+	}
+}
+
 func TestAudioRequiresIndependentAudioAndConsistentLayers(t *testing.T) {
 	step := plan(t).Steps[8]
 	p, receipt, data := attested(t, step, audioFixture())

@@ -241,7 +241,13 @@ func (r *Report) visual(step Step, doc Visual) {
 		}
 		r.timeline(beats, shot.Range, path+".beats")
 		for j, text := range shot.VisibleText {
-			r.inside(text.Range, shot.Range, fmt.Sprintf("%s.visible_text[%d]", path, j))
+			// Subtitles are an overlay and may span a cut. Preserve their
+			// native interval, but require source bounds and a real overlap.
+			at := fmt.Sprintf("%s.visible_text[%d]", path, j)
+			r.inside(text.Range, step.Core, at)
+			if !overlap(text.Range, shot.Range) {
+				r.add("text_outside_shot", at)
+			}
 			r.text(text.Text, fmt.Sprintf("%s.visible_text[%d].text", path, j))
 		}
 	}
