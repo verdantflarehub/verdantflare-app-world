@@ -49,14 +49,16 @@ type WorldRegisterRequest struct {
 	DependsOn         *[]AssetRef `json:"depends_on,omitempty"`
 }
 type WorldResult struct {
-	AssetID     string        `json:"asset_id"`
-	VersionID   string        `json:"asset_version_id"`
-	ManifestRef ContentRef    `json:"manifest_ref"`
-	Manifest    AssetManifest `json:"manifest"`
+	AssetID     string              `json:"asset_id"`
+	VersionID   string              `json:"asset_version_id"`
+	ManifestRef ContentRef          `json:"manifest_ref"`
+	Manifest    AssetManifest       `json:"manifest"`
+	SampleFile  *ResolvedSampleFile `json:"sample_file,omitempty"`
 }
 type WorldGetRequest struct {
-	AssetID   string `json:"asset_id"`
-	VersionID string `json:"asset_version_id"`
+	AssetID         string                  `json:"asset_id"`
+	VersionID       string                  `json:"asset_version_id"`
+	SampleReference *ProjectSampleReference `json:"sample_reference,omitempty"`
 }
 type WorldListRequest struct {
 	AssetType string `json:"asset_type,omitempty"`

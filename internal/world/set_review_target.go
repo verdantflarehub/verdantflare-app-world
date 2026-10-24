@@ -13,7 +13,7 @@ import (
 // Review reads only the fixed, published asset. It never opens its source project.
 func (s *Service) buildReviewTarget(ctx context.Context, p Principal, l ReviewLocator) (ReviewTarget, error) {
 	t := ReviewTarget{SchemaVersion: 1, Locator: l, Evidence: []ReviewEvidence{}, Dependencies: []ReviewDependency{}, Coverage: ReviewCoverage{CameraIDs: []string{}, RegionIDs: []string{}, Cameras: []ReviewCamera{}}, Requirements: []ReviewRequirement{}}
-	got, e := s.WorldGet(ctx, p, WorldGetRequest{l.AssetID, l.VersionID})
+	got, e := s.WorldGet(ctx, p, WorldGetRequest{AssetID: l.AssetID, VersionID: l.VersionID})
 	if e != nil {
 		return t, e
 	}

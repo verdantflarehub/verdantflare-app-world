@@ -14,8 +14,8 @@ const samplePage=ref(0),showOriginals=ref(false)
 const sampleState=computed(()=>{try{return {items:promptSamples(current.value),error:''}}catch{return {items:[],error:'生成记录不完整，暂不能展示样例。'}}})
 const visibleSamples=computed(()=>sampleState.value.items.slice(samplePage.value*4,samplePage.value*4+4))
 watch(()=>[props.asset.asset_id,props.asset.asset_version_id,props.result.key,current.value.key,current.value.revision],()=>{samplePage.value=0;showOriginals.value=false})
-const tasks:Record<string,string>={text_planning:'文字策划',text:'文本创作',image:'图像创作',video:'视频创作',audio:'音频创作',music:'音乐创作',speech:'语音创作',image_generation:'图像生成',video_generation:'视频生成'}
-const inputs:Record<string,string>={messages:'对话输入','text-to-video':'文字生成视频','reference-to-video':'参考素材生成视频','image-to-video':'图片生成视频','text-to-image':'文字生成图片','reference-to-image':'参考素材生成图片',text:'文字输入',image:'图片参考',video:'视频参考',audio:'音频参考',multimodal:'多种素材参考',text_to_image:'文字生成图片',image_to_video:'图片生成视频',text_to_video:'文字生成视频'}
+const tasks:Record<string,string>={'image.generate':'图像生成','video.generate':'视频生成',text_planning:'文字策划',text:'文本创作',image:'图像创作',video:'视频创作',audio:'音频创作',music:'音乐创作',speech:'语音创作',image_generation:'图像生成',video_generation:'视频生成'}
+const inputs:Record<string,string>={reference_to_video:'参考素材生成视频',reference_to_image:'参考素材生成图片',messages:'对话输入','text-to-video':'文字生成视频','reference-to-video':'参考素材生成视频','image-to-video':'图片生成视频','text-to-image':'文字生成图片','reference-to-image':'参考素材生成图片',text:'文字输入',image:'图片参考',video:'视频参考',audio:'音频参考',multimodal:'多种素材参考',text_to_image:'文字生成图片',image_to_video:'图片生成视频',text_to_video:'文字生成视频'}
 const roles:Record<string,string>={system:'系统规则',developer:'任务约束',user:'创作要求',assistant:'参考回复'}
 const reviews:Record<string,string>={unreviewed:'尚未审核',accepted:'记录为已采纳',rejected:'记录为未采纳'}
 let copyGeneration=0

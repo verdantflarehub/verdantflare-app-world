@@ -98,7 +98,7 @@ func TestWorldIndependentPublicationAndPendingRevocation(t *testing.T) {
 	if err != nil || retry.VersionID != published.VersionID || retry.ManifestRef != published.ManifestRef {
 		t.Fatal("retry republished", err)
 	}
-	if _, err = svc.WorldGet(ctx, p, WorldGetRequest{published.AssetID, published.VersionID}); err != nil {
+	if _, err = svc.WorldGet(ctx, p, WorldGetRequest{AssetID: published.AssetID, VersionID: published.VersionID}); err != nil {
 		t.Fatal("published manifest unavailable", err)
 	}
 	var recorded []byte

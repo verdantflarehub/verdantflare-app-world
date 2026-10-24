@@ -643,7 +643,14 @@ func (s *Service) WorldGet(ctx context.Context, p Principal, r WorldGetRequest) 
 	if a != b {
 		return WorldResult{}, ErrNotReady
 	}
-	return WorldResult{AssetID: r.AssetID, VersionID: r.VersionID, ManifestRef: ref, Manifest: m}, nil
+	out := WorldResult{AssetID: r.AssetID, VersionID: r.VersionID, ManifestRef: ref, Manifest: m}
+	if r.SampleReference != nil {
+		out.SampleFile, e = s.resolveSampleFile(ctx, p, out, *r.SampleReference)
+		if e != nil {
+			return WorldResult{}, e
+		}
+	}
+	return out, nil
 }
 func (s *Service) WorldList(ctx context.Context, p Principal, r WorldListRequest) (WorldListResult, error) {
 	out := WorldListResult{Items: []WorldListItem{}}

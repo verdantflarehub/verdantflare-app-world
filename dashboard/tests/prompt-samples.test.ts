@@ -23,7 +23,7 @@ test('source resolution requires ready files and never guesses multi-file or str
  assert.throws(()=>sampleFileReference({kind:'source',key:'original'},d),/循环/)
  d.sources[0].acquisition_state='declared';assert.throws(()=>sampleFileReference({kind:'source',key:'original'},d),/尚未/)
  assert.throws(()=>sampleFileReference({kind:'result',key:'unknown'},document),/单个/)
- assert.throws(()=>sampleFileReference({kind:'project'},document),/暂不/)
+ assert.deepEqual(sampleFileReference({kind:'project',project_id:id(30),revision_id:id(31),file_id:id(5)},document),{kind:'project',project_id:id(30),revision_id:id(31),file_id:id(5)})
 })
 test('media read uses exact asset and content versions; stale files, external URLs and permission failures reject',async()=>{
  const bytes=new TextEncoder().encode('unit test output'),digest=await sha(bytes)
@@ -41,6 +41,20 @@ test('external assets must be fixed declared dependencies and authorized indepen
  const base=structuredClone(asset);base.manifest.depends_on=[{asset_id:id(20),asset_version_id:id(21),purpose:'sample'}]
  await assert.rejects(sampleDownload(async(name,args)=>{assert.equal(name,'world.get');assert.deepEqual(args,{asset_id:id(20),asset_version_id:id(21)});throw Error('revoked')},base,r),/revoked/)
  await assert.rejects(sampleDownload(async()=>{throw Error('must not call')},base,{...r,object_key:'result'}),/结构化对象/)
+})
+test('project samples resolve only via fixed asset document and use project authorization',async()=>{
+ const base=structuredClone(asset);base.manifest.domain_documents=[{document_type:'reference-learning',file_id:id(5)}]
+ const reference={kind:'project',project_id:id(30),revision_id:id(31),file_id:id(32)}
+ const requested={document_file_id:id(5),project_id:id(30),revision_id:id(31),file_id:id(32)}
+ const reply={...base,sample_file:{...requested,content_ref:ref}}
+ const calls:string[]=[]
+ const result=await sampleDownload(async(name,args)=>{calls.push(name);if(name==='world.get'){assert.deepEqual(args,{asset_id:base.asset_id,asset_version_id:base.asset_version_id,sample_reference:requested});return reply}
+ assert.deepEqual(args,{mode:'download',content_ref:ref,access:{project_id:id(30),project_revision_id:id(31)}});return {mode:'download',version:{...ref,mime:'video/mp4',size:10,sha256:'a'.repeat(64)},content_path:path}},base,reference)
+ assert.equal(result.mime,'video/mp4');assert.deepEqual(calls,['world.get','artifact.read'])
+ for(const key of Object.keys(requested))await assert.rejects(sampleDownload(async()=>({...reply,sample_file:{...reply.sample_file,[key]:id(99)}}),base,reference),/不一致/)
+ await assert.rejects(sampleDownload(async()=>{throw Error('revoked')},base,reference),/revoked/)
+ for(const bad of [{...reference,revision_id:''},{...reference,object_key:'result'}])await assert.rejects(sampleDownload(async()=>{throw Error('must not call')},base,bad),/固定/)
+ await assert.rejects(sampleDownload(async()=>{throw Error('must not call')},asset,reference),/固定/)
 })
 test('controlled path and supported media reject executable formats and redirects',()=>{
  for(const bad of [path+'?token=secret','//host'+path,path+'/../x','/v2/artifacts/private','javascript:alert(1)'])assert.throws(()=>sampleContentPath(bad))

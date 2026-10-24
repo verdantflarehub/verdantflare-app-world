@@ -19,7 +19,7 @@ export function promptSamples(variant: PromptVariant): PromptSample[] {
 // Resolve only explicit file relations. Never guess by title, extension or latest version.
 export function sampleFileReference(raw: unknown, document: LearningDocument, seen = new Set<string>()): Record<string, unknown> {
   const r = object(raw)
-  if (r.kind === 'file' || r.kind === 'asset') return r
+  if (r.kind === 'file' || r.kind === 'asset' || r.kind === 'project') return r
   if (!['source', 'result'].includes(String(r.kind))) throw Error('该样例引用暂不支持预览，固定引用已保留。')
   const key = `${r.kind}:${r.key}`
   if (seen.has(key) || seen.size >= 16) throw Error('样例引用循环，无法预览。')
@@ -44,6 +44,21 @@ export function sampleContentPath(value: unknown): string {
 export interface SampleDownload { path: string; mime: string; size: number; sha256: string }
 export async function sampleDownload(call: Call, asset: AssetOpen, reference: Record<string, unknown>): Promise<SampleDownload> {
   let owner = asset
+  let content: {store_id:string;artifact_id:string;version_id:string} | undefined
+  let access: Record<string,unknown> | undefined
+  if (reference.kind === 'project') {
+    const document = asset.manifest.domain_documents?.find(d => d.document_type === 'reference-learning')
+    if (!document || ![document.file_id,reference.project_id,reference.revision_id,reference.file_id].every(isID) || reference.object_key !== undefined)
+      throw Error('样例缺少已登记的固定项目文件定位。')
+    const requested = {document_file_id:document.file_id,project_id:reference.project_id,revision_id:reference.revision_id,file_id:reference.file_id}
+    const raw = object(await call('world.get', {asset_id:asset.asset_id,asset_version_id:asset.asset_version_id,sample_reference:requested}))
+    readAsset(raw,asset.asset_id,asset.asset_version_id)
+    const resolved = object(raw.sample_file), ref = object(resolved.content_ref)
+    if (Object.entries(requested).some(([key,value]) => resolved[key] !== value) || ![ref.store_id,ref.artifact_id,ref.version_id].every(isID))
+      throw Error('样例文件与固定项目引用不一致。')
+    content = ref as typeof content
+    access = {project_id:reference.project_id,project_revision_id:reference.revision_id}
+  }
   if (reference.kind === 'asset') {
     if (reference.object_key !== undefined) throw Error('该样例指向结构化对象，尚不能作为媒体文件预览。')
     const a = reference.asset_id, v = reference.asset_version_id
@@ -52,12 +67,15 @@ export async function sampleDownload(call: Call, asset: AssetOpen, reference: Re
       if (!asset.manifest.depends_on.some(d => d.asset_id === a && d.asset_version_id === v)) throw Error('样例不在当前资产的固定依赖中。')
       owner = readAsset(await call('world.get', { asset_id: a, asset_version_id: v }), a, v)
     }
-  } else if (reference.kind !== 'file') throw Error('该样例引用暂不支持预览。')
-  const file = owner.manifest.files.find(f => f.file_id === reference.file_id)
-  if (!file) throw Error('样例文件不在固定资产清单中。')
-  const read = object(await call('artifact.read', { mode: 'download', content_ref: file.content_ref,
-    access: { asset_id: owner.asset_id, asset_version_id: owner.asset_version_id } }))
-  const v = object(read.version), ref = file.content_ref
+  } else if (reference.kind !== 'file' && reference.kind !== 'project') throw Error('该样例引用暂不支持预览。')
+  if (!content) {
+    const file = owner.manifest.files.find(f => f.file_id === reference.file_id)
+    if (!file) throw Error('样例文件不在固定资产清单中。')
+    content = file.content_ref
+    access = {asset_id:owner.asset_id,asset_version_id:owner.asset_version_id}
+  }
+  const read = object(await call('artifact.read', { mode: 'download', content_ref: content, access }))
+  const v = object(read.version), ref = content
   if (read.mode !== 'download' || v.store_id !== ref.store_id || v.artifact_id !== ref.artifact_id || v.version_id !== ref.version_id)
     throw Error('样例与所选固定内容版本不一致。')
   if (typeof v.mime !== 'string' || !Number.isSafeInteger(v.size) || Number(v.size) < 0 || typeof v.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(v.sha256))
