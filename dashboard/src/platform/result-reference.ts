@@ -29,8 +29,11 @@ export function resultReference(result: LearningResult, document: LearningDocume
   const originals = document.sources.filter(s => sourceKeys.includes(s.key) && s.role === 'original' && s.acquisition_state === 'ready' && ['video','audio'].includes(String(s.media_kind)))
   if (originals.length !== 1) return null
   const source = originals[0], content = record(source.content)
-  const cited = entries(document).filter(e => sourceKeys.includes(e.source))
-  const contexts = cited.filter(e => e.kind === 'analysis_context' && content.kind === 'world_draft' && e.value.draft_id === content.draft_id && e.value.revision_id === content.revision_id && e.value.file_id === content.file_id)
+  const all = entries(document)
+  const cited = all.filter(e => sourceKeys.includes(e.source))
+  // Source identity is document metadata; audio observations may be in a
+  // different evidence file. Content evidence below remains explicitly cited.
+  const contexts = all.filter(e => e.kind === 'analysis_context' && content.kind === 'world_draft' && e.value.draft_id === content.draft_id && e.value.revision_id === content.revision_id && e.value.file_id === content.file_id)
   if (contexts.length !== 1) return null
   const info = record(contexts[0].value.source), duration = Number(info.duration_ms)
   if (!Number.isFinite(duration) || duration <= 0 || typeof info.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(info.sha256)) return null

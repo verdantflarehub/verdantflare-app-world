@@ -27,6 +27,27 @@ test('missing, ambiguous, uncited and out-of-bounds evidence never invents media
   (f:ReturnType<typeof fixture>)=>{f.rows.push(f.rows[3])},
  ]){const f=fixture();edit(f);f.update();assert.equal(resultReference(f.result,f.doc),null)}
 })
+test('split audio evidence uses exact document context without borrowing uncited observations',()=>{
+ for (const kind of ['sound_cue','music_structure']) {
+  const f=fixture(kind)
+  f.doc.sources.push({key:'context',content:{kind:'inline',text:JSON.stringify(f.rows[0])}} as typeof f.doc.sources[number])
+  f.rows[0]={kind:'comment',value:{}} as typeof f.rows[number]
+  f.update()
+  assert.deepEqual(resultReference(f.result,f.doc)?.ranges,[{start:1,end:2,note:'对应片段'}])
+ }
+ const missing=fixture('sound_cue')
+ missing.doc.sources.push({key:'uncited',content:{kind:'inline',text:JSON.stringify(missing.rows[3])}} as typeof missing.doc.sources[number])
+ missing.rows.splice(3,1);missing.update()
+ assert.equal(resultReference(missing.result,missing.doc),null)
+ const ambiguous=fixture('sound_cue')
+ ambiguous.doc.sources.push({key:'duplicate-context',content:{kind:'inline',text:JSON.stringify(ambiguous.rows[0])}} as typeof ambiguous.doc.sources[number])
+ assert.equal(resultReference(ambiguous.result,ambiguous.doc),null)
+ const mismatch=fixture('sound_cue')
+ const wrong={...mismatch.rows[0],value:{...mismatch.rows[0].value,revision_id:'other'}}
+ mismatch.doc.sources.push({key:'wrong-context',content:{kind:'inline',text:JSON.stringify(wrong)}} as typeof mismatch.doc.sources[number])
+ mismatch.rows[0]={kind:'comment',value:{}} as typeof mismatch.rows[number];mismatch.update()
+ assert.equal(resultReference(mismatch.result,mismatch.doc),null)
+})
 test('business copy contains readable instructions, not internal step IDs or placeholder prose',()=>{
  const {result}=fixture();result.payload.costume='原片镜头内可见的服装款式、色彩与配饰特征。'
  assert(!readingText(result).includes('原片镜头内可见'))
