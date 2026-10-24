@@ -187,6 +187,7 @@ func promptTextEncoded(b Bundle, a Association, batch PromptBatch, encoding stri
 }
 
 type PromptRequest struct {
+	Retry       *BatchRetry     `json:"retry,omitempty"`
 	Encoding    string          `json:"reference_encoding,omitempty"`
 	TaskID      string          `json:"task_id"`
 	OperationID string          `json:"idempotency_key"`
@@ -228,12 +229,12 @@ func FreezePrompts(b Bundle, a Association, batch PromptBatch, model, account, b
 	if err != nil {
 		return PromptRequest{}, err
 	}
-	f := PromptRequest{encoding, b.TaskID, b.TaskID + ":" + batch.Key, model, account, budget, batch, hashBytes([]byte(text)), payload}
+	f := PromptRequest{nil, encoding, b.TaskID, b.TaskID + ":" + batch.Key, model, account, budget, batch, hashBytes([]byte(text)), payload}
 	return f, f.Validate()
 }
 
 func (f PromptRequest) Validate() error {
-	if (f.Encoding != "" && f.Encoding != "short-v1") || f.Encoding != "" && f.Batch.Version != 2 || !validUUID(f.TaskID) || f.TaskID != f.Batch.TaskID || f.OperationID != f.TaskID+":"+f.Batch.Key || !identifier.MatchString(f.ModelID) || f.AccountID != "" && !validUUID(f.AccountID) || !positiveAmount.MatchString(f.BudgetLimit) || strings.Trim(f.BudgetLimit, "0.") == "" || !digestPattern.MatchString(f.TextHash) {
+	if (f.Encoding != "" && f.Encoding != "short-v1") || f.Encoding != "" && f.Batch.Version != 2 || !validUUID(f.TaskID) || f.TaskID != f.Batch.TaskID || !validBatchOperation(f.TaskID, f.Batch.Key, f.OperationID, f.Batch.Version, f.Retry) || !identifier.MatchString(f.ModelID) || f.AccountID != "" && !validUUID(f.AccountID) || !positiveAmount.MatchString(f.BudgetLimit) || strings.Trim(f.BudgetLimit, "0.") == "" || !digestPattern.MatchString(f.TextHash) {
 		return ErrInvalid
 	}
 	clean, err := strictjson.ReadValue(bytes.NewReader(f.Payload), 2<<20)

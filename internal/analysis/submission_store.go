@@ -174,6 +174,8 @@ func (s PGStore) ReservedBudget(ctx context.Context, org, owner, id string) (str
  UNION ALL SELECT request FROM studio.world_analysis_association_retries WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 AND state<>'planned'
  UNION ALL SELECT request FROM studio.world_analysis_associations WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 AND state<>'planned'
  UNION ALL SELECT request FROM studio.world_analysis_prompt_batches WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 AND state<>'planned'
- UNION ALL SELECT request FROM studio.world_analysis_result_batches WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 AND state<>'planned') r`, org, owner, id).Scan(&total)
+ UNION ALL SELECT request FROM studio.world_analysis_result_batches WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 AND state<>'planned'
+ UNION ALL SELECT request FROM studio.world_analysis_result_retries WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 AND state<>'planned'
+ UNION ALL SELECT request FROM studio.world_analysis_prompt_retries WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 AND state<>'planned') r`, org, owner, id).Scan(&total)
 	return total, err
 }

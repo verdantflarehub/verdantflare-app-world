@@ -73,16 +73,16 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
   WHERE $1 AND a.organization_id=q.organization_id AND a.owner_id=q.owner_id AND a.task_id=q.task_id
    AND a.state='association_ready' AND jsonb_array_length(t.prompt_targets)>0
    AND (t.pipeline_version=0 OR (
-    EXISTS(SELECT 1 FROM studio.world_analysis_result_batches rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id)
-    AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_result_batches rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id AND rb.state<>'result_ready')))
+    EXISTS(SELECT 1 FROM studio.world_analysis_current_results rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id)
+    AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_current_results rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id AND rb.state<>'result_ready')))
    AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_prompt_plans pp WHERE pp.organization_id=q.organization_id AND pp.owner_id=q.owner_id AND pp.task_id=q.task_id)
-   AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_prompt_batches pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id)
+   AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_current_prompts pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id)
   UNION ALL
   SELECT pb.batch_key,CASE WHEN pb.state='planned' THEN 4 ELSE 3 END,pb.batch_index::bigint
-  FROM studio.world_analysis_prompt_batches pb
+  FROM studio.world_analysis_current_prompts pb
   WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id
    AND (pb.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND q.last_error_code<>'budget_exhausted' AND pb.state='planned' AND NOT EXISTS(
-    SELECT 1 FROM studio.world_analysis_prompt_batches other WHERE other.organization_id=q.organization_id AND other.owner_id=q.owner_id AND other.task_id=q.task_id
+    SELECT 1 FROM studio.world_analysis_current_prompts other WHERE other.organization_id=q.organization_id AND other.owner_id=q.owner_id AND other.task_id=q.task_id
     AND other.state IN ('dispatching','running','acceptance_unknown','failed'))))
   UNION ALL
   SELECT 'results-prepare-v1',5,0::bigint
@@ -90,15 +90,15 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
   WHERE $1 AND t.include_typed_results AND a.organization_id=q.organization_id AND a.owner_id=q.owner_id AND a.task_id=q.task_id
    AND a.state='association_ready'
    AND (t.pipeline_version=2 OR jsonb_array_length(t.prompt_targets)=0 OR (
-    EXISTS(SELECT 1 FROM studio.world_analysis_prompt_batches pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id)
-    AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_prompt_batches pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id AND pb.state<>'prompt_ready')))
-   AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_result_batches rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id)
+    EXISTS(SELECT 1 FROM studio.world_analysis_current_prompts pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id)
+    AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_current_prompts pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id AND pb.state<>'prompt_ready')))
+   AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_current_results rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id)
   UNION ALL
   SELECT rb.batch_key,CASE WHEN rb.state='planned' THEN 6 ELSE 5 END,rb.batch_index::bigint
-  FROM studio.world_analysis_result_batches rb
+  FROM studio.world_analysis_current_results rb
   WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id
    AND (rb.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND q.last_error_code<>'budget_exhausted' AND rb.state='planned' AND NOT EXISTS(
-    SELECT 1 FROM studio.world_analysis_result_batches other WHERE other.organization_id=q.organization_id AND other.owner_id=q.owner_id AND other.task_id=q.task_id
+    SELECT 1 FROM studio.world_analysis_current_results other WHERE other.organization_id=q.organization_id AND other.owner_id=q.owner_id AND other.task_id=q.task_id
     AND other.state IN ('dispatching','running','acceptance_unknown','failed'))))
   UNION ALL
   SELECT 'learning-save-v1',7,0::bigint
@@ -106,11 +106,11 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
   LEFT JOIN studio.world_analysis_learning l ON l.organization_id=q.organization_id AND l.owner_id=q.owner_id AND l.task_id=q.task_id
   WHERE t.save_learning AND t.include_typed_results AND COALESCE(l.state,'pending')='pending'
    AND (jsonb_array_length(t.prompt_targets)=0 OR (
-    (EXISTS(SELECT 1 FROM studio.world_analysis_prompt_batches pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id)
+    (EXISTS(SELECT 1 FROM studio.world_analysis_current_prompts pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id)
      OR (t.pipeline_version=2 AND EXISTS(SELECT 1 FROM studio.world_analysis_prompt_plans pp WHERE pp.organization_id=q.organization_id AND pp.owner_id=q.owner_id AND pp.task_id=q.task_id)))
-    AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_prompt_batches pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id AND pb.state<>'prompt_ready')))
-   AND EXISTS(SELECT 1 FROM studio.world_analysis_result_batches rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id)
-   AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_result_batches rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id AND rb.state<>'result_ready')
+    AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_current_prompts pb WHERE pb.organization_id=q.organization_id AND pb.owner_id=q.owner_id AND pb.task_id=q.task_id AND pb.state<>'prompt_ready')))
+   AND EXISTS(SELECT 1 FROM studio.world_analysis_current_results rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id)
+   AND NOT EXISTS(SELECT 1 FROM studio.world_analysis_current_results rb WHERE rb.organization_id=q.organization_id AND rb.owner_id=q.owner_id AND rb.task_id=q.task_id AND rb.state<>'result_ready')
   ) picked ORDER BY picked.priority,picked.position LIMIT 1
  ) step
  WHERE q.next_attempt_at<=now() AND (q.lease_until IS NULL OR q.lease_until<=now())

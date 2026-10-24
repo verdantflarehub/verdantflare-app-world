@@ -27,7 +27,10 @@ func TestAnalysisResultsRequireSuccessfulPrompts(t *testing.T) {
 	testAnalysisBundleOptions(t, bundleOptions{targets: syntheticPromptTargets(), typed: true, failPrompts: true})
 }
 
-type resultChannelFixture struct{ associationChannelFixture }
+type resultChannelFixture struct {
+	associationChannelFixture
+	corrupt bool
+}
 
 func (c *resultChannelFixture) SubmitResults(_ context.Context, _ string, f analysis.ResultRequest) (analysis.Call, error) {
 	c.submits++
@@ -69,6 +72,9 @@ func (c *resultChannelFixture) SubmitResults(_ context.Context, _ string, f anal
 			item.Payloads = []map[string]any{{"purpose": "creative_reuse", "objective": "Plan a new scene", "applicability": "Static scenes", "inputs": []any{map[string]any{"key": "brief", "value_type": "string", "required": true, "description": "New scene intent"}}, "steps": []any{map[string]any{"key": "plan", "instruction": "Write a new scene", "input_keys": []string{"brief"}, "output_keys": []string{"outline"}}}, "constraints": []any{map[string]any{"key": "scope", "condition": "New brief", "effect": "Rebuild scene"}}, "expected_outputs": []any{map[string]any{"key": "outline", "type_key": "script_unit", "description": "New outline", "checks": []string{"Matches brief"}}}, "counterexamples": []string{"Copying original dialogue"}}}
 		}
 		out.Items = append(out.Items, item)
+	}
+	if c.corrupt {
+		out.Items[0].Scope = "not-in-the-frozen-batch"
 	}
 	text, _ := json.Marshal(out)
 	c.result, _ = json.Marshal(map[string]any{"schema_version": 1, "call_id": c.call.CallID, "task_id": f.TaskID, "model_id": f.ModelID, "media": "analysis", "operation": "analyze", "state": "completed", "accepted": true, "analysis": map[string]any{"text": string(text), "document": out, "model_id": f.ModelID, "finish_reason": "STOP", "response_schema_verified": true, "input": map[string]any{"source_text_sha256": f.TextHash, "response_schema_sha256": hex.EncodeToString(digest[:]), "media": nil, "video_range": nil}}})

@@ -32,7 +32,10 @@ func syntheticPromptTargets() []analysis.PromptTarget {
 	return targets
 }
 
-type promptChannelFixture struct{ associationChannelFixture }
+type promptChannelFixture struct {
+	associationChannelFixture
+	corrupt bool
+}
 
 func (c *promptChannelFixture) SubmitPrompts(_ context.Context, _ string, f analysis.PromptRequest) (analysis.Call, error) {
 	c.submits++
@@ -53,6 +56,9 @@ func (c *promptChannelFixture) SubmitPrompts(_ context.Context, _ string, f anal
 			}
 		}
 		result.Items = append(result.Items, analysis.PromptCandidate{Scope: pair.Scope, Target: pair.Target, Title: "Synthetic candidate", CreativeIntent: "Synthetic prompt recovery test", Text: "A synthetic fixed camera description.", AdaptationNote: "Not an actual model result", Variables: []analysis.PromptVariable{}, Evidence: evidence, MissingInputs: []string{"Real model test pending"}, Uncertainties: []string{}})
+	}
+	if c.corrupt {
+		result.Items[0].Scope = "not-in-the-frozen-batch"
 	}
 	text, _ := json.Marshal(result)
 	c.result, _ = json.Marshal(map[string]any{"schema_version": 1, "call_id": c.call.CallID, "task_id": f.TaskID, "model_id": f.ModelID, "media": "analysis", "operation": "analyze", "state": "completed", "accepted": true, "analysis": map[string]any{

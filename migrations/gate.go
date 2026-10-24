@@ -69,6 +69,14 @@ var referenceEncodingSQL string
 //go:embed 0020_analysis_final_coverage.sql
 var finalCoverageSQL string
 
+//go:embed 0022_analysis_batch_retry.sql
+var batchRetrySQL string
+
+func batchRetryDigest() string {
+	s := sha256.Sum256([]byte(batchRetrySQL))
+	return hex.EncodeToString(s[:])
+}
+
 //go:embed 0021_analysis_revalidation.sql
 var revalidationSQL string
 
@@ -162,7 +170,7 @@ func applyGate(ctx context.Context, tx pgx.Tx) error {
 	for _, step := range []struct {
 		version     int
 		sql, digest string
-	}{{2, gateSQL, gateDigest()}, {3, fenceSQL, fenceDigest()}, {4, draftSQL, draftDigest()}, {5, draftAssetSQL, draftAssetDigest()}, {6, analysisSQL, analysisDigest()}, {7, scheduleSQL, scheduleDigest()}, {8, associationSQL, associationDigest()}, {9, promptsSQL, promptsDigest()}, {10, resultsSQL, resultsDigest()}, {11, learningSQL, learningDigest()}, {12, admissionSQL, admissionDigest()}, {13, budgetStatusSQL, budgetStatusDigest()}, {14, setReviewSQL, setReviewDigest()}, {15, lifecycleSQL, lifecycleDigest()}, {16, qualitySQL, qualityDigest()}, {17, retrySQL, retryDigest()}, {18, associationRetrySQL, associationRetryDigest()}, {19, referenceEncodingSQL, referenceEncodingDigest()}, {20, finalCoverageSQL, finalCoverageDigest()}, {21, revalidationSQL, revalidationDigest()}} {
+	}{{2, gateSQL, gateDigest()}, {3, fenceSQL, fenceDigest()}, {4, draftSQL, draftDigest()}, {5, draftAssetSQL, draftAssetDigest()}, {6, analysisSQL, analysisDigest()}, {7, scheduleSQL, scheduleDigest()}, {8, associationSQL, associationDigest()}, {9, promptsSQL, promptsDigest()}, {10, resultsSQL, resultsDigest()}, {11, learningSQL, learningDigest()}, {12, admissionSQL, admissionDigest()}, {13, budgetStatusSQL, budgetStatusDigest()}, {14, setReviewSQL, setReviewDigest()}, {15, lifecycleSQL, lifecycleDigest()}, {16, qualitySQL, qualityDigest()}, {17, retrySQL, retryDigest()}, {18, associationRetrySQL, associationRetryDigest()}, {19, referenceEncodingSQL, referenceEncodingDigest()}, {20, finalCoverageSQL, finalCoverageDigest()}, {21, revalidationSQL, revalidationDigest()}, {22, batchRetrySQL, batchRetryDigest()}} {
 		var hash string
 		err := tx.QueryRow(ctx, "SELECT "+gateHashColumn+" FROM "+gateHistory+" WHERE version=$1", step.version).Scan(&hash)
 		if err == nil {
@@ -207,7 +215,7 @@ func UpgradeGates(ctx context.Context, db *pgxpool.Pool) error {
 	if err = tx.QueryRow(ctx, "SELECT count(*) FROM "+gateHistory).Scan(&count); err != nil {
 		return err
 	}
-	if count != 2 && count != 3 && count != 4 && count != 5 && count != 6 && count != 7 && count != 8 && count != 9 && count != 10 && count != 11 && count != 12 && count != 13 && count != 14 && count != 15 && count != 16 && count != 17 && count != 18 && count != 19 && count != 20 && count != 21 {
+	if count != 2 && count != 3 && count != 4 && count != 5 && count != 6 && count != 7 && count != 8 && count != 9 && count != 10 && count != 11 && count != 12 && count != 13 && count != 14 && count != 15 && count != 16 && count != 17 && count != 18 && count != 19 && count != 20 && count != 21 && count != 22 {
 		return errors.New("unsupported gate upgrade source")
 	}
 	var owner bool
@@ -233,7 +241,7 @@ func CheckGate(ctx context.Context, q gateQuery) error {
 	if e := q.QueryRow(ctx, "SELECT count(*) FROM "+gateHistory).Scan(&count); e != nil {
 		return e
 	}
-	if hash != gateDigest() || count != 21 {
+	if hash != gateDigest() || count != 22 {
 		return errors.New("handoff migration mismatch")
 	}
 	if e := q.QueryRow(ctx, "SELECT "+gateHashColumn+" FROM "+gateHistory+" WHERE version=3").Scan(&hash); e != nil {
@@ -350,6 +358,12 @@ func CheckGate(ctx context.Context, q gateQuery) error {
 	if hash != revalidationDigest() {
 		return errors.New("association revalidation migration mismatch")
 	}
+	if err := q.QueryRow(ctx, "SELECT digest FROM studio.world_schema_history WHERE version=22").Scan(&hash); err != nil {
+		return err
+	}
+	if hash != batchRetryDigest() {
+		return errors.New("batch retry migration mismatch")
+	}
 	_, body, ok := strings.Cut(gateSQL, "SET search_path=pg_catalog AS $$")
 	if !ok {
 		return errors.New("invalid gate source")
@@ -393,7 +407,7 @@ func CheckGate(ctx context.Context, q gateQuery) error {
 	if !valid {
 		return errors.New("runtime readiness guard changed")
 	}
-	for _, match := range regexp.MustCompile(`ON studio\.([a-z_]+) FOR EACH STATEMENT`).FindAllStringSubmatch(gateSQL+"\n"+draftSQL+"\n"+analysisSQL+"\n"+scheduleSQL+"\n"+associationSQL+"\n"+promptsSQL+"\n"+resultsSQL+"\n"+learningSQL+"\n"+admissionSQL+"\n"+setReviewSQL+"\n"+lifecycleSQL+"\n"+qualitySQL+"\n"+retrySQL+"\n"+associationRetrySQL+"\n"+revalidationSQL, -1) {
+	for _, match := range regexp.MustCompile(`ON studio\.([a-z_]+) FOR EACH STATEMENT`).FindAllStringSubmatch(gateSQL+"\n"+draftSQL+"\n"+analysisSQL+"\n"+scheduleSQL+"\n"+associationSQL+"\n"+promptsSQL+"\n"+resultsSQL+"\n"+learningSQL+"\n"+admissionSQL+"\n"+setReviewSQL+"\n"+lifecycleSQL+"\n"+qualitySQL+"\n"+retrySQL+"\n"+associationRetrySQL+"\n"+revalidationSQL+"\n"+batchRetrySQL, -1) {
 		if e := q.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=$1::regclass AND tgname=$2 AND tgenabled='A' AND NOT tgisinternal AND tgtype=62 AND tgnargs=0 AND tgqual IS NULL AND tgfoid=$3::regprocedure)`, "studio."+match[1], gateDomain+"_handoff_gate", "studio."+gateDomain+"_check_writer()").Scan(&valid); e != nil {
 			return e
 		}
@@ -420,7 +434,7 @@ func ActivateFresh(ctx context.Context, db *pgxpool.Pool) error {
 	if !owner || !unused || (mode != "closed" && mode != "active") {
 		return errors.New("fresh activation denied")
 	}
-	for _, match := range regexp.MustCompile(`ON studio\.([a-z_]+) FOR EACH STATEMENT`).FindAllStringSubmatch(gateSQL+"\n"+draftSQL+"\n"+analysisSQL+"\n"+scheduleSQL+"\n"+associationSQL+"\n"+promptsSQL+"\n"+resultsSQL+"\n"+learningSQL+"\n"+admissionSQL+"\n"+setReviewSQL+"\n"+lifecycleSQL+"\n"+qualitySQL+"\n"+retrySQL+"\n"+associationRetrySQL+"\n"+revalidationSQL, -1) {
+	for _, match := range regexp.MustCompile(`ON studio\.([a-z_]+) FOR EACH STATEMENT`).FindAllStringSubmatch(gateSQL+"\n"+draftSQL+"\n"+analysisSQL+"\n"+scheduleSQL+"\n"+associationSQL+"\n"+promptsSQL+"\n"+resultsSQL+"\n"+learningSQL+"\n"+admissionSQL+"\n"+setReviewSQL+"\n"+lifecycleSQL+"\n"+qualitySQL+"\n"+retrySQL+"\n"+associationRetrySQL+"\n"+revalidationSQL+"\n"+batchRetrySQL, -1) {
 		var occupied bool
 		if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM studio."+match[1]+")").Scan(&occupied); e != nil {
 			return e
