@@ -3,6 +3,7 @@ package analysis
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"unicode/utf8"
@@ -176,28 +177,17 @@ func checkPromptBatch(b Bundle, a Association, batch PromptBatch) error {
 }
 
 func promptText(b Bundle, a Association, batch PromptBatch) (string, error) {
+	return promptTextEncoded(b, a, batch, "")
+}
+func promptTextEncoded(b Bundle, a Association, batch PromptBatch, encoding string) (string, error) {
 	if err := checkPromptBatch(b, a, batch); err != nil {
 		return "", err
 	}
-	observations, err := AssociationText(b)
-	if err != nil {
-		return "", err
-	}
-	raw, err := json.Marshal(struct {
-		Observations json.RawMessage `json:"observations"`
-		Association  Association     `json:"association"`
-		Batch        PromptBatch     `json:"batch"`
-	}{json.RawMessage(observations), a, batch})
-	if err != nil {
-		return "", ErrInvalid
-	}
-	if utf8.RuneCount(raw) > MaxAssociationCharacters {
-		return "", ErrBundleTooLarge
-	}
-	return string(raw), nil
+	return encodedBatchText(b, a, batch, encoding)
 }
 
 type PromptRequest struct {
+	Encoding    string          `json:"reference_encoding,omitempty"`
 	TaskID      string          `json:"task_id"`
 	OperationID string          `json:"idempotency_key"`
 	ModelID     string          `json:"model_id"`
@@ -217,7 +207,12 @@ func promptSchema() (map[string]any, error) {
 }
 
 func FreezePrompts(b Bundle, a Association, batch PromptBatch, model, account, budget string) (PromptRequest, error) {
+	encoding := ""
 	text, err := promptText(b, a, batch)
+	if errors.Is(err, ErrBundleTooLarge) && batch.Version == 2 {
+		encoding = "short-v1"
+		text, err = promptTextEncoded(b, a, batch, encoding)
+	}
 	if err != nil {
 		return PromptRequest{}, err
 	}
@@ -233,12 +228,12 @@ func FreezePrompts(b Bundle, a Association, batch PromptBatch, model, account, b
 	if err != nil {
 		return PromptRequest{}, err
 	}
-	f := PromptRequest{b.TaskID, b.TaskID + ":" + batch.Key, model, account, budget, batch, hashBytes([]byte(text)), payload}
+	f := PromptRequest{encoding, b.TaskID, b.TaskID + ":" + batch.Key, model, account, budget, batch, hashBytes([]byte(text)), payload}
 	return f, f.Validate()
 }
 
 func (f PromptRequest) Validate() error {
-	if !validUUID(f.TaskID) || f.TaskID != f.Batch.TaskID || f.OperationID != f.TaskID+":"+f.Batch.Key || !identifier.MatchString(f.ModelID) || f.AccountID != "" && !validUUID(f.AccountID) || !positiveAmount.MatchString(f.BudgetLimit) || strings.Trim(f.BudgetLimit, "0.") == "" || !digestPattern.MatchString(f.TextHash) {
+	if (f.Encoding != "" && f.Encoding != "short-v1") || f.Encoding != "" && f.Batch.Version != 2 || !validUUID(f.TaskID) || f.TaskID != f.Batch.TaskID || f.OperationID != f.TaskID+":"+f.Batch.Key || !identifier.MatchString(f.ModelID) || f.AccountID != "" && !validUUID(f.AccountID) || !positiveAmount.MatchString(f.BudgetLimit) || strings.Trim(f.BudgetLimit, "0.") == "" || !digestPattern.MatchString(f.TextHash) {
 		return ErrInvalid
 	}
 	clean, err := strictjson.ReadValue(bytes.NewReader(f.Payload), 2<<20)
@@ -263,7 +258,7 @@ func (f PromptRequest) Validate() error {
 		Association Association `json:"association"`
 		Batch       PromptBatch `json:"batch"`
 	}
-	if json.Unmarshal([]byte(p.Text), &input) != nil || canonicalHash(input.Batch) != canonicalHash(f.Batch) || input.Observations.TaskID != f.TaskID || input.Observations.BundleHash != f.Batch.BundleHash || canonicalHash(input.Association) != f.Batch.AssociationHash || !digestPattern.MatchString(f.Batch.PlanHash) || (f.Batch.Version != 1 && f.Batch.Version != 2) || len(f.Batch.Pairs) < 1 || len(f.Batch.Pairs) > 8 {
+	if json.Unmarshal([]byte(p.Text), &input) != nil || (f.Encoding == "" && canonicalHash(input.Batch) != canonicalHash(f.Batch)) || input.Observations.TaskID != f.TaskID || input.Observations.BundleHash != f.Batch.BundleHash || (f.Encoding == "" && canonicalHash(input.Association) != f.Batch.AssociationHash) || (f.Encoding != "" && !encodedBatchIdentity(p.Text, f.Encoding, f.Batch.AssociationHash, f.Batch)) || !digestPattern.MatchString(f.Batch.PlanHash) || (f.Batch.Version != 1 && f.Batch.Version != 2) || len(f.Batch.Pairs) < 1 || len(f.Batch.Pairs) > 8 {
 		return ErrInvalid
 	}
 	if !digestPattern.MatchString(f.Batch.BundleHash) || len(f.Batch.Scopes) == 0 || len(f.Batch.Scopes) > 1024 || len(f.Batch.Targets) == 0 || len(f.Batch.Targets) > 16 {
@@ -438,12 +433,16 @@ func VerifyPromptsNative(b Bundle, a Association, f PromptRequest, callID string
 	if f.Validate() != nil {
 		return PromptCandidates{}, ErrInvalid
 	}
-	text, err := promptText(b, a, f.Batch)
+	text, err := promptTextEncoded(b, a, f.Batch, f.Encoding)
 	if err != nil || hashBytes([]byte(text)) != f.TextHash {
 		return PromptCandidates{}, ErrInvalid
 	}
 	schema, _ := promptSchema()
 	raw, err := verifyTextNative(Binding{callID, f.TaskID, f.ModelID}, f.TextHash, schema, data)
+	if err != nil {
+		return PromptCandidates{}, err
+	}
+	raw, err = decodeBatchEvidence(b, f.Encoding, raw)
 	if err != nil {
 		return PromptCandidates{}, err
 	}

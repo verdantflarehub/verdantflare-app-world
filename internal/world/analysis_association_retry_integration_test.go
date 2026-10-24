@@ -46,7 +46,7 @@ func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
 			if ok, e := store.CompareAndSwap(ctx, r, sent); e != nil || !ok {
 				t.Fatal(e)
 			}
-			if ok, e := store.CompareAndSwap(ctx, sent, retryNative(t, sent, false)); e != nil || !ok {
+			if ok, e := store.CompareAndSwap(ctx, sent, retryNative(t, sent, false, budget == "2")); e != nil || !ok {
 				t.Fatal(e)
 			}
 			b, err := store.Bundle(ctx, p.OrganizationID, p.SubjectID, req.TaskID)
@@ -60,7 +60,7 @@ func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
 			if err = store.CreateAssociation(ctx, p.OrganizationID, p.SubjectID, f); err != nil {
 				t.Fatal(err)
 			}
-			finish := func(valid bool) analysis.AssociationRecord {
+			finish := func(valid bool, omit ...bool) analysis.AssociationRecord {
 				old, e := store.LoadAssociation(ctx, p.OrganizationID, p.SubjectID, req.TaskID)
 				if e != nil {
 					t.Fatal(e)
@@ -79,6 +79,13 @@ func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
 				a := analysis.Association{Version: 1, BundleHash: b.SHA256, Entities: []analysis.AssociationGroup{}, Voices: []analysis.AssociationGroup{}, Shots: []analysis.ShotGroup{}, Boundaries: []analysis.BoundaryDecision{}, VoiceLinks: []analysis.VoiceLink{}, Uncertainties: []string{}}
 				if valid {
 					for index, n := range b.Nodes {
+						if n.Kind == "entities" && len(omit) == 0 {
+							key := n.Key
+							if old.Request.Encoding == "short-v1" {
+								key = fmt.Sprintf("e%06d", index+1)
+							}
+							a.Entities = append(a.Entities, analysis.AssociationGroup{Key: "bag", Kind: "prop", Name: "Synthetic bag", Description: "Synthetic fixture", Members: []string{key}, State: "single", Evidence: []string{key}, Reason: "Synthetic fixture"})
+						}
 						if n.Kind == "shots" {
 							if old.Request.Encoding == "short-v1" {
 								n.Key = fmt.Sprintf("e%06d", index+1)
@@ -92,7 +99,7 @@ func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
 				done.Revision++
 				done.CallID = newID()
 				done.State = "association_ready"
-				if !valid {
+				if !valid || len(omit) > 0 {
 					done.State = "failed"
 					done.ErrorCode = "association_invalid"
 				}
@@ -170,6 +177,24 @@ func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
 						t.Fatal("failed terminal rewritten")
 					}
 				}
+				if budget == "2" {
+					omitted := finish(true, true)
+					rid := newID()
+					for range 2 {
+						if e := store.Retry(ctx, p.OrganizationID, p.SubjectID, req.TaskID, rid); e != nil {
+							t.Fatal("final coverage retry", e)
+						}
+					}
+					current, e := store.LoadAssociation(ctx, p.OrganizationID, p.SubjectID, req.TaskID)
+					if e != nil || current.Request.Retry.Number != 3 || current.Request.Retry.PreviousCallID != omitted.CallID {
+						t.Fatal("final correction lost binding", e)
+					}
+					var unchanged bool
+					svc.db.QueryRow(ctx, `SELECT native_result=$2::jsonb AND state='failed' FROM studio.world_analysis_association_retries WHERE task_id=$1 AND attempt=2`, req.TaskID, string(omitted.Result)).Scan(&unchanged)
+					if !unchanged {
+						t.Fatal("entity omission receipt changed")
+					}
+				}
 				finish(true)
 				if _, e = svc.AnalysisAssociation(ctx, p, req.TaskID); e != nil {
 					t.Fatal("association unreadable", e)
@@ -183,7 +208,7 @@ func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
 				cost, e := store.ReservedBudget(ctx, p.OrganizationID, p.SubjectID, req.TaskID)
 				expected := "0.3"
 				if budget == "2" {
-					expected = "0.4"
+					expected = "0.5"
 				}
 				if e != nil || cost != expected {
 					t.Fatal("lost cost", cost, e)

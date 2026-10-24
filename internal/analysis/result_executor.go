@@ -34,7 +34,7 @@ func (e ResultExecutor) Advance(ctx context.Context, org, owner, task, key strin
 	if r.Validate() != nil || r.OrganizationID != org || r.OwnerID != owner || r.Request.TaskID != task || r.Request.Batch.Key != key || r.Request.Batch.BundleHash != b.SHA256 {
 		return r, ErrInvalid
 	}
-	text, err := resultText(b, a, r.Request.Batch)
+	text, err := resultTextEncoded(b, a, r.Request.Batch, r.Request.Encoding)
 	if err != nil || hashBytes([]byte(text)) != r.Request.TextHash {
 		return r, ErrInvalid
 	}

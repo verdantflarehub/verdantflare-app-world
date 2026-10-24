@@ -102,3 +102,60 @@ func TestAssociationTruncationRetryRejectsForgedOrOtherFailures(t *testing.T) {
 		})
 	}
 }
+
+func TestFinalAssociationCorrectionOnlyRepairsEntityOmissions(t *testing.T) {
+	b, a := associationFixture(t)
+	f, call, native := associationNativeFixture(t, b, a)
+	f.Encoding = "short-v1"
+	var payload associationPayload
+	json.Unmarshal(f.Payload, &payload)
+	payload.Text, _ = associationRequestText(b, f.Encoding)
+	f.TextHash = hashBytes([]byte(payload.Text))
+	f.Payload = promptBytes(t, payload)
+	f.Retry = &AssociationRetry{ID: execOrg, Number: 2, PreviousCallID: execOwner, PreviousRequestHash: strings.Repeat("a", 64), Issue: "previous attempt"}
+	f.OperationID = f.TaskID + ":" + AssociationStepKey + ":retry:" + execOrg
+	for _, mode := range []string{"entities", "shots", "voices", "boundary", "truncated"} {
+		t.Run(mode, func(t *testing.T) {
+			current := a
+			current.Entities = append([]AssociationGroup{}, a.Entities[1:]...)
+			current.VoiceLinks = []VoiceLink{}
+			switch mode {
+			case "shots":
+				current.Shots = current.Shots[:len(current.Shots)-1]
+			case "voices":
+				current.Voices = current.Voices[:len(current.Voices)-1]
+			case "boundary":
+				current.Boundaries = nil
+			}
+			data := promptBytes(t, current)
+			var doc any
+			json.Unmarshal(data, &doc)
+			aliases, _ := associationAliases(b)
+			translateEvidence(doc, aliases, false)
+			output := native["analysis"].(map[string]any)
+			output["text"] = string(promptBytes(t, doc))
+			output["document"] = doc
+			output["input"].(map[string]any)["source_text_sha256"] = f.TextHash
+			output["finish_reason"] = "STOP"
+			if mode == "truncated" {
+				output["finish_reason"] = "MAX_TOKENS"
+			}
+			old := AssociationRecord{OrganizationID: execOrg, OwnerID: execOwner, Request: f, RequestHash: f.Digest(), Revision: 4, State: "failed", CallID: call, Result: promptBytes(t, native), ErrorCode: "association_invalid"}
+			next, err := RetryAssociationRequest(b, old, call)
+			if mode != "entities" {
+				if err == nil {
+					t.Fatal("unsafe third attempt")
+				}
+				return
+			}
+			if err != nil || next.Retry.Number != 3 || !strings.HasPrefix(next.Retry.Issue, "missing entity members: ") {
+				t.Fatal(err)
+			}
+			old.Request = next
+			old.RequestHash = next.Digest()
+			if _, err = RetryAssociationRequest(b, old, execOrg); err == nil {
+				t.Fatal("unbounded attempts")
+			}
+		})
+	}
+}

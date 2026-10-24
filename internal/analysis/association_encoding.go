@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/verdantflarehub/verdantflare-app-world/internal/strictjson"
 )
@@ -189,4 +190,68 @@ func verifyTruncatedAssociation(binding Binding, textHash string, schema map[str
 		return ErrInvalid
 	}
 	return nil
+}
+
+func associationChecklist(b Bundle, encoding string) string {
+	aliases, _ := associationAliases(b)
+	groups := map[string][]string{}
+	for _, n := range b.Nodes {
+		if n.Kind == "entities" || n.Kind == "shots" || n.Kind == "speakers" {
+			key := n.Key
+			if encoding == "short-v1" {
+				key = aliases[key]
+			}
+			groups[n.Kind] = append(groups[n.Kind], key)
+		}
+	}
+	out := "\n完整成员核对清单（每项恰好使用一次，不能遗漏边缘道具）："
+	for _, kind := range []string{"entities", "shots", "speakers"} {
+		out += "\n" + kind + ": " + strings.Join(groups[kind], ",")
+	}
+	return out
+}
+func omittedAssociationEntities(b Bundle, f AssociationRequest, call string, native []byte) ([]string, error) {
+	schema, err := associationSchema()
+	if err != nil {
+		return nil, err
+	}
+	raw, err := verifyTextNative(Binding{call, f.TaskID, f.ModelID}, f.TextHash, schema, native)
+	if err != nil {
+		return nil, err
+	}
+	raw, err = decodeAssociationReferences(b, f.Encoding, raw)
+	if err != nil {
+		return nil, err
+	}
+	a, err := validateAssociationCoverage(b, raw, false)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	for _, g := range a.Entities {
+		for _, k := range g.Members {
+			seen[k] = true
+		}
+	}
+	for _, g := range a.Voices {
+		for _, k := range g.Members {
+			seen[k] = true
+		}
+	}
+	for _, g := range a.Shots {
+		for _, k := range g.Members {
+			seen[k] = true
+		}
+	}
+	aliases, _ := associationAliases(b)
+	missing := []string{}
+	for _, n := range b.Nodes {
+		if (n.Kind == "entities" || n.Kind == "speakers" || n.Kind == "shots") && !seen[n.Key] {
+			if n.Kind != "entities" {
+				return nil, ErrInvalid
+			}
+			missing = append(missing, aliases[n.Key])
+		}
+	}
+	return missing, nil
 }

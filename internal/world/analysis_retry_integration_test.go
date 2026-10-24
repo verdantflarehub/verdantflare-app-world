@@ -12,7 +12,7 @@ import (
 
 // Synthetic native fixture verifies actual PostgreSQL constraints and recovery;
 // this is not evidence of model/media quality.
-func retryNative(t *testing.T, r analysis.StepRecord, invalid bool) analysis.StepRecord {
+func retryNative(t *testing.T, r analysis.StepRecord, invalid bool, entity ...bool) analysis.StepRecord {
 	t.Helper()
 	step := r.Request.Step
 	key := "shot"
@@ -24,6 +24,10 @@ func retryNative(t *testing.T, r analysis.StepRecord, invalid bool) analysis.Ste
 		findings = append(findings, map[string]any{"dimension": d, "description": "Synthetic observation", "shot_keys": []string{key}, "basis": "observed"})
 	}
 	doc := map[string]any{"start_ms": step.Core.StartMS, "end_ms": step.Core.EndMS, "entities": []any{}, "findings": findings, "uncertainties": []string{}, "shots": []any{map[string]any{"key": "shot", "start_ms": step.Core.StartMS, "end_ms": step.Core.EndMS, "continues_before": false, "continues_after": false, "composition": "Synthetic", "camera_motion": "Static", "subject_motion": "Still", "graphic_motion": "None", "lighting": "Synthetic", "entity_keys": []string{}, "beats": []any{map[string]any{"start_ms": step.Core.StartMS, "end_ms": step.Core.EndMS, "description": "Synthetic"}}, "visible_text": []any{}}}}
+	if len(entity) > 0 && entity[0] {
+		doc["entities"] = []any{map[string]any{"key": "bag", "kind": "prop", "name": "Synthetic bag", "description": "Synthetic fixture", "basis": "observed"}}
+		doc["shots"].([]any)[0].(map[string]any)["entity_keys"] = []string{"bag"}
+	}
 	text, _ := json.Marshal(doc)
 	sh, _ := step.SchemaHash()
 	r.CallID = newID()
@@ -64,7 +68,7 @@ func TestAnalysisRetryPreservesHistoryBudgetOwnershipAndContinues(t *testing.T) 
 			if e = store.FinishSubmission(ctx, w, ""); e != nil {
 				t.Fatal(e)
 			}
-			finish := func(key string, invalid bool) analysis.StepRecord {
+			finish := func(key string, invalid bool, entity ...bool) analysis.StepRecord {
 				r, e := store.Load(ctx, p.OrganizationID, p.SubjectID, req.TaskID, key)
 				if e != nil {
 					t.Fatal(e)

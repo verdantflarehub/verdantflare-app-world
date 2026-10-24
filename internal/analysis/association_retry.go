@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -24,7 +25,7 @@ func (f AssociationRequest) validOperation() bool {
 		return f.OperationID == base
 	}
 	r := f.Retry
-	return validUUID(r.ID) && validUUID(r.PreviousCallID) && digestPattern.MatchString(r.PreviousRequestHash) && r.Number >= 1 && r.Number <= 2 && len(r.Issue) > 0 && len(r.Issue) <= 512 && f.OperationID == base+":retry:"+r.ID
+	return validUUID(r.ID) && validUUID(r.PreviousCallID) && digestPattern.MatchString(r.PreviousRequestHash) && r.Number >= 1 && r.Number <= 3 && len(r.Issue) > 0 && len(r.Issue) <= 512 && f.OperationID == base+":retry:"+r.ID
 }
 
 // An attempt preserves the observation bundle and native failure. Truncation
@@ -38,7 +39,7 @@ func RetryAssociationRequest(b Bundle, old AssociationRecord, id string) (Associ
 	if f.Retry != nil {
 		n = f.Retry.Number + 1
 	}
-	if n > 2 {
+	if n > 3 {
 		return AssociationRequest{}, ErrInvalid
 	}
 	schema, err := associationSchema()
@@ -63,6 +64,19 @@ func RetryAssociationRequest(b Bundle, old AssociationRecord, id string) (Associ
 			return AssociationRequest{}, ErrInvalid
 		}
 		issue = invalid.Error()
+	}
+	if n == 3 {
+		if f.Encoding != "short-v1" || old.ErrorCode != "association_invalid" {
+			return AssociationRequest{}, ErrInvalid
+		}
+		missing, e := omittedAssociationEntities(b, f, old.CallID, old.Result)
+		if e != nil || len(missing) == 0 {
+			return AssociationRequest{}, ErrInvalid
+		}
+		issue = "missing entity members: " + strings.Join(missing, ",")
+		if len(issue) > 512 {
+			return AssociationRequest{}, ErrInvalid
+		}
 	}
 	f.Retry = &AssociationRetry{ID: id, Number: n, PreviousRequestHash: old.RequestHash, PreviousCallID: old.CallID, Issue: issue, FailureReceipt: receipt}
 	f.OperationID = f.TaskID + ":" + AssociationStepKey + ":retry:" + id
@@ -91,6 +105,7 @@ func RetryAssociationRequest(b Bundle, old AssociationRecord, id string) (Associ
 		f.TextHash = hashBytes([]byte(payload.Text))
 		payload.Prompt += "\n输入节点使用 e000001 格式的短证据编号，所有结构化引用只使用输入的 key；不得自行生成 obs- 键。简洁输出 JSON，理由只保留必要证据，不重复讲述剧情；完整列出所有镜头，不省略任何成员。"
 	}
+	payload.Prompt += associationChecklist(b, f.Encoding)
 	f.Payload, err = json.Marshal(payload)
 	if err != nil {
 		return AssociationRequest{}, err

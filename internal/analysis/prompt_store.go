@@ -133,7 +133,7 @@ func (s PGStore) SavePromptPlan(ctx context.Context, org, owner, taskID string, 
 		if f.Validate() != nil || f.TaskID != taskID || canonicalHash(f.Batch) != canonicalHash(plan[i]) || f.ModelID != ar.Request.ModelID || f.AccountID != ar.Request.AccountID || f.BudgetLimit != ar.Request.BudgetLimit {
 			return ErrInvalid
 		}
-		text, err := promptText(b, a, f.Batch)
+		text, err := promptTextEncoded(b, a, f.Batch, f.Encoding)
 		if err != nil {
 			return err
 		}

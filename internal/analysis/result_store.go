@@ -161,7 +161,7 @@ func (s PGStore) CreateResultBatches(ctx context.Context, org, owner string, req
 		if f.Validate() != nil || f.TaskID != first.TaskID || canonicalHash(f.Batch) != canonicalHash(plan[i]) || f.ModelID != ar.Request.ModelID || f.AccountID != ar.Request.AccountID || f.BudgetLimit != ar.Request.BudgetLimit {
 			return ErrInvalid
 		}
-		text, err := resultText(b, a, f.Batch)
+		text, err := resultTextEncoded(b, a, f.Batch, f.Encoding)
 		if err != nil {
 			return err
 		}
