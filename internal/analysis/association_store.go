@@ -10,20 +10,29 @@ import (
 
 const AssociationStepKey = "association-v1"
 
+type AssociationValidation struct {
+	ID         string `json:"validation_id"`
+	Policy     string `json:"policy"`
+	NativeHash string `json:"native_result_sha256"`
+}
 type AssociationRecord struct {
-	OrganizationID string             `json:"organization_id"`
-	OwnerID        string             `json:"owner_id"`
-	Request        AssociationRequest `json:"request"`
-	RequestHash    string             `json:"request_sha256"`
-	Revision       int64              `json:"revision"`
-	State          string             `json:"state"`
-	CallID         string             `json:"call_id,omitempty"`
-	Result         json.RawMessage    `json:"native_result,omitempty"`
-	ErrorCode      string             `json:"error_code,omitempty"`
+	Validation     *AssociationValidation `json:"validation,omitempty"`
+	OrganizationID string                 `json:"organization_id"`
+	OwnerID        string                 `json:"owner_id"`
+	Request        AssociationRequest     `json:"request"`
+	RequestHash    string                 `json:"request_sha256"`
+	Revision       int64                  `json:"revision"`
+	State          string                 `json:"state"`
+	CallID         string                 `json:"call_id,omitempty"`
+	Result         json.RawMessage        `json:"native_result,omitempty"`
+	ErrorCode      string                 `json:"error_code,omitempty"`
 }
 
 func (r AssociationRecord) Validate() error {
 	if !validUUID(r.OrganizationID) || !validUUID(r.OwnerID) || r.Request.Validate() != nil || r.RequestHash != r.Request.Digest() || r.Revision < 1 || r.CallID != "" && !validUUID(r.CallID) {
+		return ErrInvalid
+	}
+	if r.Validation != nil && (!validUUID(r.Validation.ID) || r.Validation.Policy != "evidence-graph-v2" || r.Validation.NativeHash != hashBytes(r.Result) || r.State != "association_ready") {
 		return ErrInvalid
 	}
 	switch r.State {
@@ -82,12 +91,16 @@ func (s PGStore) LoadAssociation(ctx context.Context, org, owner, task string) (
 		return r, ErrInvalid
 	}
 	var raw []byte
-	err := s.DB.QueryRow(ctx, `SELECT request,request_sha256,revision,state,COALESCE(call_id::text,''),native_result,COALESCE(error_code,'') FROM studio.world_analysis_current_associations WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, task).Scan(&raw, &r.RequestHash, &r.Revision, &r.State, &r.CallID, &r.Result, &r.ErrorCode)
+	var validation AssociationValidation
+	err := s.DB.QueryRow(ctx, `SELECT request,request_sha256,revision,state,COALESCE(call_id::text,''),native_result,COALESCE(error_code,''),COALESCE(validation_id::text,''),COALESCE(validation_policy,''),COALESCE(validation_native_sha256,'') FROM studio.world_analysis_current_associations WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, task).Scan(&raw, &r.RequestHash, &r.Revision, &r.State, &r.CallID, &r.Result, &r.ErrorCode, &validation.ID, &validation.Policy, &validation.NativeHash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return r, ErrMissing
 	}
 	if err != nil {
 		return r, err
+	}
+	if validation.ID != "" {
+		r.Validation = &validation
 	}
 	if json.Unmarshal(raw, &r.Request) != nil || r.Request.TaskID != task || r.Validate() != nil {
 		return r, ErrInvalid

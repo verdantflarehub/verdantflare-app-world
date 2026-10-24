@@ -3,12 +3,13 @@ package analysis
 // LearningMaterial is an internal, fully checked snapshot for deterministic
 // document assembly. It is not a saved asset or a public request body.
 type LearningMaterial struct {
-	Bundle          Bundle           `json:"bundle"`
-	Association     Association      `json:"association"`
-	Prompts         []PromptDraft    `json:"prompts"`
-	Results         []ResultDraft    `json:"results"`
-	Calls           []LearningCall   `json:"calls"`
-	PromptOmissions []PromptOmission `json:"prompt_omissions,omitempty"`
+	AssociationValidation *AssociationValidation `json:"association_validation,omitempty"`
+	Bundle                Bundle                 `json:"bundle"`
+	Association           Association            `json:"association"`
+	Prompts               []PromptDraft          `json:"prompts"`
+	Results               []ResultDraft          `json:"results"`
+	Calls                 []LearningCall         `json:"calls"`
+	PromptOmissions       []PromptOmission       `json:"prompt_omissions,omitempty"`
 }
 
 // LearningCall retains the original native identity without copying account
@@ -37,6 +38,7 @@ func AssembleLearningMaterial(t Task, b Bundle, ar AssociationRecord, prompts []
 		return LearningMaterial{}, err
 	}
 	out.Association = a
+	out.AssociationValidation = ar.Validation
 	out.Calls = append(out.Calls, LearningCall{AssociationStepKey, ar.CallID, ar.Request.ModelID, ar.RequestHash, hashBytes(ar.Result)})
 	seenCalls := map[string]bool{ar.CallID: true}
 	for _, r := range b.Receipts {

@@ -120,6 +120,11 @@ func assembleAnalysisLearning(m analysis.LearningMaterial) ([]byte, error) {
 		}
 		positions[n.Key] = pos
 	}
+	if m.AssociationValidation != nil {
+		if _, e := a.add("association_validation", m.AssociationValidation); e != nil {
+			return nil, e
+		}
+	}
 	if _, err := a.add("association", m.Association); err != nil {
 		return nil, err
 	}

@@ -205,9 +205,43 @@ func TestVoiceLinkUsesCharacterBoundVisualBeatAndIndependentAudio(t *testing.T) 
 		t.Fatal("valid visual chain", e)
 	}
 	a.VoiceLinks[0].Evidence = []string{beat}
-	if _, e := ValidateAssociation(b, associationBytes(t, a)); e == nil {
-		t.Fatal("beat without independent audio accepted")
+	if _, e := ValidateAssociation(b, associationBytes(t, a)); e != nil {
+		t.Fatal("timed speech relation not resolved", e)
 	}
+	isolated := b
+	isolated.Nodes = append([]EvidenceNode{}, b.Nodes...)
+	for i, n := range isolated.Nodes {
+		if n.Kind == "speech" {
+			n.Links = map[string][]string{}
+			isolated.Nodes[i] = n
+		}
+	}
+	isolated.SHA256 = ""
+	isolated.SHA256 = canonicalHash(isolated)
+	altered := a
+	altered.BundleHash = isolated.SHA256
+	if _, e := ValidateAssociation(isolated, associationBytes(t, altered)); e == nil {
+		t.Fatal("unbound audio accepted")
+	}
+
+	separated := b
+	separated.Nodes = append([]EvidenceNode{}, b.Nodes...)
+	for i, n := range separated.Nodes {
+		if n.Kind == "speech" && n.Scope != nil {
+			scope := *n.Scope
+			scope.StartMS = nodes[beat].Scope.EndMS
+			scope.EndMS = scope.StartMS + 1
+			n.Scope = &scope
+			separated.Nodes[i] = n
+		}
+	}
+	separated.SHA256 = ""
+	separated.SHA256 = canonicalHash(separated)
+	altered.BundleHash = separated.SHA256
+	if _, e := ValidateAssociation(separated, associationBytes(t, altered)); e == nil {
+		t.Fatal("nonoverlapping speech accepted")
+	}
+
 	a.VoiceLinks[0].Evidence = audio
 	if _, e := ValidateAssociation(b, associationBytes(t, a)); e == nil {
 		t.Fatal("audio without visual evidence accepted")

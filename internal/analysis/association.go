@@ -340,6 +340,39 @@ func validateAssociationCoverage(b Bundle, raw []byte, complete bool) (Associati
 				}
 			}
 		}
+		// A voice reference resolves to its original speakers and timed speech.
+		// Only speech overlapping a cited character-bound visual node counts;
+		// subtitles, names and unrelated audio never supply this evidence.
+		if !audio && visual {
+			for _, k := range l.Evidence {
+				visualNode := nodes[k]
+				if visualNode.Scope == nil {
+					continue
+				}
+				bound := visualNode.Kind == "shots" && overlapsEntity(visualNode, entity.Members)
+				if visualNode.Kind == "beats" {
+					for _, parent := range visualNode.Links["shot"] {
+						shot := nodes[parent]
+						if shot.Kind == "shots" && shot.StepKey == visualNode.StepKey && overlapsEntity(shot, entity.Members) {
+							bound = true
+						}
+					}
+				}
+				if !bound {
+					continue
+				}
+				for _, spoken := range b.Nodes {
+					if spoken.Kind != "speech" || spoken.Scope == nil || spoken.Scope.StartMS >= visualNode.Scope.EndMS || spoken.Scope.EndMS <= visualNode.Scope.StartMS {
+						continue
+					}
+					for _, speaker := range voice.Members {
+						if containsKey(spoken.Links["speakers"], speaker) {
+							audio = true
+						}
+					}
+				}
+			}
+		}
 		if !audio || !visual {
 			return fail("voice link lacks independent evidence")
 		}
@@ -457,4 +490,13 @@ func VerifyAssociationNative(b Bundle, f AssociationRequest, callID string, data
 		return Association{}, err
 	}
 	return ValidateAssociation(b, raw)
+}
+
+func overlapsEntity(shot EvidenceNode, members []string) bool {
+	for _, m := range members {
+		if containsKey(shot.Links["entities"], m) {
+			return true
+		}
+	}
+	return false
 }

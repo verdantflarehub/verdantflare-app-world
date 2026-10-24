@@ -15,11 +15,14 @@ import (
 )
 
 func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
-	for _, budget := range []string{"1", "0.2", "2"} {
+	for _, budget := range []string{"1", "0.2", "2", "revalidate"} {
 		t.Run(budget, func(t *testing.T) {
 			ctx := t.Context()
 			svc, p, req, _ := admissionFixture(t)
 			req.BudgetLimit = budget
+			if budget == "revalidate" {
+				req.BudgetLimit = "1"
+			}
 			req.BudgetPerCall = "0.1"
 			if _, err := svc.WorldAnalyze(ctx, p, req); err != nil {
 				t.Fatal(err)
@@ -99,7 +102,7 @@ func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
 				done.Revision++
 				done.CallID = newID()
 				done.State = "association_ready"
-				if !valid || len(omit) > 0 {
+				if !valid || len(omit) > 0 || budget == "revalidate" {
 					done.State = "failed"
 					done.ErrorCode = "association_invalid"
 				}
@@ -108,6 +111,62 @@ func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
 					t.Fatal(e)
 				}
 				return done
+			}
+			if budget == "revalidate" {
+				finish(true) // Simulates a complete native reply rejected by a prior validator.
+				original, e := store.LoadAssociation(ctx, p.OrganizationID, p.SubjectID, req.TaskID)
+				if e != nil {
+					t.Fatal(e)
+				}
+				before, e := store.ReservedBudget(ctx, p.OrganizationID, p.SubjectID, req.TaskID)
+				if e != nil {
+					t.Fatal(e)
+				}
+				rid := newID()
+				if e = store.Retry(ctx, p.OrganizationID, newID(), req.TaskID, rid); e == nil {
+					t.Fatal("foreign revalidation accepted")
+				}
+				for range 2 {
+					if e = store.Retry(ctx, p.OrganizationID, p.SubjectID, req.TaskID, rid); e != nil {
+						t.Fatal("revalidation/replay", e)
+					}
+				}
+				current, e := store.LoadAssociation(ctx, p.OrganizationID, p.SubjectID, req.TaskID)
+				if e != nil || current.State != "association_ready" || current.Validation == nil || current.Validation.ID != rid || string(current.Result) != string(original.Result) || current.CallID != original.CallID {
+					t.Fatal("revalidation lost native identity", e)
+				}
+				var preserved bool
+				e = svc.db.QueryRow(ctx, `SELECT state='failed' AND error_code='association_invalid' AND native_result=$2::jsonb FROM studio.world_analysis_associations WHERE task_id=$1`, req.TaskID, string(original.Result)).Scan(&preserved)
+				if e != nil || !preserved {
+					t.Fatal("original terminal changed", e)
+				}
+				var retries int
+				e = svc.db.QueryRow(ctx, `SELECT count(*) FROM studio.world_analysis_association_retries WHERE task_id=$1`, req.TaskID).Scan(&retries)
+				if e != nil || retries != 0 {
+					t.Fatal("created a model retry", e)
+				}
+				after, e := store.ReservedBudget(ctx, p.OrganizationID, p.SubjectID, req.TaskID)
+				if e != nil || before != after {
+					t.Fatal("revalidation charged", before, after, e)
+				}
+				if e = store.Retry(ctx, p.OrganizationID, p.SubjectID, newID(), rid); e == nil {
+					t.Fatal("cross-task id reused")
+				}
+				for _, sql := range []string{`UPDATE studio.world_analysis_association_validations SET policy=policy WHERE task_id=$1`, `DELETE FROM studio.world_analysis_association_validations WHERE task_id=$1`} {
+					if _, e = svc.db.Exec(ctx, sql, req.TaskID); e == nil {
+						t.Fatal("mutable validation")
+					}
+				}
+				if _, e = svc.db.Exec(ctx, `TRUNCATE studio.world_analysis_association_validations`); e == nil {
+					t.Fatal("truncated validation")
+				}
+				if e = svc.PrepareAnalysisResults(ctx, p, req.TaskID, true); e != nil {
+					t.Fatal("revalidation did not resume downstream", e)
+				}
+				if e = store.Retry(ctx, p.OrganizationID, p.SubjectID, req.TaskID, newID()); e == nil {
+					t.Fatal("ready association revalidated twice")
+				}
+				return
 			}
 			failed := finish(false)
 			var before string

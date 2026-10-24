@@ -106,3 +106,16 @@ func TestLearningMaterialCompletePlanAndNativeBindings(t *testing.T) {
 		})
 	}
 }
+
+func TestLearningPreservesRevalidationReceipt(t *testing.T) {
+	task, b, ar, prompts, results := learningFixture(t)
+	ar.Validation = &AssociationValidation{ID: uuid.NewString(), Policy: "evidence-graph-v2", NativeHash: hashBytes(ar.Result)}
+	m, err := AssembleLearningMaterial(task, b, ar, prompts, results)
+	if err != nil || m.AssociationValidation == nil || *m.AssociationValidation != *ar.Validation {
+		t.Fatal("lost validation receipt", err)
+	}
+	ar.Validation.NativeHash = "incorrect"
+	if _, err = AssembleLearningMaterial(task, b, ar, prompts, results); err == nil {
+		t.Fatal("accepted mismatching native proof")
+	}
+}
