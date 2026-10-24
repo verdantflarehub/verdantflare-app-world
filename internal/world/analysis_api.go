@@ -135,7 +135,7 @@ func (s *Service) WorldAnalyze(ctx context.Context, p Principal, input AnalyzeRe
 		if _, _, e = s.analysisSource(ctx, p, AnalysisSource{task.DraftID, task.RevisionID, task.FileID}); e != nil {
 			return nil, e
 		}
-		if e = store.RetryObservation(ctx, p.OrganizationID, p.SubjectID, r.TaskID, r.RetryID); e != nil {
+		if e = store.Retry(ctx, p.OrganizationID, p.SubjectID, r.TaskID, r.RetryID); e != nil {
 			return nil, analysisAPIError(e)
 		}
 		return s.analysisTaskView(ctx, p, r.TaskID, true)

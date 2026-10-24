@@ -300,7 +300,7 @@
   },
   {
     "name": "world.analyze",
-    "description": "Submit one complete World analysis with fixed source, model prompt targets and total budget; query capabilities, recover progress, explicitly retry one failed observation with a stable retry_id, and read the fixed learning revision without a project.",
+    "description": "Submit one complete World analysis with fixed source, model prompt targets and total budget; query capabilities, recover progress, explicitly retry one failed observation or cross-segment association with a stable retry_id, and read the fixed learning revision without a project.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "WorldAnalyzeRequest",

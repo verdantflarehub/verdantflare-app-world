@@ -147,7 +147,7 @@ func (s PGStore) SavePromptPlan(ctx context.Context, org, owner, taskID string, 
 	}
 	defer tx.Rollback(context.Background())
 	var state string
-	if err = tx.QueryRow(ctx, `SELECT state FROM studio.world_analysis_associations WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3 FOR UPDATE`, org, owner, taskID).Scan(&state); err != nil {
+	if err = tx.QueryRow(ctx, `SELECT a.state FROM studio.world_analysis_tasks t JOIN studio.world_analysis_current_associations a USING(organization_id,owner_id,task_id) WHERE t.organization_id=$1 AND t.owner_id=$2 AND t.task_id=$3 FOR NO KEY UPDATE OF t`, org, owner, taskID).Scan(&state); err != nil {
 		return err
 	}
 	if state != "association_ready" {

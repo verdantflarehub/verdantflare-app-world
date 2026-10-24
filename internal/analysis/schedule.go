@@ -61,7 +61,7 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
   UNION ALL
   SELECT 'association-v1',2,0::bigint
   FROM (SELECT 1) seed
-  LEFT JOIN studio.world_analysis_associations a ON a.organization_id=q.organization_id AND a.owner_id=q.owner_id AND a.task_id=q.task_id
+  LEFT JOIN studio.world_analysis_current_associations a ON a.organization_id=q.organization_id AND a.owner_id=q.owner_id AND a.task_id=q.task_id
   WHERE (a.state IN ('dispatching','running','acceptance_unknown') OR ($1 AND q.last_error_code<>'budget_exhausted' AND COALESCE(a.state,'planned')='planned'))
    AND jsonb_array_length(t.plan->'steps')>0 AND NOT EXISTS (
     SELECT 1 FROM jsonb_array_elements(t.plan->'steps') p(item)
@@ -69,7 +69,7 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
     WHERE s.state IS DISTINCT FROM 'observation_ready')
   UNION ALL
   SELECT 'prompts-prepare-v1',3,0::bigint
-  FROM studio.world_analysis_associations a
+  FROM studio.world_analysis_current_associations a
   WHERE $1 AND a.organization_id=q.organization_id AND a.owner_id=q.owner_id AND a.task_id=q.task_id
    AND a.state='association_ready' AND jsonb_array_length(t.prompt_targets)>0
    AND (t.pipeline_version=0 OR (
@@ -86,7 +86,7 @@ func (s PGStore) Claim(ctx context.Context, dispatch bool) (Work, error) {
     AND other.state IN ('dispatching','running','acceptance_unknown','failed'))))
   UNION ALL
   SELECT 'results-prepare-v1',5,0::bigint
-  FROM studio.world_analysis_associations a
+  FROM studio.world_analysis_current_associations a
   WHERE $1 AND t.include_typed_results AND a.organization_id=q.organization_id AND a.owner_id=q.owner_id AND a.task_id=q.task_id
    AND a.state='association_ready'
    AND (t.pipeline_version=2 OR jsonb_array_length(t.prompt_targets)=0 OR (

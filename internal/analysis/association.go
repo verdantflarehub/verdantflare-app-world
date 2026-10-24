@@ -348,14 +348,15 @@ func containsKey(values []string, key string) bool {
 // AssociationRequest is immutable internal input. A caller must persist its
 // identity and sending intent before invoking the channel.
 type AssociationRequest struct {
-	TaskID      string          `json:"task_id"`
-	OperationID string          `json:"idempotency_key"`
-	ModelID     string          `json:"model_id"`
-	AccountID   string          `json:"account_id,omitempty"`
-	BudgetLimit string          `json:"budget_limit"`
-	BundleHash  string          `json:"bundle_sha256"`
-	TextHash    string          `json:"source_text_sha256"`
-	Payload     json.RawMessage `json:"payload"`
+	Retry       *AssociationRetry `json:"retry,omitempty"`
+	TaskID      string            `json:"task_id"`
+	OperationID string            `json:"idempotency_key"`
+	ModelID     string            `json:"model_id"`
+	AccountID   string            `json:"account_id,omitempty"`
+	BudgetLimit string            `json:"budget_limit"`
+	BundleHash  string            `json:"bundle_sha256"`
+	TextHash    string            `json:"source_text_sha256"`
+	Payload     json.RawMessage   `json:"payload"`
 }
 type associationPayload struct {
 	Prompt string         `json:"prompt"`
@@ -385,11 +386,11 @@ func FreezeAssociation(b Bundle, model, account, budget string) (AssociationRequ
 	if err != nil {
 		return AssociationRequest{}, err
 	}
-	f := AssociationRequest{b.TaskID, b.TaskID + ":association-v1", model, account, budget, b.SHA256, hashBytes([]byte(text)), payload}
+	f := AssociationRequest{TaskID: b.TaskID, OperationID: b.TaskID + ":association-v1", ModelID: model, AccountID: account, BudgetLimit: budget, BundleHash: b.SHA256, TextHash: hashBytes([]byte(text)), Payload: payload}
 	return f, f.Validate()
 }
 func (f AssociationRequest) Validate() error {
-	if !validUUID(f.TaskID) || f.OperationID != f.TaskID+":association-v1" || !identifier.MatchString(f.ModelID) || f.AccountID != "" && !validUUID(f.AccountID) || !positiveAmount.MatchString(f.BudgetLimit) || strings.Trim(f.BudgetLimit, "0.") == "" || !digestPattern.MatchString(f.BundleHash) || !digestPattern.MatchString(f.TextHash) {
+	if !validUUID(f.TaskID) || !f.validOperation() || !identifier.MatchString(f.ModelID) || f.AccountID != "" && !validUUID(f.AccountID) || !positiveAmount.MatchString(f.BudgetLimit) || strings.Trim(f.BudgetLimit, "0.") == "" || !digestPattern.MatchString(f.BundleHash) || !digestPattern.MatchString(f.TextHash) {
 		return ErrInvalid
 	}
 	clean, err := strictjson.ReadValue(bytes.NewReader(f.Payload), 2<<20)

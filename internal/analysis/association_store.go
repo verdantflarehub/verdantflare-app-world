@@ -82,7 +82,7 @@ func (s PGStore) LoadAssociation(ctx context.Context, org, owner, task string) (
 		return r, ErrInvalid
 	}
 	var raw []byte
-	err := s.DB.QueryRow(ctx, `SELECT request,request_sha256,revision,state,COALESCE(call_id::text,''),native_result,COALESCE(error_code,'') FROM studio.world_analysis_associations WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, task).Scan(&raw, &r.RequestHash, &r.Revision, &r.State, &r.CallID, &r.Result, &r.ErrorCode)
+	err := s.DB.QueryRow(ctx, `SELECT request,request_sha256,revision,state,COALESCE(call_id::text,''),native_result,COALESCE(error_code,'') FROM studio.world_analysis_current_associations WHERE organization_id=$1 AND owner_id=$2 AND task_id=$3`, org, owner, task).Scan(&raw, &r.RequestHash, &r.Revision, &r.State, &r.CallID, &r.Result, &r.ErrorCode)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return r, ErrMissing
 	}
@@ -98,7 +98,11 @@ func (s PGStore) SwapAssociation(ctx context.Context, old, next AssociationRecor
 	if s.DB == nil || old.Validate() != nil || next.Validate() != nil || next.Revision != old.Revision+1 || old.OrganizationID != next.OrganizationID || old.OwnerID != next.OwnerID || old.RequestHash != next.RequestHash || old.State == "association_ready" || old.State == "failed" || old.CallID != "" && old.CallID != next.CallID {
 		return false, ErrInvalid
 	}
-	tag, err := s.DB.Exec(ctx, `UPDATE studio.world_analysis_associations SET revision=$1,state=$2,call_id=NULLIF($3,'')::uuid,native_result=$4,error_code=NULLIF($5,''),updated_at=now() WHERE organization_id=$6 AND owner_id=$7 AND task_id=$8 AND revision=$9 AND request_sha256=$10`, next.Revision, next.State, next.CallID, []byte(next.Result), next.ErrorCode, old.OrganizationID, old.OwnerID, old.Request.TaskID, old.Revision, old.RequestHash)
+	table := "studio.world_analysis_associations"
+	if old.Request.Retry != nil {
+		table = "studio.world_analysis_association_retries"
+	}
+	tag, err := s.DB.Exec(ctx, `UPDATE `+table+` SET revision=$1,state=$2,call_id=NULLIF($3,'')::uuid,native_result=$4,error_code=NULLIF($5,''),updated_at=now() WHERE organization_id=$6 AND owner_id=$7 AND task_id=$8 AND revision=$9 AND request_sha256=$10`, next.Revision, next.State, next.CallID, []byte(next.Result), next.ErrorCode, old.OrganizationID, old.OwnerID, old.Request.TaskID, old.Revision, old.RequestHash)
 	if err != nil {
 		return false, budgetError(err)
 	}
