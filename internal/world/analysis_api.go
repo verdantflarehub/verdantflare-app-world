@@ -135,7 +135,11 @@ func (s *Service) WorldAnalyze(ctx context.Context, p Principal, input AnalyzeRe
 		if _, _, e = s.analysisSource(ctx, p, AnalysisSource{task.DraftID, task.RevisionID, task.FileID}); e != nil {
 			return nil, e
 		}
-		if e = store.Retry(ctx, p.OrganizationID, p.SubjectID, r.TaskID, r.RetryID); e != nil {
+		var reader analysis.AssociationResultReader
+		if s.analysis != nil {
+			reader, _ = s.analysis.Channel.(analysis.AssociationResultReader)
+		}
+		if e = store.Retry(ctx, p.OrganizationID, p.SubjectID, r.TaskID, r.RetryID, reader); e != nil {
 			return nil, analysisAPIError(e)
 		}
 		return s.analysisTaskView(ctx, p, r.TaskID, true)

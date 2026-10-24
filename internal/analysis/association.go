@@ -348,6 +348,7 @@ func containsKey(values []string, key string) bool {
 // AssociationRequest is immutable internal input. A caller must persist its
 // identity and sending intent before invoking the channel.
 type AssociationRequest struct {
+	Encoding    string            `json:"reference_encoding,omitempty"`
 	Retry       *AssociationRetry `json:"retry,omitempty"`
 	TaskID      string            `json:"task_id"`
 	OperationID string            `json:"idempotency_key"`
@@ -390,7 +391,7 @@ func FreezeAssociation(b Bundle, model, account, budget string) (AssociationRequ
 	return f, f.Validate()
 }
 func (f AssociationRequest) Validate() error {
-	if !validUUID(f.TaskID) || !f.validOperation() || !identifier.MatchString(f.ModelID) || f.AccountID != "" && !validUUID(f.AccountID) || !positiveAmount.MatchString(f.BudgetLimit) || strings.Trim(f.BudgetLimit, "0.") == "" || !digestPattern.MatchString(f.BundleHash) || !digestPattern.MatchString(f.TextHash) {
+	if (f.Encoding != "" && f.Encoding != "short-v1") || !validUUID(f.TaskID) || !f.validOperation() || !identifier.MatchString(f.ModelID) || f.AccountID != "" && !validUUID(f.AccountID) || !positiveAmount.MatchString(f.BudgetLimit) || strings.Trim(f.BudgetLimit, "0.") == "" || !digestPattern.MatchString(f.BundleHash) || !digestPattern.MatchString(f.TextHash) {
 		return ErrInvalid
 	}
 	clean, err := strictjson.ReadValue(bytes.NewReader(f.Payload), 2<<20)
@@ -422,12 +423,16 @@ func VerifyAssociationNative(b Bundle, f AssociationRequest, callID string, data
 	if f.Validate() != nil || !validUUID(callID) || b.TaskID != f.TaskID || b.SHA256 != f.BundleHash {
 		return Association{}, ErrInvalid
 	}
-	text, err := AssociationText(b)
+	text, err := associationRequestText(b, f.Encoding)
 	if err != nil || hashBytes([]byte(text)) != f.TextHash {
 		return Association{}, ErrInvalid
 	}
 	schema, _ := associationSchema()
 	raw, err := verifyTextNative(Binding{callID, f.TaskID, f.ModelID}, f.TextHash, schema, data)
+	if err != nil {
+		return Association{}, err
+	}
+	raw, err = decodeAssociationReferences(b, f.Encoding, raw)
 	if err != nil {
 		return Association{}, err
 	}

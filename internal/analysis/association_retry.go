@@ -10,11 +10,12 @@ import (
 )
 
 type AssociationRetry struct {
-	ID                  string `json:"id"`
-	Number              int    `json:"number"`
-	PreviousRequestHash string `json:"previous_request_sha256"`
-	PreviousCallID      string `json:"previous_call_id"`
-	Issue               string `json:"issue"`
+	ID                  string          `json:"id"`
+	Number              int             `json:"number"`
+	PreviousRequestHash string          `json:"previous_request_sha256"`
+	PreviousCallID      string          `json:"previous_call_id"`
+	Issue               string          `json:"issue"`
+	FailureReceipt      json.RawMessage `json:"failure_receipt,omitempty"`
 }
 
 func (f AssociationRequest) validOperation() bool {
@@ -26,10 +27,10 @@ func (f AssociationRequest) validOperation() bool {
 	return validUUID(r.ID) && validUUID(r.PreviousCallID) && digestPattern.MatchString(r.PreviousRequestHash) && r.Number >= 1 && r.Number <= 2 && len(r.Issue) > 0 && len(r.Issue) <= 512 && f.OperationID == base+":retry:"+r.ID
 }
 
-// An attempt changes only correction instructions and operation identity. It
-// does not synthesize groups or rewrite either the bundle or the failed output.
+// An attempt preserves the observation bundle and native failure. Truncation
+// recovery may change only the reversible reference transport representation.
 func RetryAssociationRequest(b Bundle, old AssociationRecord, id string) (AssociationRequest, error) {
-	if old.Validate() != nil || !validUUID(id) || old.State != "failed" || old.ErrorCode != "association_invalid" {
+	if old.Validate() != nil || !validUUID(id) || old.State != "failed" || (old.ErrorCode != "association_invalid" && old.ErrorCode != "native_failed") {
 		return AssociationRequest{}, ErrInvalid
 	}
 	f := old.Request
@@ -44,19 +45,26 @@ func RetryAssociationRequest(b Bundle, old AssociationRecord, id string) (Associ
 	if err != nil {
 		return AssociationRequest{}, err
 	}
-	raw, err := verifyTextNative(Binding{old.CallID, f.TaskID, f.ModelID}, f.TextHash, schema, old.Result)
-	if err != nil {
-		return AssociationRequest{}, err
-	}
-	text, err := AssociationText(b)
+	text, err := associationRequestText(b, f.Encoding)
 	if err != nil || b.SHA256 != f.BundleHash || hashBytes([]byte(text)) != f.TextHash {
 		return AssociationRequest{}, ErrInvalid
 	}
-	_, issue := ValidateAssociation(b, raw)
-	if issue == nil {
-		return AssociationRequest{}, ErrInvalid
+	issue := ""
+	var receipt json.RawMessage
+	if old.ErrorCode == "native_failed" {
+		if verifyTruncatedAssociation(Binding{old.CallID, f.TaskID, f.ModelID}, f.TextHash, schema, old.Result) != nil {
+			return AssociationRequest{}, ErrInvalid
+		}
+		issue = "MAX_TOKENS: use short evidence references and concise complete JSON"
+		receipt = append(json.RawMessage(nil), old.Result...)
+	} else {
+		_, invalid := VerifyAssociationNative(b, f, old.CallID, old.Result)
+		if _, envelope := verifyTextNative(Binding{old.CallID, f.TaskID, f.ModelID}, f.TextHash, schema, old.Result); envelope != nil || invalid == nil {
+			return AssociationRequest{}, ErrInvalid
+		}
+		issue = invalid.Error()
 	}
-	f.Retry = &AssociationRetry{id, n, old.RequestHash, old.CallID, issue.Error()}
+	f.Retry = &AssociationRetry{ID: id, Number: n, PreviousRequestHash: old.RequestHash, PreviousCallID: old.CallID, Issue: issue, FailureReceipt: receipt}
 	f.OperationID = f.TaskID + ":" + AssociationStepKey + ":retry:" + id
 	var payload associationPayload
 	if json.Unmarshal(f.Payload, &payload) != nil {
@@ -73,7 +81,16 @@ func RetryAssociationRequest(b Bundle, old AssociationRecord, id string) (Associ
 			voices++
 		}
 	}
-	payload.Prompt += fmt.Sprintf("\n上次关联语义校验未通过：%s。重新完整组织同一观察包，不沿用错误分组。必须核对恰好覆盖 %d 个原始镜头节点、%d 个实体节点、%d 个说话者节点，每个成员恰好一次。shot_groups 是连续镜头，不是剧情段落、场景或蒙太奇；同一片段内不同 shots 绝不合并。仅能在输入 shot_boundaries 明确两侧都 continues 的相邻计算边界合并；叙事、人物、道具或地点相同不构成合并依据。保留原始镜头顺序与起止时码。单成员必须 single，多成员必须 inferred。每组 evidence_keys 含其所有 member_keys；每个 boundary 的 evidence_keys 必须包含 left_shot 和 right_shot。不得省略成员、填造证据键或改成摘要。", issue.Error(), shots, entities, voices)
+	payload.Prompt += fmt.Sprintf("\n上次关联语义校验未通过：%s。重新完整组织同一观察包，不沿用错误分组。必须核对恰好覆盖 %d 个原始镜头节点、%d 个实体节点、%d 个说话者节点，每个成员恰好一次。shot_groups 是连续镜头，不是剧情段落、场景或蒙太奇；同一片段内不同 shots 绝不合并。仅能在输入 shot_boundaries 明确两侧都 continues 的相邻计算边界合并；叙事、人物、道具或地点相同不构成合并依据。保留原始镜头顺序与起止时码。单成员必须 single，多成员必须 inferred。每组 evidence_keys 含其所有 member_keys；每个 boundary 的 evidence_keys 必须包含 left_shot 和 right_shot。不得省略成员、填造证据键或改成摘要。", issue, shots, entities, voices)
+	if old.ErrorCode == "native_failed" || f.Encoding == "short-v1" {
+		f.Encoding = "short-v1"
+		payload.Text, err = associationRequestText(b, f.Encoding)
+		if err != nil {
+			return AssociationRequest{}, err
+		}
+		f.TextHash = hashBytes([]byte(payload.Text))
+		payload.Prompt += "\n输入节点使用 e000001 格式的短证据编号，所有结构化引用只使用输入的 key；不得自行生成 obs- 键。简洁输出 JSON，理由只保留必要证据，不重复讲述剧情；完整列出所有镜头，不省略任何成员。"
+	}
 	f.Payload, err = json.Marshal(payload)
 	if err != nil {
 		return AssociationRequest{}, err
@@ -83,7 +100,7 @@ func RetryAssociationRequest(b Bundle, old AssociationRecord, id string) (Associ
 
 // Retry routes a stable id across the two supported phases. Admission takes
 // the same task lock as dispatch, and terminal/downstream rows remain intact.
-func (s PGStore) Retry(ctx context.Context, org, owner, task, id string) error {
+func (s PGStore) Retry(ctx context.Context, org, owner, task, id string, readers ...AssociationResultReader) error {
 	if s.DB == nil || !validUUID(org) || !validUUID(owner) || !validUUID(task) || !validUUID(id) {
 		return ErrInvalid
 	}
@@ -114,6 +131,15 @@ func (s PGStore) Retry(ctx context.Context, org, owner, task, id string) error {
 	}
 	if err != nil {
 		return err
+	}
+	if r.State == "failed" && r.ErrorCode == "native_failed" && len(r.Result) == 0 {
+		if len(readers) != 1 || readers[0] == nil {
+			return ErrUnavailable
+		}
+		r.Result, err = readers[0].Result(ctx, org, r.CallID)
+		if err != nil {
+			return err
+		}
 	}
 	b, err := s.Bundle(ctx, org, owner, task)
 	if err != nil {

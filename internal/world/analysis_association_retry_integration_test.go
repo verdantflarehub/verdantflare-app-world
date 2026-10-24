@@ -3,17 +3,19 @@
 package world
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/verdantflarehub/verdantflare-app-world/internal/analysis"
 )
 
 func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
-	for _, budget := range []string{"1", "0.2"} {
+	for _, budget := range []string{"1", "0.2", "2"} {
 		t.Run(budget, func(t *testing.T) {
 			ctx := t.Context()
 			svc, p, req, _ := admissionFixture(t)
@@ -76,8 +78,11 @@ func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
 				digest := sha256.Sum256(schema)
 				a := analysis.Association{Version: 1, BundleHash: b.SHA256, Entities: []analysis.AssociationGroup{}, Voices: []analysis.AssociationGroup{}, Shots: []analysis.ShotGroup{}, Boundaries: []analysis.BoundaryDecision{}, VoiceLinks: []analysis.VoiceLink{}, Uncertainties: []string{}}
 				if valid {
-					for _, n := range b.Nodes {
+					for index, n := range b.Nodes {
 						if n.Kind == "shots" {
+							if old.Request.Encoding == "short-v1" {
+								n.Key = fmt.Sprintf("e%06d", index+1)
+							}
 							a.Shots = append(a.Shots, analysis.ShotGroup{Key: "one", Members: []string{n.Key}, StartMS: n.Scope.StartMS, EndMS: n.Scope.EndMS, State: "single", Evidence: []string{n.Key}, Reason: "synthetic"})
 						}
 					}
@@ -91,7 +96,7 @@ func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
 					done.State = "failed"
 					done.ErrorCode = "association_invalid"
 				}
-				done.Result, _ = json.Marshal(map[string]any{"schema_version": 1, "call_id": done.CallID, "task_id": req.TaskID, "model_id": f.ModelID, "media": "analysis", "operation": "analyze", "state": "completed", "accepted": true, "analysis": map[string]any{"text": string(text), "document": a, "model_id": f.ModelID, "finish_reason": "STOP", "response_schema_verified": true, "input": map[string]any{"source_text_sha256": f.TextHash, "response_schema_sha256": hex.EncodeToString(digest[:])}}})
+				done.Result, _ = json.Marshal(map[string]any{"schema_version": 1, "call_id": done.CallID, "task_id": req.TaskID, "model_id": f.ModelID, "media": "analysis", "operation": "analyze", "state": "completed", "accepted": true, "analysis": map[string]any{"text": string(text), "document": a, "model_id": f.ModelID, "finish_reason": "STOP", "response_schema_verified": true, "input": map[string]any{"source_text_sha256": old.Request.TextHash, "response_schema_sha256": hex.EncodeToString(digest[:])}}})
 				if ok, e = store.SwapAssociation(ctx, dispatch, done); e != nil || !ok {
 					t.Fatal(e)
 				}
@@ -128,6 +133,43 @@ func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
 					t.Fatal("budget bypass", e)
 				}
 			} else {
+				if budget == "2" {
+					sent := next
+					sent.State = "dispatching"
+					sent.Revision++
+					if ok, e := store.SwapAssociation(ctx, next, sent); e != nil || !ok {
+						t.Fatal(e)
+					}
+					failed := sent
+					failed.State = "failed"
+					failed.ErrorCode = "native_failed"
+					failed.CallID = newID()
+					failed.Revision++
+					if ok, e := store.SwapAssociation(ctx, sent, failed); e != nil || !ok {
+						t.Fatal(e)
+					}
+					var prior map[string]any
+					json.Unmarshal(failed.Request.Payload, &prior)
+					schema, _ := json.Marshal(prior["response_schema"])
+					sum := sha256.Sum256(schema)
+					native, _ := json.Marshal(map[string]any{"schema_version": 1, "call_id": failed.CallID, "task_id": req.TaskID, "model_id": failed.Request.ModelID, "media": "analysis", "operation": "analyze", "state": "failed", "reason_code": "output_incomplete", "analysis": map[string]any{"model_id": failed.Request.ModelID, "finish_reason": "MAX_TOKENS", "text": "{", "document": nil, "response_schema_verified": false, "input": map[string]any{"source_text_sha256": failed.Request.TextHash, "response_schema_sha256": hex.EncodeToString(sum[:])}}})
+					reader := associationFailureReader{native}
+					retryID := newID()
+					for range 2 {
+						if e := store.Retry(ctx, p.OrganizationID, p.SubjectID, req.TaskID, retryID, reader); e != nil {
+							t.Fatal("truncation retry", e)
+						}
+					}
+					loaded, e := store.LoadAssociation(ctx, p.OrganizationID, p.SubjectID, req.TaskID)
+					if e != nil || loaded.Request.Encoding != "short-v1" || loaded.Request.Retry.Number != 2 {
+						t.Fatal("encoding not frozen", e)
+					}
+					var unchanged bool
+					svc.db.QueryRow(ctx, `SELECT state='failed' AND native_result IS NULL FROM studio.world_analysis_association_retries WHERE task_id=$1 AND attempt=1`, req.TaskID).Scan(&unchanged)
+					if !unchanged {
+						t.Fatal("failed terminal rewritten")
+					}
+				}
 				finish(true)
 				if _, e = svc.AnalysisAssociation(ctx, p, req.TaskID); e != nil {
 					t.Fatal("association unreadable", e)
@@ -139,7 +181,11 @@ func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
 					t.Fatal("completed association retried")
 				}
 				cost, e := store.ReservedBudget(ctx, p.OrganizationID, p.SubjectID, req.TaskID)
-				if e != nil || cost != "0.3" {
+				expected := "0.3"
+				if budget == "2" {
+					expected = "0.4"
+				}
+				if e != nil || cost != expected {
 					t.Fatal("lost cost", cost, e)
 				}
 			}
@@ -150,4 +196,10 @@ func TestAnalysisAssociationRetryHistoryBudgetAndDownstream(t *testing.T) {
 			}
 		})
 	}
+}
+
+type associationFailureReader struct{ data []byte }
+
+func (r associationFailureReader) Result(context.Context, string, string) ([]byte, error) {
+	return r.data, nil
 }

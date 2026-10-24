@@ -34,7 +34,7 @@ func (e AssociationExecutor) Advance(ctx context.Context, org, owner, task strin
 	if r.Validate() != nil || r.OrganizationID != org || r.OwnerID != owner || r.Request.TaskID != task || r.Request.BundleHash != b.SHA256 {
 		return r, ErrInvalid
 	}
-	text, err := AssociationText(b)
+	text, err := associationRequestText(b, r.Request.Encoding)
 	if err != nil || hashBytes([]byte(text)) != r.Request.TextHash {
 		return r, ErrInvalid
 	}
