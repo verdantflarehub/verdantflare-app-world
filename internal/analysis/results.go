@@ -194,8 +194,11 @@ func (f ResultRequest) Validate() error {
 	if (f.Encoding != "" && f.Encoding != "short-v1") || f.Encoding != "" && f.Batch.Version != 2 || !validUUID(f.TaskID) || f.TaskID != f.Batch.TaskID || !validBatchOperation(f.TaskID, f.Batch.Key, f.OperationID, f.Batch.Version, f.Retry) || !identifier.MatchString(f.ModelID) || f.AccountID != "" && !validUUID(f.AccountID) || !positiveAmount.MatchString(f.BudgetLimit) || strings.Trim(f.BudgetLimit, "0.") == "" || !digestPattern.MatchString(f.TextHash) {
 		return ErrInvalid
 	}
+	if f.Retry != nil && f.Retry.Diagnostic == "method-links-v1" && methodLinkInstruction(f.Retry.FailureReceipt) == "" {
+		return ErrInvalid
+	}
 	if f.Retry != nil && f.Retry.Diagnostic != "" {
-		if f.Batch.Type != "style" || f.Retry.Number != 3 {
+		if !(f.Batch.Type == "style" && f.Retry.Diagnostic == "style-representation-v1" && f.Retry.Number == 3 || f.Batch.Type == "method" && f.Retry.Diagnostic == "method-links-v1" && f.Retry.Number <= 3) {
 			return ErrInvalid
 		}
 		schema, e := resultSchemaVersion(f.Batch.Type, f.Batch.Version)
@@ -340,8 +343,11 @@ func ValidateResults(b Bundle, a Association, batch ResultBatch, raw []byte) (Re
 		if batch.Version == 2 && validateResultQuality(batch.Type, item, nodes) != nil {
 			return ResultCandidates{}, ErrInvalid
 		}
-		if len(item.Payloads) != 1 || validateResultPayload(batch.Type, item.Payloads[0], scope, b.Source.DurationMS) != nil {
+		if len(item.Payloads) != 1 {
 			return ResultCandidates{}, ErrInvalid
+		}
+		if err := validateResultPayload(batch.Type, item.Payloads[0], scope, b.Source.DurationMS); err != nil {
+			return ResultCandidates{}, err
 		}
 	}
 	return out, nil

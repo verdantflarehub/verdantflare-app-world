@@ -1,6 +1,17 @@
 package analysis
 
-import "strings"
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
+type methodLinkError struct{ Problems []string }
+
+func (e *methodLinkError) Error() string {
+	return "method input/output links: " + strings.Join(e.Problems, "; ")
+}
+func (e *methodLinkError) Unwrap() error { return ErrInvalid }
 
 func validateResultPayload(kind string, payload map[string]any, scope ResultScope, duration int64) error {
 	window := Range{0, duration}
@@ -88,6 +99,7 @@ func validateResultPayload(kind string, payload map[string]any, scope ResultScop
 			return err
 		}
 	}
+	problems := []string{}
 	declared, produced := map[string]bool{}, map[string]bool{}
 	for key := range inputs {
 		declared[key] = true
@@ -97,8 +109,11 @@ func validateResultPayload(kind string, payload map[string]any, scope ResultScop
 		seen := map[string]bool{}
 		for _, value := range step["input_keys"].([]any) {
 			key := value.(string)
-			if !declared[key] || seen[key] {
+			if seen[key] {
 				return ErrInvalid
+			}
+			if !declared[key] {
+				problems = append(problems, fmt.Sprintf("step %s input %s is not declared or produced earlier", step["key"], key))
 			}
 			seen[key] = true
 		}
@@ -112,8 +127,12 @@ func validateResultPayload(kind string, payload map[string]any, scope ResultScop
 	}
 	for key := range outputs {
 		if !produced[key] {
-			return ErrInvalid
+			problems = append(problems, "expected output "+key+" is never produced by any step")
 		}
+	}
+	sort.Strings(problems)
+	if len(problems) > 0 {
+		return &methodLinkError{Problems: problems}
 	}
 	return nil
 }

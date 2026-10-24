@@ -3,6 +3,7 @@ package analysis
 import (
 	"encoding/json"
 	"github.com/google/uuid"
+	"strings"
 	"testing"
 )
 
@@ -196,5 +197,56 @@ func TestStyleFinalCorrectionRequiresOnlyRepresentationErrors(t *testing.T) {
 				t.Fatal("unexplained defect accepted")
 			}
 		})
+	}
+}
+
+func TestMethodDiagnosticPreservesNativeAndBounds(t *testing.T) {
+	_, b, a, _, records, _ := qualityFixture(t)
+	var old ResultRecord
+	for _, r := range records {
+		if r.Request.Batch.Type == "method" {
+			old = r
+		}
+	}
+	var native map[string]any
+	json.Unmarshal(old.Result, &native)
+	o := native["analysis"].(map[string]any)
+	d := o["document"].(map[string]any)
+	item := d["items"].([]any)[0].(map[string]any)
+	p := item["payloads"].([]any)[0].(map[string]any)
+	p["expected_outputs"].([]any)[0].(map[string]any)["key"] = "unproduced_outline"
+	o["text"] = string(promptBytes(t, d))
+	old.Result = promptBytes(t, native)
+	old.State = "failed"
+	old.ErrorCode = "result_invalid"
+	before := string(old.Result)
+	for i := 1; i <= 3; i++ {
+		f, err := RetryResultRequest(b, a, old, uuid.NewString())
+		if err != nil {
+			t.Fatal(i, err)
+		}
+		if f.Retry.Diagnostic != "method-links-v1" || !strings.Contains(string(f.Payload), "unproduced_outline") {
+			t.Fatal("missing actual error feedback")
+		}
+		old.Request = f
+		old.RequestHash = f.Digest()
+	}
+	if string(old.Result) != before {
+		t.Fatal("native changed")
+	}
+	if _, err := RetryResultRequest(b, a, old, uuid.NewString()); err == nil {
+		t.Fatal("fourth retry")
+	}
+	item["evidence_keys"] = []any{"unknown"}
+	o["text"] = string(promptBytes(t, d))
+	old.Result = promptBytes(t, native)
+	old.Request.Retry.Number = 2
+	old.Request.OperationID = old.Request.TaskID + ":" + old.Request.Batch.Key + ":retry:" + old.Request.Retry.ID
+	// ValidateResults must reject unknown evidence before returning method diagnostics.
+	if _, err := ValidateResults(b, a, old.Request.Batch, promptBytes(t, d)); err == nil {
+		t.Fatal("unknown evidence accepted")
+	}
+	if methodLinkInstruction([]byte(`{"analysis":{"document":{}}}`)) != "" {
+		t.Fatal("malformed native diagnostic")
 	}
 }

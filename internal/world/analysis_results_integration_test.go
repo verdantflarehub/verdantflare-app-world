@@ -33,6 +33,7 @@ type resultChannelFixture struct {
 	schemaReject     bool
 	styleCorrection  bool
 	independentStyle bool
+	methodDiagnostic bool
 }
 
 func (c *resultChannelFixture) SubmitResults(_ context.Context, _ string, f analysis.ResultRequest) (analysis.Call, error) {
@@ -91,6 +92,9 @@ func (c *resultChannelFixture) SubmitResults(_ context.Context, _ string, f anal
 			}
 		case "method":
 			item.Payloads = []map[string]any{{"purpose": "creative_reuse", "objective": "Plan a new scene", "applicability": "Static scenes", "inputs": []any{map[string]any{"key": "brief", "value_type": "string", "required": true, "description": "New scene intent"}}, "steps": []any{map[string]any{"key": "plan", "instruction": "Write a new scene", "input_keys": []string{"brief"}, "output_keys": []string{"outline"}}}, "constraints": []any{map[string]any{"key": "scope", "condition": "New brief", "effect": "Rebuild scene"}}, "expected_outputs": []any{map[string]any{"key": "outline", "type_key": "script_unit", "description": "New outline", "checks": []string{"Matches brief"}}}, "counterexamples": []string{"Copying original dialogue"}}}
+		}
+		if c.methodDiagnostic && f.Batch.Type == "method" && (f.Retry == nil || f.Retry.Number < 3) {
+			item.Payloads[0]["expected_outputs"].([]any)[0].(map[string]any)["key"] = "final_outline"
 		}
 		out.Items = append(out.Items, item)
 	}

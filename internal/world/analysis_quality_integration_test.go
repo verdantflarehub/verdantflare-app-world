@@ -26,6 +26,9 @@ func TestAnalysisQualityStyleDiagnosticCorrectionAndSave(t *testing.T) {
 func TestAnalysisQualityStyleRevalidationPreservesNativeAndSave(t *testing.T) {
 	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: syntheticPromptTargets(), styleRevalidate: true})
 }
+func TestAnalysisQualityMethodDiagnosticsAndSave(t *testing.T) {
+	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: syntheticPromptTargets(), methodDiagnostic: true})
+}
 func TestAnalysisQualityEmptyPlanPersistsAndSaves(t *testing.T) {
 	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: []analysis.PromptTarget{{Key: "unavailable", RequestedLabel: "Unknown", TaskType: "unsupported", InputMode: "unknown", Guidance: "Keep limitations"}}})
 }
@@ -60,6 +63,7 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 		case analysis.IsResultBatchKey(w.StepKey):
 			rc.corrupt = options.retryBatches && rc.submits < 2
 			rc.schemaReject = options.schemaRejections && rc.corrupt
+			rc.methodDiagnostic = options.methodDiagnostic
 			rc.styleCorrection = options.styleCorrection || options.styleRevalidate
 			rc.call.State = "completed"
 			rc.call.CallID = newID()
@@ -116,7 +120,7 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 		if err != nil {
 			t.Fatal(err)
 		}
-		if (options.retryBatches || options.styleCorrection || options.styleRevalidate) && (progress.ResultFailed > 0 || progress.PromptFailed > 0) {
+		if (options.retryBatches || options.styleCorrection || options.styleRevalidate || options.methodDiagnostic) && (progress.ResultFailed > 0 || progress.PromptFailed > 0) {
 			kind := "result"
 			if progress.PromptFailed > 0 {
 				kind = "prompt"
@@ -164,9 +168,9 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 			t.Fatal("pipeline did not finish")
 		}
 	}
-	if options.retryBatches || options.styleCorrection || options.styleRevalidate {
+	if options.retryBatches || options.styleCorrection || options.styleRevalidate || options.methodDiagnostic {
 		wantResult, wantPrompt := 2, 1
-		if options.styleCorrection {
+		if options.styleCorrection || options.methodDiagnostic {
 			wantResult, wantPrompt = 3, 0
 		}
 		if options.styleRevalidate {

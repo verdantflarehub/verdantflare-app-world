@@ -62,7 +62,7 @@ func ApplyFresh(ctx context.Context, db *pgxpool.Pool, projectFence, worldFence 
 		}
 	} else {
 		var saved string
-		if count != 24 {
+		if count != 25 {
 			return errors.New("existing World schema requires explicit gate upgrade")
 		}
 		if err = tx.QueryRow(ctx, "SELECT digest FROM studio.world_schema_history WHERE version=1").Scan(&saved); err != nil {
@@ -96,7 +96,7 @@ func Check(ctx context.Context, db *pgxpool.Pool) error {
 	if err = db.QueryRow(ctx, "SELECT count(*) FROM studio.world_schema_history").Scan(&count); err != nil {
 		return err
 	}
-	if count != 24 {
+	if count != 25 {
 		return errors.New("unsupported World schema")
 	}
 	if err = db.QueryRow(ctx, "SELECT digest FROM studio.world_schema_history WHERE version=1").Scan(&saved); err != nil {

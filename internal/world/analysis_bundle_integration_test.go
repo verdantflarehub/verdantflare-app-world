@@ -31,6 +31,7 @@ type bundleOptions struct {
 	schemaRejections                bool
 	styleCorrection                 bool
 	styleRevalidate                 bool
+	methodDiagnostic                bool
 	pipeline                        int
 	targets                         []analysis.PromptTarget
 	failPrompts, typed, failResults bool
