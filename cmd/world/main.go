@@ -102,6 +102,13 @@ func run(ctx context.Context, args []string) error {
 	if err = svc.ConfigureAnalysis(world.AnalysisRuntime{Enabled: analysisConfig.dispatch, Channel: analysisConfig.channel, Processor: analysis.Preparer{FFprobe: "/usr/bin/ffprobe", FFmpeg: "/usr/bin/ffmpeg"}}); err != nil {
 		return err
 	}
+	if origin := os.Getenv("WORLD_PRODUCER_URL"); origin != "" {
+		reader, err := world.NewProducerClient(origin, serviceToken)
+		if err != nil {
+			return err
+		}
+		svc.ConfigureProducer(reader)
+	}
 	engine := svc.Coordination()
 	if err = engine.Store.Check(startup, map[string]int64{"project": pf, "world": wf}); err != nil {
 		return err

@@ -6,6 +6,8 @@ import (
 )
 
 type draftInputs struct {
+	Files        map[DraftSourceRef]File
+	VerifiedRuns map[RunRef]bool
 	Access       map[ContentRef]Access
 	Dependencies []ContentRef
 	Grants       coordination.Plan
@@ -24,7 +26,7 @@ func draftValidatorsReady(m DraftManifest) error {
 // Resolve only explicit fixed source files. Merely mentioning a source never
 // imports its private siblings or retains its entire workspace.
 func (s *Service) resolveDraftInputs(ctx context.Context, p Principal, c draftCommit) (draftInputs, error) {
-	out := draftInputs{Access: map[ContentRef]Access{}, Objects: map[DraftSourceRef]contentObject{}, Dependencies: []ContentRef{}, Grants: coordination.Plan{"world": {{ResourceID: c.DraftID, Write: true}}}}
+	out := draftInputs{Files: map[DraftSourceRef]File{}, Access: map[ContentRef]Access{}, Objects: map[DraftSourceRef]contentObject{}, Dependencies: []ContentRef{}, Grants: coordination.Plan{"world": {{ResourceID: c.DraftID, Write: true}}}}
 	if c.Expected != "" {
 		previous, err := draftRevision(ctx, s.db, p, c.DraftID, c.Expected)
 		if err != nil {
@@ -71,6 +73,7 @@ func (s *Service) resolveDraftInputs(ctx context.Context, p Principal, c draftCo
 		found := false
 		for _, f := range files {
 			if f.ID == r.FileID {
+				out.Files[r] = f
 				v, err := s.content.Metadata(ctx, p, f.Content, access)
 				if err != nil {
 					return out, err
@@ -157,13 +160,13 @@ func (s *Service) checkDraftContents(ctx context.Context, p Principal, c draftCo
 		}
 		refs = append(refs, f.Content)
 	}
-	for _, run := range m.RunRefs {
-		if !outputs[run] {
-			return nil, nil, ErrNotReady
-		}
-	}
 	if err = s.checkDraftDocuments(ctx, p, m, &inputs); err != nil {
 		return nil, nil, err
+	}
+	for _, run := range m.RunRefs {
+		if !outputs[run] && !inputs.VerifiedRuns[run] {
+			return nil, nil, ErrNotReady
+		}
 	}
 	inputs.Grants, err = coordination.Normalize(inputs.Grants)
 	if err != nil {

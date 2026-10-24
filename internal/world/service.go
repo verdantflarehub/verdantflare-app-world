@@ -23,6 +23,7 @@ type Service struct {
 	coord    *coordination.Engine
 	workers  chan struct{}
 	analysis *AnalysisRuntime
+	producer ProducerReader
 }
 
 func NewService(ctx context.Context, db *pgxpool.Pool, content Artifact, projects ProjectReader, fence int64, peers map[string]coordination.Peer) (*Service, error) {

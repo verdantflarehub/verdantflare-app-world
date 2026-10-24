@@ -61,10 +61,14 @@ func (s *Service) checkLearningBindings(ctx context.Context, p Principal, doc Le
 			return learningError("references", "fixed reference is absent from manifest source_refs")
 		}
 	}
-	// Only a fully reconstructed, currently authorized World analysis document
-	// may claim native provenance. Other execution statements remain untrusted.
+	// Generated provenance requires exact native reconstruction; independently
+	// curated samples require current producer and project verification.
 	if len(doc.RunRefs) > 0 {
-		if err := s.checkAnalysisLearning(ctx, p, doc); err != nil {
+		if str(doc.Document["origin"]) == "generated" {
+			if err := s.checkAnalysisLearning(ctx, p, doc); err != nil {
+				return err
+			}
+		} else if err := s.checkLearningExecutions(ctx, p, doc, m, inputs); err != nil {
 			return err
 		}
 	}
