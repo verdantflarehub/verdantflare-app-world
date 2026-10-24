@@ -2,8 +2,8 @@
   "station://contracts/drafts/project-content": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "station://contracts/drafts/project-content",
-    "title": "ProjectContent · 项目内容与短剧制作增量",
-    "description": "项目内容草案；短剧多状态、多版本与固定引用增量按已确认 MD/HTML 接入本地实现，生产部署与服务验收另行记录。普通文件属于当前 Manifest；历史输入按 basis_revision_id 解析。结构校验不代替服务端引用、不可变性、权限、人工审核与真实发布结果校验。旧项目可不含制作版本。",
+    "title": "ProjectContent · 项目内容与类型制作增量",
+    "description": "项目内容契约；短剧和创意视频类型按各自批准范围接入。普通文件属于当前 Manifest；历史输入按 basis_revision_id 解析。结构校验不代替服务端引用、不可变性、权限、人工审核与真实发布结果校验。旧项目可不含制作版本。",
     "type": "object",
     "required": [
       "schema_version",
@@ -19,10 +19,12 @@
       },
       "category": {
         "enum": [
+          "image",
           "character",
           "music",
           "video",
-          "ai_short_drama"
+          "ai_short_drama",
+          "creative_video"
         ]
       },
       "overview": {
@@ -30,6 +32,39 @@
       },
       "cover_file_id": {
         "$ref": "#/$defs/reference"
+      },
+      "cover_position": {
+        "anyOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "x",
+              "y"
+            ],
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "y": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              }
+            }
+          }
+        ]
+      },
+      "cover_placeholder": {
+        "type": "boolean"
+      },
+      "image": {
+        "$ref": "#/$defs/image"
       },
       "character": {
         "$ref": "#/$defs/character"
@@ -42,14 +77,69 @@
       },
       "ai_short_drama": {
         "$ref": "#/$defs/aiShortDrama"
+      },
+      "creative_video": {
+        "$ref": "station://contracts/drafts/creative-video-project-content#/$defs/creativeVideo"
       }
     },
+    "allOf": [
+      {
+        "if": {
+          "required": [
+            "cover_placeholder"
+          ],
+          "properties": {
+            "cover_placeholder": {
+              "const": true
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "cover_file_id": {
+              "type": "null"
+            }
+          }
+        }
+      }
+    ],
     "oneOf": [
+      {
+        "required": [
+          "image"
+        ],
+        "properties": {
+          "category": {
+            "const": "image"
+          },
+          "image": {
+            "type": "object"
+          },
+          "character": {
+            "type": "null"
+          },
+          "music": {
+            "type": "null"
+          },
+          "video": {
+            "type": "null"
+          },
+          "ai_short_drama": {
+            "type": "null"
+          },
+          "creative_video": {
+            "type": "null"
+          }
+        }
+      },
       {
         "required": [
           "character"
         ],
         "properties": {
+          "image": {
+            "type": "null"
+          },
           "category": {
             "const": "character"
           },
@@ -64,6 +154,9 @@
           },
           "ai_short_drama": {
             "type": "null"
+          },
+          "creative_video": {
+            "type": "null"
           }
         }
       },
@@ -72,6 +165,9 @@
           "music"
         ],
         "properties": {
+          "image": {
+            "type": "null"
+          },
           "category": {
             "const": "music"
           },
@@ -86,6 +182,9 @@
           },
           "ai_short_drama": {
             "type": "null"
+          },
+          "creative_video": {
+            "type": "null"
           }
         }
       },
@@ -94,6 +193,9 @@
           "video"
         ],
         "properties": {
+          "image": {
+            "type": "null"
+          },
           "category": {
             "const": "video"
           },
@@ -108,6 +210,9 @@
           },
           "ai_short_drama": {
             "type": "null"
+          },
+          "creative_video": {
+            "type": "null"
           }
         }
       },
@@ -116,6 +221,9 @@
           "ai_short_drama"
         ],
         "properties": {
+          "image": {
+            "type": "null"
+          },
           "category": {
             "const": "ai_short_drama"
           },
@@ -129,6 +237,37 @@
             "type": "null"
           },
           "video": {
+            "type": "null"
+          },
+          "creative_video": {
+            "type": "null"
+          }
+        }
+      },
+      {
+        "required": [
+          "creative_video"
+        ],
+        "properties": {
+          "image": {
+            "type": "null"
+          },
+          "category": {
+            "const": "creative_video"
+          },
+          "creative_video": {
+            "type": "object"
+          },
+          "character": {
+            "type": "null"
+          },
+          "music": {
+            "type": "null"
+          },
+          "video": {
+            "type": "null"
+          },
+          "ai_short_drama": {
             "type": "null"
           }
         }
@@ -317,6 +456,134 @@
           },
           "label": {
             "$ref": "#/$defs/name"
+          }
+        }
+      },
+      "cameraKey": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,32}$"
+      },
+      "setPackageId": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9._-]{1,62}$"
+      },
+      "setupCast": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "character_key"
+        ],
+        "properties": {
+          "character_key": {
+            "$ref": "#/$defs/key"
+          },
+          "wardrobe_key": {
+            "$ref": "#/$defs/optionalKey"
+          },
+          "wardrobe_state_key": {
+            "$ref": "#/$defs/optionalKey"
+          },
+          "stand_in": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^ACTOR_[A-Za-z0-9_]{1,60}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mark_note": {
+            "$ref": "#/$defs/text"
+          }
+        },
+        "dependentRequired": {
+          "wardrobe_state_key": [
+            "wardrobe_key"
+          ]
+        }
+      },
+      "locationSetup": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "label",
+          "state_key",
+          "cast",
+          "camera_keys"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "label": {
+            "$ref": "#/$defs/name"
+          },
+          "state_key": {
+            "$ref": "#/$defs/key"
+          },
+          "scene_refs": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "episode_key",
+                "scene_key"
+              ],
+              "properties": {
+                "episode_key": {
+                  "$ref": "#/$defs/key"
+                },
+                "scene_key": {
+                  "$ref": "#/$defs/key"
+                }
+              }
+            }
+          },
+          "cast": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/$defs/setupCast"
+            }
+          },
+          "camera_keys": {
+            "type": "array",
+            "uniqueItems": true,
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/$defs/cameraKey"
+            }
+          },
+          "primary_camera_key": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/cameraKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "set_package_id": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/setPackageId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "poster_file_id": {
+            "$ref": "#/$defs/reference"
+          },
+          "review": {
+            "$ref": "#/$defs/review"
           }
         }
       },
@@ -609,6 +876,33 @@
           "asset_version_id": {
             "$ref": "#/$defs/reference"
           },
+          "music_source": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "project_id",
+                  "revision_id",
+                  "song_key"
+                ],
+                "properties": {
+                  "project_id": {
+                    "$ref": "#/$defs/id"
+                  },
+                  "revision_id": {
+                    "$ref": "#/$defs/id"
+                  },
+                  "song_key": {
+                    "$ref": "#/$defs/key"
+                  }
+                }
+              }
+            ]
+          },
           "states": {
             "type": "array",
             "maxItems": 1000,
@@ -629,9 +923,55 @@
             "items": {
               "$ref": "#/$defs/materialSelection"
             }
+          },
+          "setups": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/$defs/locationSetup"
+            }
           }
         },
         "allOf": [
+          {
+            "if": {
+              "required": [
+                "setups"
+              ],
+              "properties": {
+                "setups": {
+                  "type": "array",
+                  "minItems": 1
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "kind": {
+                  "const": "location"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "music_source"
+              ],
+              "properties": {
+                "music_source": {
+                  "type": "object"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "kind": {
+                  "const": "music"
+                }
+              }
+            }
+          },
           {
             "if": {
               "required": [
@@ -792,7 +1132,25 @@
                 "type": "null"
               }
             ]
+          },
+          "setup_key": {
+            "$ref": "#/$defs/optionalKey"
+          },
+          "camera_key": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/cameraKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
+        },
+        "dependentRequired": {
+          "camera_key": [
+            "setup_key"
+          ]
         }
       },
       "deliverable": {
@@ -1407,6 +1765,368 @@
           "$ref": "#/$defs/detail"
         }
       },
+      "musicSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "project_id",
+          "revision_id",
+          "kind",
+          "item_key",
+          "version_key",
+          "file_id"
+        ],
+        "properties": {
+          "project_id": {
+            "$ref": "#/$defs/id"
+          },
+          "revision_id": {
+            "$ref": "#/$defs/id"
+          },
+          "kind": {
+            "enum": [
+              "recording",
+              "model",
+              "song"
+            ]
+          },
+          "item_key": {
+            "$ref": "#/$defs/key"
+          },
+          "version_key": {
+            "$ref": "#/$defs/optionalKey"
+          },
+          "file_id": {
+            "$ref": "#/$defs/reference"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "recording"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "version_key": {
+                  "type": "null"
+                },
+                "file_id": {
+                  "$ref": "#/$defs/id"
+                }
+              }
+            }
+          }
+        ],
+        "oneOf": [
+          {
+            "properties": {
+              "version_key": {
+                "$ref": "#/$defs/key"
+              },
+              "file_id": {
+                "type": "null"
+              }
+            }
+          },
+          {
+            "properties": {
+              "version_key": {
+                "type": "null"
+              },
+              "file_id": {
+                "$ref": "#/$defs/id"
+              }
+            }
+          }
+        ]
+      },
+      "musicVersion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "label",
+          "kind",
+          "basis_revision_id",
+          "parent_version_key",
+          "change_note",
+          "file_refs",
+          "review",
+          "sources"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "label": {
+            "$ref": "#/$defs/name"
+          },
+          "kind": {
+            "enum": [
+              "model",
+              "demo",
+              "audio",
+              "master",
+              "video"
+            ]
+          },
+          "basis_revision_id": {
+            "$ref": "#/$defs/id"
+          },
+          "parent_version_key": {
+            "$ref": "#/$defs/optionalKey"
+          },
+          "change_note": {
+            "$ref": "#/$defs/name"
+          },
+          "file_refs": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/versionFile"
+                },
+                {
+                  "properties": {
+                    "purpose": {
+                      "enum": [
+                        "output",
+                        "sample",
+                        "attachment"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "review": {
+            "$ref": "#/$defs/review"
+          },
+          "sources": {
+            "type": "array",
+            "maxItems": 1000,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/$defs/musicSource"
+            }
+          }
+        }
+      },
+      "musicDetails": {
+        "type": [
+          "array",
+          "null"
+        ],
+        "maxItems": 1000,
+        "items": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/detail"
+            },
+            {
+              "properties": {
+                "production": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "versions",
+                    "selected_version_key"
+                  ],
+                  "properties": {
+                    "versions": {
+                      "type": "array",
+                      "maxItems": 1000,
+                      "items": {
+                        "$ref": "#/$defs/musicVersion"
+                      }
+                    },
+                    "selected_version_key": {
+                      "$ref": "#/$defs/optionalKey"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "imageKey": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[a-zA-Z0-9_-]+$"
+      },
+      "imageName": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "\\S"
+      },
+      "imageReferences": {
+        "type": "array",
+        "maxItems": 1000,
+        "uniqueItems": true,
+        "items": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "imageFile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file_id",
+          "content_ref",
+          "purpose"
+        ],
+        "properties": {
+          "file_id": {
+            "$ref": "#/$defs/id"
+          },
+          "content_ref": {
+            "$ref": "station://contracts/v2/content-ref"
+          },
+          "purpose": {
+            "enum": [
+              "output",
+              "intermediate",
+              "record"
+            ]
+          }
+        }
+      },
+      "imageVersion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "label",
+          "parent_version_key",
+          "change_note",
+          "file_refs",
+          "reference_file_ids",
+          "prompt_file_ids"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/imageKey"
+          },
+          "label": {
+            "$ref": "#/$defs/imageName"
+          },
+          "parent_version_key": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/imageKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "change_note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16000,
+            "pattern": "\\S"
+          },
+          "file_refs": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/$defs/imageFile"
+            },
+            "contains": {
+              "type": "object",
+              "required": [
+                "purpose"
+              ],
+              "properties": {
+                "purpose": {
+                  "const": "output"
+                }
+              }
+            }
+          },
+          "reference_file_ids": {
+            "$ref": "#/$defs/imageReferences"
+          },
+          "prompt_file_ids": {
+            "$ref": "#/$defs/imageReferences"
+          }
+        }
+      },
+      "imageWork": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "title",
+          "versions"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/imageKey"
+          },
+          "title": {
+            "$ref": "#/$defs/imageName"
+          },
+          "overview": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 16000
+          },
+          "reference_file_ids": {
+            "$ref": "#/$defs/imageReferences"
+          },
+          "display_version_key": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/imageKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "versions": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/$defs/imageVersion"
+            }
+          }
+        }
+      },
+      "image": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "works": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/$defs/imageWork"
+            }
+          },
+          "reference_file_ids": {
+            "$ref": "#/$defs/imageReferences"
+          },
+          "process_file_ids": {
+            "$ref": "#/$defs/imageReferences"
+          }
+        }
+      },
       "character": {
         "type": [
           "object",
@@ -1464,15 +2184,15 @@
                 "$ref": "#/$defs/details"
               },
               "models": {
-                "$ref": "#/$defs/details"
+                "$ref": "#/$defs/musicDetails"
               }
             }
           },
           "songs": {
-            "$ref": "#/$defs/details"
+            "$ref": "#/$defs/musicDetails"
           },
           "mvs": {
-            "$ref": "#/$defs/details"
+            "$ref": "#/$defs/musicDetails"
           }
         }
       },
@@ -1490,6 +2210,9 @@
           },
           "output_file_id": {
             "$ref": "#/$defs/reference"
+          },
+          "outputs": {
+            "$ref": "#/$defs/details"
           },
           "storyboards": {
             "$ref": "#/$defs/details"
@@ -1562,6 +2285,838 @@
       }
     }
   },
+  "station://contracts/drafts/creative-video-project-content": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "station://contracts/drafts/creative-video-project-content",
+    "title": "CreativeVideoProjectContent (review draft)",
+    "description": "CV-1 approved shape for creative_video, with fixed reuse of existing Music project content and no music generation. The implementing plan was shelved on 2026-10-19; this draft is not deployed and does not authorize further implementation.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema_version",
+      "kind",
+      "category",
+      "creative_video"
+    ],
+    "properties": {
+      "schema_version": {
+        "const": 1
+      },
+      "kind": {
+        "const": "project-content"
+      },
+      "category": {
+        "const": "creative_video"
+      },
+      "overview": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "maxLength": 4000
+      },
+      "cover_file_id": {
+        "$ref": "#/$defs/optionalId"
+      },
+      "creative_video": {
+        "$ref": "#/$defs/creativeVideo"
+      }
+    },
+    "$defs": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "optionalId": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/id"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "key": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 96,
+        "pattern": "^[a-zA-Z0-9_-]+$"
+      },
+      "optionalKey": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/key"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "label": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "optionalText": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "maxLength": 2000
+      },
+      "keyList": {
+        "type": "array",
+        "maxItems": 1000,
+        "uniqueItems": true,
+        "items": {
+          "$ref": "#/$defs/key"
+        }
+      },
+      "idList": {
+        "type": "array",
+        "maxItems": 1000,
+        "uniqueItems": true,
+        "items": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "fps": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "num",
+          "den"
+        ],
+        "properties": {
+          "num": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 240000
+          },
+          "den": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1001
+          }
+        }
+      },
+      "runRef": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "service_id",
+          "run_id"
+        ],
+        "properties": {
+          "service_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "run_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        }
+      },
+      "fixedFile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "basis_revision_id",
+          "file_id",
+          "content_ref"
+        ],
+        "properties": {
+          "basis_revision_id": {
+            "$ref": "#/$defs/id"
+          },
+          "file_id": {
+            "$ref": "#/$defs/id"
+          },
+          "content_ref": {
+            "$ref": "station://contracts/v2/content-ref"
+          }
+        }
+      },
+      "musicSource": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "project_id",
+              "revision_id",
+              "file_id",
+              "content_ref"
+            ],
+            "properties": {
+              "kind": {
+                "const": "project_file"
+              },
+              "project_id": {
+                "$ref": "#/$defs/id"
+              },
+              "revision_id": {
+                "$ref": "#/$defs/id"
+              },
+              "file_id": {
+                "$ref": "#/$defs/id"
+              },
+              "content_ref": {
+                "$ref": "station://contracts/v2/content-ref"
+              },
+              "selection_purpose": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "asset_id",
+              "asset_version_id",
+              "file_id"
+            ],
+            "properties": {
+              "kind": {
+                "const": "world_asset"
+              },
+              "asset_id": {
+                "$ref": "#/$defs/id"
+              },
+              "asset_version_id": {
+                "$ref": "#/$defs/id"
+              },
+              "file_id": {
+                "$ref": "#/$defs/id"
+              }
+            }
+          }
+        ]
+      },
+      "brief": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "file_id",
+          "goal"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "file_id": {
+            "$ref": "#/$defs/optionalId"
+          },
+          "goal": {
+            "$ref": "#/$defs/label"
+          },
+          "client": {
+            "$ref": "#/$defs/optionalText"
+          },
+          "audience": {
+            "$ref": "#/$defs/optionalText"
+          },
+          "message": {
+            "$ref": "#/$defs/optionalText"
+          },
+          "action": {
+            "$ref": "#/$defs/optionalText"
+          },
+          "constraints_file_id": {
+            "$ref": "#/$defs/optionalId"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "right": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "subject_kind",
+          "subject_key",
+          "status",
+          "evidence_file_id"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "subject_kind": {
+            "enum": [
+              "take",
+              "file",
+              "asset",
+              "person",
+              "location",
+              "music"
+            ]
+          },
+          "subject_key": {
+            "$ref": "#/$defs/key"
+          },
+          "status": {
+            "enum": [
+              "unverified",
+              "cleared",
+              "restricted",
+              "expired"
+            ]
+          },
+          "evidence_file_id": {
+            "$ref": "#/$defs/optionalId"
+          },
+          "channels": {
+            "$ref": "#/$defs/keyList"
+          },
+          "territories": {
+            "$ref": "#/$defs/keyList"
+          },
+          "uses": {
+            "$ref": "#/$defs/keyList"
+          },
+          "expires_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "if": {
+          "properties": {
+            "status": {
+              "const": "cleared"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "evidence_file_id": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        }
+      },
+      "concept": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "file_id",
+          "status"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "file_id": {
+            "$ref": "#/$defs/optionalId"
+          },
+          "basis_brief_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/fixedFile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "candidate",
+              "selected",
+              "rejected"
+            ]
+          }
+        }
+      },
+      "sequence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "shot_keys"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "label": {
+            "$ref": "#/$defs/label"
+          },
+          "shot_keys": {
+            "$ref": "#/$defs/keyList"
+          }
+        }
+      },
+      "shot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "planned_frames",
+          "take_keys"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "planned_frames": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "script_file_id": {
+            "$ref": "#/$defs/optionalId"
+          },
+          "storyboard_file_id": {
+            "$ref": "#/$defs/optionalId"
+          },
+          "take_keys": {
+            "$ref": "#/$defs/keyList"
+          }
+        }
+      },
+      "take": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "shot_key",
+          "file_id",
+          "run_ref",
+          "status"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "shot_key": {
+            "$ref": "#/$defs/key"
+          },
+          "file_id": {
+            "$ref": "#/$defs/optionalId"
+          },
+          "run_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/runRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "input_file_ids": {
+            "$ref": "#/$defs/idList"
+          },
+          "status": {
+            "enum": [
+              "candidate",
+              "selected",
+              "rejected",
+              "failed"
+            ]
+          }
+        }
+      },
+      "timelineItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "take_key",
+          "media_ref",
+          "source_in_frame",
+          "source_out_frame",
+          "timeline_in_frame"
+        ],
+        "properties": {
+          "take_key": {
+            "$ref": "#/$defs/key"
+          },
+          "media_ref": {
+            "$ref": "#/$defs/fixedFile"
+          },
+          "source_in_frame": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "source_out_frame": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "timeline_in_frame": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "edit": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "parent_key",
+          "project_file_id",
+          "fps",
+          "items"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "parent_key": {
+            "$ref": "#/$defs/optionalKey"
+          },
+          "project_file_id": {
+            "$ref": "#/$defs/optionalId"
+          },
+          "music_source": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/musicSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fps": {
+            "$ref": "#/$defs/fps"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10000,
+            "items": {
+              "$ref": "#/$defs/timelineItem"
+            }
+          },
+          "change_file_id": {
+            "$ref": "#/$defs/optionalId"
+          },
+          "state": {
+            "enum": [
+              "rough",
+              "review",
+              "picture_locked"
+            ]
+          }
+        }
+      },
+      "variant": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "edit_key",
+          "channel",
+          "territory",
+          "width",
+          "height",
+          "fps",
+          "target_frames",
+          "language"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "edit_key": {
+            "$ref": "#/$defs/optionalKey"
+          },
+          "channel": {
+            "$ref": "#/$defs/key"
+          },
+          "territory": {
+            "$ref": "#/$defs/key"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16384
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16384
+          },
+          "fps": {
+            "$ref": "#/$defs/fps"
+          },
+          "target_frames": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "language": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 32
+          },
+          "subtitle_mode": {
+            "enum": [
+              "none",
+              "burned",
+              "separate"
+            ]
+          },
+          "audio_mode": {
+            "enum": [
+              "full",
+              "mute",
+              "music_only"
+            ]
+          }
+        }
+      },
+      "review": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "target_kind",
+          "target_key",
+          "basis_revision_id",
+          "kind",
+          "state",
+          "decision_by",
+          "record_file_id"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "target_kind": {
+            "enum": [
+              "edit",
+              "package"
+            ]
+          },
+          "target_key": {
+            "$ref": "#/$defs/key"
+          },
+          "basis_revision_id": {
+            "$ref": "#/$defs/id"
+          },
+          "kind": {
+            "enum": [
+              "creative",
+              "rights",
+              "technical",
+              "client"
+            ]
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "in_review",
+              "approved",
+              "changes_requested",
+              "rejected"
+            ]
+          },
+          "decision_by": {
+            "$ref": "#/$defs/optionalId"
+          },
+          "record_file_id": {
+            "$ref": "#/$defs/optionalId"
+          }
+        },
+        "if": {
+          "properties": {
+            "state": {
+              "enum": [
+                "approved",
+                "changes_requested",
+                "rejected"
+              ]
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "decision_by": {
+              "$ref": "#/$defs/id"
+            },
+            "record_file_id": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        }
+      },
+      "package": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "variant_key",
+          "edit_key",
+          "media_file_id",
+          "attachment_file_ids",
+          "review_keys",
+          "state"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "variant_key": {
+            "$ref": "#/$defs/key"
+          },
+          "edit_key": {
+            "$ref": "#/$defs/key"
+          },
+          "media_file_id": {
+            "$ref": "#/$defs/id"
+          },
+          "attachment_file_ids": {
+            "$ref": "#/$defs/idList"
+          },
+          "review_keys": {
+            "$ref": "#/$defs/keyList"
+          },
+          "state": {
+            "enum": [
+              "candidate",
+              "ready",
+              "delivered"
+            ]
+          }
+        }
+      },
+      "creativeVideo": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "direction",
+          "brief",
+          "rights",
+          "concepts",
+          "selected_concept_key",
+          "sequences",
+          "shots",
+          "takes",
+          "edits",
+          "delivery_variants",
+          "reviews",
+          "packages"
+        ],
+        "properties": {
+          "direction": {
+            "enum": [
+              "promo",
+              "advertisement",
+              "brand_film",
+              "music_video"
+            ]
+          },
+          "music_source": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/musicSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "brief": {
+            "$ref": "#/$defs/brief"
+          },
+          "rights": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/$defs/right"
+            }
+          },
+          "concepts": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/$defs/concept"
+            }
+          },
+          "selected_concept_key": {
+            "$ref": "#/$defs/optionalKey"
+          },
+          "sequences": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/$defs/sequence"
+            }
+          },
+          "shots": {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "$ref": "#/$defs/shot"
+            }
+          },
+          "takes": {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "$ref": "#/$defs/take"
+            }
+          },
+          "edits": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/$defs/edit"
+            }
+          },
+          "delivery_variants": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/$defs/variant"
+            }
+          },
+          "reviews": {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "$ref": "#/$defs/review"
+            }
+          },
+          "packages": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/$defs/package"
+            }
+          }
+        }
+      }
+    }
+  },
   "station://contracts/v2/content-ref": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "station://contracts/v2/content-ref",
@@ -1596,7 +3151,6 @@
     "additionalProperties": false,
     "required": [
       "commit_id",
-      "source_project_id",
       "source_revision_id",
       "file_ids",
       "name",
@@ -1649,6 +3203,9 @@
       },
       "depends_on": {
         "$ref": "asset-version-manifest.schema.json#/properties/depends_on"
+      },
+      "source_draft_id": {
+        "$ref": "content-ref.schema.json#/properties/store_id"
       }
     },
     "dependentRequired": {
@@ -1658,7 +3215,29 @@
       "expected_asset_version_id": [
         "asset_id"
       ]
-    }
+    },
+    "oneOf": [
+      {
+        "required": [
+          "source_project_id"
+        ],
+        "not": {
+          "required": [
+            "source_draft_id"
+          ]
+        }
+      },
+      {
+        "required": [
+          "source_draft_id"
+        ],
+        "not": {
+          "required": [
+            "source_project_id"
+          ]
+        }
+      }
+    ]
   },
   "station://contracts/v2/asset-version-manifest": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1936,7 +3515,486 @@
         "$ref": "content-ref.schema.json"
       },
       "manifest": {
-        "$ref": "asset-version-manifest.schema.json"
+        "oneOf": [
+          {
+            "$ref": "asset-version-manifest.schema.json"
+          },
+          {
+            "$ref": "asset-version-manifest-v2.schema.json"
+          }
+        ]
+      }
+    }
+  },
+  "station://contracts/v2/asset-version-manifest-v2": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "station://contracts/v2/asset-version-manifest-v2",
+    "title": "AssetVersionManifestV2",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema_version",
+      "kind",
+      "asset_id",
+      "name",
+      "asset_type",
+      "subjects",
+      "files",
+      "source",
+      "depends_on",
+      "domain_documents"
+    ],
+    "properties": {
+      "schema_version": {
+        "const": 2
+      },
+      "kind": {
+        "$ref": "asset-version-manifest.schema.json#/properties/kind"
+      },
+      "asset_id": {
+        "$ref": "asset-version-manifest.schema.json#/properties/asset_id"
+      },
+      "name": {
+        "$ref": "asset-version-manifest.schema.json#/properties/name"
+      },
+      "asset_type": {
+        "$ref": "asset-version-manifest.schema.json#/properties/asset_type"
+      },
+      "subjects": {
+        "$ref": "asset-version-manifest.schema.json#/properties/subjects"
+      },
+      "files": {
+        "$ref": "asset-version-manifest.schema.json#/properties/files"
+      },
+      "source": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "draft_id",
+          "draft_revision_id",
+          "relation"
+        ],
+        "properties": {
+          "kind": {
+            "const": "world_draft"
+          },
+          "draft_id": {
+            "$ref": "content-ref.schema.json#/properties/store_id"
+          },
+          "draft_revision_id": {
+            "$ref": "content-ref.schema.json#/properties/store_id"
+          },
+          "relation": {
+            "$ref": "asset-version-manifest.schema.json#/properties/source/properties/relation"
+          },
+          "review_file_id": {
+            "$ref": "content-ref.schema.json#/properties/store_id"
+          }
+        }
+      },
+      "depends_on": {
+        "$ref": "asset-version-manifest.schema.json#/properties/depends_on"
+      },
+      "extensions": {
+        "$ref": "asset-version-manifest.schema.json#/properties/extensions"
+      },
+      "domain_documents": {
+        "$ref": "world-draft-manifest.schema.json#/properties/domain_documents"
+      }
+    }
+  },
+  "station://contracts/v2/world-draft-manifest": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "station://contracts/v2/world-draft-manifest",
+    "title": "WorldDraftManifest",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema_version",
+      "kind",
+      "draft_id",
+      "purpose",
+      "name",
+      "subjects",
+      "files",
+      "domain_documents",
+      "source_refs",
+      "asset_refs",
+      "run_refs"
+    ],
+    "properties": {
+      "schema_version": {
+        "const": 1
+      },
+      "kind": {
+        "const": "world-draft"
+      },
+      "draft_id": {
+        "$ref": "content-ref.schema.json#/properties/store_id"
+      },
+      "purpose": {
+        "enum": [
+          "collection",
+          "learning",
+          "creation"
+        ]
+      },
+      "name": {
+        "$ref": "asset-version-manifest.schema.json#/properties/name"
+      },
+      "subjects": {
+        "$ref": "asset-version-manifest.schema.json#/properties/subjects"
+      },
+      "files": {
+        "type": "array",
+        "minItems": 0,
+        "maxItems": 10000,
+        "items": {
+          "$ref": "asset-version-manifest.schema.json#/$defs/file"
+        }
+      },
+      "domain_documents": {
+        "type": "array",
+        "minItems": 0,
+        "maxItems": 256,
+        "items": {
+          "$ref": "project-manifest.schema.json#/properties/domain_documents/items"
+        }
+      },
+      "source_refs": {
+        "type": "array",
+        "minItems": 0,
+        "maxItems": 1000,
+        "items": {
+          "$ref": "#/$defs/sourceRef"
+        }
+      },
+      "asset_refs": {
+        "type": "array",
+        "minItems": 0,
+        "maxItems": 10000,
+        "items": {
+          "$ref": "asset-version-manifest.schema.json#/$defs/assetRef"
+        }
+      },
+      "run_refs": {
+        "type": "array",
+        "minItems": 0,
+        "maxItems": 1000,
+        "items": {
+          "$ref": "project-manifest.schema.json#/properties/run_refs/items"
+        }
+      }
+    },
+    "$defs": {
+      "sourceRef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "draft_id",
+              "revision_id",
+              "file_id",
+              "purpose"
+            ],
+            "properties": {
+              "kind": {
+                "const": "world_draft"
+              },
+              "draft_id": {
+                "$ref": "content-ref.schema.json#/properties/store_id"
+              },
+              "revision_id": {
+                "$ref": "content-ref.schema.json#/properties/store_id"
+              },
+              "file_id": {
+                "$ref": "content-ref.schema.json#/properties/store_id"
+              },
+              "purpose": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "object_key": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "project_id",
+              "revision_id",
+              "file_id",
+              "purpose"
+            ],
+            "properties": {
+              "kind": {
+                "const": "project"
+              },
+              "project_id": {
+                "$ref": "content-ref.schema.json#/properties/store_id"
+              },
+              "revision_id": {
+                "$ref": "content-ref.schema.json#/properties/store_id"
+              },
+              "file_id": {
+                "$ref": "content-ref.schema.json#/properties/store_id"
+              },
+              "purpose": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "object_key": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "asset_id",
+              "asset_version_id",
+              "file_id",
+              "purpose"
+            ],
+            "properties": {
+              "kind": {
+                "const": "asset"
+              },
+              "asset_id": {
+                "$ref": "content-ref.schema.json#/properties/store_id"
+              },
+              "asset_version_id": {
+                "$ref": "content-ref.schema.json#/properties/store_id"
+              },
+              "file_id": {
+                "$ref": "content-ref.schema.json#/properties/store_id"
+              },
+              "purpose": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "object_key": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "station://contracts/v2/project-manifest": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "station://contracts/v2/project-manifest",
+    "title": "ProjectManifest",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema_version",
+      "kind",
+      "project_id",
+      "name",
+      "category",
+      "status",
+      "entry_document_id",
+      "files",
+      "selections",
+      "asset_refs",
+      "run_refs",
+      "domain_documents"
+    ],
+    "properties": {
+      "schema_version": {
+        "const": 1
+      },
+      "kind": {
+        "const": "project"
+      },
+      "project_id": {
+        "$ref": "#/$defs/id"
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "category": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+      },
+      "status": {
+        "enum": [
+          "draft",
+          "active",
+          "paused",
+          "acceptance",
+          "completed",
+          "archived"
+        ]
+      },
+      "entry_document_id": {
+        "$ref": "#/$defs/id"
+      },
+      "files": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "$ref": "#/$defs/file"
+        }
+      },
+      "selections": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "purpose",
+            "file_ids"
+          ],
+          "properties": {
+            "purpose": {
+              "type": "string",
+              "minLength": 1
+            },
+            "file_ids": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/id"
+              }
+            }
+          }
+        }
+      },
+      "asset_refs": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/assetRef"
+        }
+      },
+      "run_refs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "service_id",
+            "run_id"
+          ],
+          "properties": {
+            "service_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            },
+            "run_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        }
+      },
+      "domain_documents": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "document_type",
+            "file_id"
+          ],
+          "properties": {
+            "document_type": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            },
+            "file_id": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        }
+      },
+      "extensions": {
+        "type": "object",
+        "propertyNames": {
+          "pattern": "^[a-z][a-z0-9_-]*\\.[a-z][a-z0-9_.-]*$"
+        }
+      }
+    },
+    "$defs": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "relativePath": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024,
+        "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!\\.vf(?:/|$))(?!.*[. ](?:/|$))(?!.*\\/$)[^\\u0000-\\u001f\\u007f\\\\<>:\"|?*]+$"
+      },
+      "contentRef": {
+        "$ref": "content-ref.schema.json"
+      },
+      "file": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file_id",
+          "path",
+          "role",
+          "content_ref"
+        ],
+        "properties": {
+          "file_id": {
+            "$ref": "#/$defs/id"
+          },
+          "path": {
+            "$ref": "#/$defs/relativePath"
+          },
+          "role": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "content_ref": {
+            "$ref": "#/$defs/contentRef"
+          }
+        }
+      },
+      "assetRef": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "asset_id",
+          "asset_version_id",
+          "purpose"
+        ],
+        "properties": {
+          "asset_id": {
+            "$ref": "#/$defs/id"
+          },
+          "asset_version_id": {
+            "$ref": "#/$defs/id"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        }
       }
     }
   },

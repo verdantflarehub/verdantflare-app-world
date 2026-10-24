@@ -197,12 +197,44 @@ void loadWorld()
       <div ref="library" tabindex="-1" class="catalog-controls"><form class="searchbar" @submit.prevent="search"><input v-model="query" type="search" maxlength="256" aria-label="搜索资产" :placeholder="domain?'搜索'+domain.label+'名称、标签…':'搜索资产名称、标签…'"><button class="btn" :disabled="loading">搜索</button></form><label>来源<select v-model="relation" aria-label="来源"><option value="">全部来源</option><option value="curated_in">参考沉淀</option><option value="produced_in">原创与制作</option></select></label><button v-if="assetType||relation||query" class="btn" @click="clearFilters">清除筛选</button><span class="toolbar-note">已加载 {{assets.length}} 项{{cursor?' · 可继续加载':''}}</span></div>
       <nav class="domain-filters" aria-label="资产类型"><button v-for="item in assetTypes" :key="item.value" :aria-pressed="assetType===item.value" @click="assetType=item.value">{{item.label}}</button><button v-if="assetType&&!assetTypes.some(t=>t.value===assetType)" aria-pressed="true">{{assetTypeLabel(assetType)}}</button></nav>
       <div v-if="loading && !assets.length" class="state loading-state" role="status">正在读取资产…</div>
-      <section v-else aria-label="可复用资产"><div v-if="assets.length === 0 && !error" class="state empty-state"><strong>没有匹配的资产</strong><span>可以调整分类或搜索，或先收录一份值得学习的内容。</span><RouterLink class="btn" to="/collections">收录内容</RouterLink></div><div class="asset-grid"><button v-for="asset in assets" :key="asset.asset_id" class="asset-card" @click="openAsset(asset)"><span class="card-art" aria-hidden="true">{{asset.asset_type==='prompt'?'提 · 示 · 词':assetDomain(asset.asset_type)?.glyph||'创 · 作'}}</span><span class="card-body"><small>{{assetDomain(asset.asset_type)?.label||'其他'}} · {{assetTypeLabel(asset.asset_type)}}</small><strong>{{asset.name}}</strong><span>{{asset.subjects.join('、')||'暂无标签'}}</span></span><span class="card-foot">查看成果 <span>↗</span></span></button></div><button v-if="cursor" class="btn detail-action" :disabled="loading" @click="loadWorld(true)">加载更多资产</button></section>
+      <section v-else aria-label="可复用资产"><div v-if="assets.length === 0 && !error" class="state empty-state"><strong>没有匹配的资产</strong><span>可以调整分类或搜索，或先收录一份值得学习的内容。</span><RouterLink class="btn" to="/collections">收录内容</RouterLink></div><div class="asset-grid"><button v-for="asset in assets" :key="asset.asset_id" class="asset-card" @click="openAsset(asset)"><span class="card-art" aria-hidden="true">{{asset.asset_type==='prompt'?'提 · 示 · 词':assetDomain(asset.asset_type)?.glyph||'创 · 作'}}</span><span class="card-body"><small>{{assetDomain(asset.asset_type)?.label||'其他'}} · {{assetTypeLabel(asset.asset_type)}}{{assetDomain(asset.asset_type)?.key==='scene'&&asset.asset_type!=='prop'?' · 空景 · 无人物':''}}</small><strong>{{asset.name}}</strong><span>{{asset.subjects.join('、')||'暂无标签'}}</span></span><span class="card-foot">查看成果 <span>↗</span></span></button></div><button v-if="cursor" class="btn detail-action" :disabled="loading" @click="loadWorld(true)">加载更多资产</button></section>
     </template>
     <template v-else>
       <div v-if="detailLoading" class="state" role="status">正在读取固定版本…</div>
       <template v-else-if="selectedAsset">
-        <AssetResults :key="selectedAsset.asset_id+':'+selectedAsset.asset_version_id" :asset="selectedAsset" :parents="[{label:'数字世界',to:domain?'/':listRoute},...(domain?[{label:domain.label,to:listRoute}]:[])]" @new-project="newProject" @use-project="bringIntoProject"><div class="asset-actions"><button v-if="assetDomain(selectedAsset.manifest.asset_type)?.key === 'scene'" class="btn" @click="openSetReview">片场审阅 →</button><template v-if="detectedSetPackage"><button class="btn primary" :disabled="setViewerBusy" @click="openWorldSetViewer">在片场查看器中打开</button><button v-if="!setPackageDownloadUrl" class="btn" @click="prepareWorldSetPackageDownload">准备下载片场包</button><a v-else class="btn" :href="setPackageDownloadUrl" download>下载片场包</a></template><span class="version-pill">固定版本 {{shortID(selectedAsset.asset_version_id)}}</span><button class="btn" @click="bringIntoProject">选择项目并引用此版本</button></div><div v-if="setViewerState === 'not_installed'" class="state" role="status" style="margin-top:12px"><strong>当前工作站尚未安装「片场查看器 (viewer)」</strong><span>安装后可在浏览器内三维环绕、第一人称漫游与核对 Blender 实拍机位；您仍可直接下载片场包。</span><button class="btn" @click="openSetViewerAppCenter">前往应用中心安装</button></div><div v-else-if="setViewerState === 'forbidden'" class="state error-state" role="alert" style="margin-top:12px"><strong>无访问权限</strong><span>当前会话无权打开片场查看器或读取此固定资产版本。</span></div></AssetResults>
+        <AssetResults :key="selectedAsset.asset_id+':'+selectedAsset.asset_version_id" :asset="selectedAsset" :parents="[{label:'数字世界',to:domain?'/':listRoute},...(domain?[{label:domain.label,to:listRoute}]:[])]" @new-project="newProject" @use-project="bringIntoProject"><div class="asset-actions"><span v-if="assetDomain(selectedAsset.manifest.asset_type)?.key === 'scene' && selectedAsset.manifest.asset_type !== 'prop'" class="version-pill empty-set-pill">空景 · 无人物</span><button v-if="assetDomain(selectedAsset.manifest.asset_type)?.key === 'scene'" class="btn" @click="openSetReview">片场审阅 →</button><template v-if="detectedSetPackage"><button class="btn primary" :disabled="setViewerBusy" @click="openWorldSetViewer">在片场查看器中打开</button><button v-if="!setPackageDownloadUrl" class="btn" @click="prepareWorldSetPackageDownload">准备下载片场包</button><a v-else class="btn" :href="setPackageDownloadUrl" download>下载片场包</a></template><span class="version-pill">固定版本 {{shortID(selectedAsset.asset_version_id)}}</span><button class="btn" @click="bringIntoProject">选择项目并引用此版本</button></div><div v-if="setViewerState === 'not_installed'" class="state" role="status" style="margin-top:12px"><strong>当前工作站尚未安装「片场查看器 (viewer)」</strong><span>安装后可在浏览器内三维环绕、第一人称漫游与核对 Blender 实拍机位；您仍可直接下载片场包。</span><button class="btn" @click="openSetViewerAppCenter">前往应用中心安装</button></div><div v-else-if="setViewerState === 'forbidden'" class="state error-state" role="alert" style="margin-top:12px"><strong>无访问权限</strong><span>当前会话无权打开片场查看器或读取此固定资产版本。</span></div></AssetResults>
+        <section v-if="assetDomain(selectedAsset.manifest.asset_type)?.key === 'scene' && selectedAsset.manifest.asset_type !== 'prop'" class="detail-panel world-project-refs" aria-label="被项目引用">
+          <div class="section-title">
+            <div>
+              <strong>被项目引用</strong>
+              <small style="display:block;margin-top:4px">世界空景不含剧集人物与剧情打光；项目引用此固定空景版本后，在项目内派生各故事状态与戏份布景（仅展示当前身份有读取权限的项目）。</small>
+            </div>
+            <span class="version-pill empty-set-pill">空景 · 无人物 · v1.1</span>
+          </div>
+          <div v-if="selectedAsset.manifest.source.kind !== 'world_draft'" class="project-ref-list">
+            <div class="project-ref-card">
+              <div class="project-ref-meta">
+                <strong>来源／引用项目 {{shortID(selectedAsset.manifest.source.project_id)}}</strong>
+                <small>固定项目修订 {{shortID(selectedAsset.manifest.source.project_revision_id)}} · {{selectedAsset.manifest.source.relation === 'produced_in' ? '项目制作沉淀并引用此空景' : '参考收录并关联项目'}}</small>
+              </div>
+              <div class="project-ref-actions">
+                <button class="btn primary" @click="openSource">查看项目场景 →</button>
+                <button class="btn" @click="bringIntoProject">在其他项目中引用此空景</button>
+              </div>
+            </div>
+          </div>
+          <div v-else class="project-ref-list">
+            <div class="project-ref-card">
+              <div class="project-ref-meta">
+                <strong>尚未绑定特定来源项目</strong>
+                <small>来自数字世界工作区修订 {{shortID(selectedAsset.manifest.source.draft_id)}} · 可直接引入任意短剧项目作为场景空景基底。</small>
+              </div>
+              <div class="project-ref-actions">
+                <button class="btn primary" @click="bringIntoProject">选择项目并引用此空景</button>
+              </div>
+            </div>
+          </div>
+        </section>
         <details class="detail-panel"><summary>资产信息与已保存文件</summary>
           <dl class="facts"><dt>资产类型</dt><dd>{{selectedAsset.manifest.asset_type}}</dd><dt>主体</dt><dd>{{selectedAsset.manifest.subjects.join('、') || '未标主体'}}</dd><template v-if="selectedAsset.manifest.source.kind === 'world_draft'"><dt>来源工作区修订</dt><dd>{{shortID(selectedAsset.manifest.source.draft_id)}} · {{shortID(selectedAsset.manifest.source.draft_revision_id)}}</dd></template><template v-else><dt>来源项目修订</dt><dd>{{shortID(selectedAsset.manifest.source.project_id)}} · {{shortID(selectedAsset.manifest.source.project_revision_id)}}</dd></template></dl>
           <ul class="plain-list"><li v-for="file in selectedAsset.manifest.files" :key="file.file_id"><span>{{file.path}}</span><small>{{file.role}} · {{shortID(file.file_id)}}</small></li></ul><button v-if="selectedAsset.manifest.source.kind !== 'world_draft'" class="btn detail-action" @click="openSource">查看来源项目的固定修订</button>
@@ -247,5 +279,13 @@ select { width: 100%; border: 1px solid var(--line); border-radius: 8px; backgro
 .plain-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .plain-list li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }
 .detail-action { margin-top: 18px; width: 100%; }
+.world-project-refs { margin-bottom: 18px; }
+.empty-set-pill { padding: 4px 10px; border-radius: 999px; border: 1px solid color-mix(in srgb,var(--accent) 35%,var(--line)); background: color-mix(in srgb,var(--accent) 10%,transparent); color: var(--accent); font-weight: 600; }
+.project-ref-list { display: grid; gap: 10px; }
+.project-ref-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--shell-button); }
+.project-ref-meta { display: grid; gap: 4px; }
+.project-ref-meta strong { font-size: 14px; color: var(--ink); }
+.project-ref-meta small { font-size: 12px; color: var(--muted); }
+.project-ref-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 @media(max-width:800px) { .content-grid { grid-template-columns:1fr; } }
 </style>

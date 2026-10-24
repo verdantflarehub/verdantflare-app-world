@@ -198,7 +198,7 @@ func httpError(w http.ResponseWriter, p Principal, err error) {
 	for _, item := range []struct {
 		err    error
 		status int
-	}{{ErrReviewNotReady, 503}, {ErrReviewConflict, 409}, {ErrTargetMismatch, 409}, {ErrReviewScope, 422}, {ErrInvalid, 400}, {ErrForbidden, 403}, {ErrNotFound, 404}, {ErrConflict, 409}, {ErrIdempotency, 409}, {ErrNotReady, 409}, {ErrDependency, 503}, {coordination.ErrPending, 409}} {
+	}{{ErrReviewNotReady, 503}, {ErrReviewConflict, 409}, {ErrTargetMismatch, 409}, {ErrReviewScope, 422}, {ErrEmptySetHasActors, 422}, {ErrInvalid, 400}, {ErrForbidden, 403}, {ErrNotFound, 404}, {ErrConflict, 409}, {ErrIdempotency, 409}, {ErrNotReady, 409}, {ErrDependency, 503}, {coordination.ErrPending, 409}} {
 		if errors.Is(err, item.err) {
 			status, code = item.status, item.err.Error()
 			break

@@ -102,11 +102,13 @@ export function buildWorldViewerOpenTarget(params: {
 
 export function classifyViewerOpenError(cause: unknown): ViewerLaunchOutcome {
   const code =
-    cause && typeof cause === 'object' && 'code' in cause
+    cause && typeof cause === 'object' && 'code' in cause && (cause as { code?: unknown }).code
       ? String((cause as { code?: unknown }).code || '')
-      : cause instanceof Error
-        ? cause.message
-        : ''
+      : cause && typeof cause === 'object' && 'message' in cause && (cause as { message?: unknown }).message
+        ? String((cause as { message?: unknown }).message || '')
+        : typeof cause === 'string'
+          ? cause
+          : ''
   if (
     [
       'APP_NOT_INSTALLED',

@@ -2,6 +2,8 @@ package world
 
 import (
 	"context"
+	"strings"
+
 	"github.com/verdantflarehub/verdantflare-app-world/internal/coordination"
 )
 
@@ -165,6 +167,33 @@ func (s *Service) draftPublicationContents(ctx context.Context, p Principal, pla
 			}
 			if v.Source.WorldDraftID != m.Source.DraftID {
 				return nil, nil, ErrInvalid
+			}
+		}
+	}
+	if IsSceneAssetType(m.AssetType) {
+		for _, f := range selected.Files {
+			if f.Path == "set.json" || strings.HasSuffix(f.Path, "/set.json") {
+				data, err := s.content.Read(ctx, p, f.Content, m.Source.access(), MaxManifestBytes)
+				if err != nil {
+					return nil, nil, err
+				}
+				if err := ValidateWorldEmptySetPackage(m.AssetType, data, nil); err != nil {
+					return nil, nil, err
+				}
+			} else if f.Path == "scene.glb" || strings.HasSuffix(f.Path, "/scene.glb") {
+				v, err := s.content.Metadata(ctx, p, f.Content, m.Source.access())
+				if err != nil {
+					return nil, nil, err
+				}
+				if v.Size <= MaxManifestBytes {
+					data, err := s.content.Read(ctx, p, f.Content, m.Source.access(), MaxManifestBytes)
+					if err != nil {
+						return nil, nil, err
+					}
+					if err := ValidateWorldEmptySetPackage(m.AssetType, nil, data); err != nil {
+						return nil, nil, err
+					}
+				}
 			}
 		}
 	}

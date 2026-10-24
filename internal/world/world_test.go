@@ -2,6 +2,7 @@ package world
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -239,3 +240,53 @@ func TestWorldSavedOperationDoesNotAdoptNewRecoveryFence(t *testing.T) {
 		t.Fatal("missing epoch invented")
 	}
 }
+
+func makeMinimalGLB(nodeNames []string) []byte {
+	type gltfNode struct {
+		Name string `json:"name"`
+	}
+	var doc struct {
+		Nodes []gltfNode `json:"nodes"`
+	}
+	for _, n := range nodeNames {
+		doc.Nodes = append(doc.Nodes, gltfNode{Name: n})
+	}
+	jsonBytes, _ := json.Marshal(doc)
+	for len(jsonBytes)%4 != 0 {
+		jsonBytes = append(jsonBytes, ' ')
+	}
+	totalLen := uint32(20 + len(jsonBytes))
+	buf := make([]byte, totalLen)
+	binary.LittleEndian.PutUint32(buf[0:4], 0x46546C67)
+	binary.LittleEndian.PutUint32(buf[4:8], 2)
+	binary.LittleEndian.PutUint32(buf[8:12], totalLen)
+	binary.LittleEndian.PutUint32(buf[12:16], uint32(len(jsonBytes)))
+	binary.LittleEndian.PutUint32(buf[16:20], 0x4E4F534A)
+	copy(buf[20:], jsonBytes)
+	return buf
+}
+
+func TestValidateWorldEmptySetPackageRejectsActors(t *testing.T) {
+	emptySetJSON := []byte(`{"schema_version":"1.1","kind":"world_empty","cast":[]}`)
+	emptyGLB := makeMinimalGLB([]string{"BLDG_main_hall", "CAM_overview"})
+	if err := ValidateWorldEmptySetPackage("location", emptySetJSON, emptyGLB); err != nil {
+		t.Fatalf("expected valid empty set, got %v", err)
+	}
+	setupSetJSON := []byte(`{"schema_version":"1.1","kind":"setup","cast":[]}`)
+	if err := ValidateWorldEmptySetPackage("location", setupSetJSON, emptyGLB); !errors.Is(err, ErrEmptySetHasActors) {
+		t.Fatalf("expected ErrEmptySetHasActors for kind=setup, got %v", err)
+	}
+	castSetJSON := []byte(`{"schema_version":"1.1","kind":"world_empty","cast":[{"character_key":"liubei","label":"刘备","stand_in":"ACTOR_liubei_01"}]}`)
+	if err := ValidateWorldEmptySetPackage("scene", castSetJSON, emptyGLB); !errors.Is(err, ErrEmptySetHasActors) {
+		t.Fatalf("expected ErrEmptySetHasActors for non-empty cast, got %v", err)
+	}
+	actorGLB := makeMinimalGLB([]string{"BLDG_main_hall", "ACTOR_liubei_01"})
+	if err := ValidateWorldEmptySetPackage("environment", emptySetJSON, actorGLB); !errors.Is(err, ErrEmptySetHasActors) {
+		t.Fatalf("expected ErrEmptySetHasActors for ACTOR_ node in GLB, got %v", err)
+	}
+	// Non-scene asset types are not restricted by empty-set rules
+	if err := ValidateWorldEmptySetPackage("character", castSetJSON, actorGLB); err != nil {
+		t.Fatalf("expected character asset to bypass empty-set check, got %v", err)
+	}
+}
+

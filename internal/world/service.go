@@ -75,7 +75,7 @@ func audit(ctx context.Context, tx pgx.Tx, p Principal, action, id string) error
 	return err
 }
 func errorCode(code string) error {
-	for _, err := range []error{ErrInvalid, ErrNotFound, ErrForbidden, ErrConflict, ErrNotReady, ErrIdempotency} {
+	for _, err := range []error{ErrInvalid, ErrNotFound, ErrForbidden, ErrConflict, ErrNotReady, ErrIdempotency, ErrEmptySetHasActors} {
 		if code == err.Error() {
 			return err
 		}

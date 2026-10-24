@@ -12,13 +12,14 @@ import (
 )
 
 var (
-	ErrInvalid     = errors.New("INVALID_ARGUMENT")
-	ErrForbidden   = errors.New("PERMISSION_DENIED")
-	ErrNotFound    = errors.New("NOT_FOUND")
-	ErrConflict    = errors.New("REVISION_CONFLICT")
-	ErrIdempotency = errors.New("IDEMPOTENCY_CONFLICT")
-	ErrNotReady    = errors.New("CONTENT_NOT_READY")
-	ErrDependency  = errors.New("DEPENDENCY_UNAVAILABLE")
+	ErrInvalid           = errors.New("INVALID_ARGUMENT")
+	ErrForbidden         = errors.New("PERMISSION_DENIED")
+	ErrNotFound          = errors.New("NOT_FOUND")
+	ErrConflict          = errors.New("REVISION_CONFLICT")
+	ErrIdempotency       = errors.New("IDEMPOTENCY_CONFLICT")
+	ErrNotReady          = errors.New("CONTENT_NOT_READY")
+	ErrDependency        = errors.New("DEPENDENCY_UNAVAILABLE")
+	ErrEmptySetHasActors = errors.New("EMPTY_SET_HAS_ACTORS")
 )
 
 type ConflictError struct{ CurrentRevisionID string }

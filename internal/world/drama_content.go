@@ -200,6 +200,55 @@ func decodeDramaContent(data []byte, m Manifest) (contentObject, error) {
 				return nil, contentError("globals/"+k, "missing input global")
 			}
 		}
+		if len(listOf(g["setups"])) > 0 {
+			if g["kind"] != "location" {
+				return nil, contentError("globals/"+k, "setups only allowed on location")
+			}
+			setups, err := indexObjects(g["setups"], "globals/"+k+"/setups")
+			if err != nil {
+				return nil, err
+			}
+			states, _ := indexObjects(g["states"], "globals/"+k+"/states")
+			for sk, setup := range setups {
+				spath := "globals/" + k + "/setups/" + sk
+				if states[str(setup["state_key"])] == nil {
+					return nil, contentError(spath, "missing state")
+				}
+				if pck := str(setup["primary_camera_key"]); pck != "" && !hasString(setup["camera_keys"], pck) {
+					return nil, contentError(spath, "primary camera not in camera_keys")
+				}
+				for _, sr := range listOf(setup["scene_refs"]) {
+					sro := objectOf(sr)
+					ep := episodes[str(sro["episode_key"])]
+					if ep == nil {
+						return nil, contentError(spath, "missing episode")
+					}
+					scenes, _ := indexObjects(ep["scenes"], spath)
+					if scenes[str(sro["scene_key"])] == nil {
+						return nil, contentError(spath, "missing scene")
+					}
+				}
+				for _, c := range listOf(setup["cast"]) {
+					co := objectOf(c)
+					cg := globals[str(co["character_key"])]
+					if cg == nil || cg["kind"] != "character" {
+						return nil, contentError(spath, "missing character")
+					}
+					if wk := str(co["wardrobe_key"]); wk != "" {
+						wg := globals[wk]
+						if wg == nil || wg["kind"] != "wardrobe" {
+							return nil, contentError(spath, "missing wardrobe")
+						}
+						if wsk := str(co["wardrobe_state_key"]); wsk != "" {
+							wStates, _ := indexObjects(wg["states"], spath)
+							if wStates[wsk] == nil {
+								return nil, contentError(spath, "missing wardrobe state")
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	if err = checkGraph(globals, "input_global_keys", "globals"); err != nil {
 		return nil, err
@@ -299,6 +348,22 @@ func decodeDramaContent(data []byte, m Manifest) (contentObject, error) {
 			segments, _ := indexObjects(shot["segments"], path)
 			if !contentEqual(segments[str(seg["key"])], seg) {
 				return nil, contentError(path, "segment does not match target shot")
+			}
+		}
+		if setupKey := str(u["setup_key"]); setupKey != "" {
+			if g["kind"] != "location" {
+				return nil, contentError(path, "setup_key only allowed on location usage")
+			}
+			setups, _ := indexObjects(g["setups"], path)
+			setup := setups[setupKey]
+			if setup == nil {
+				return nil, contentError(path, "missing setup")
+			}
+			if state != "" && str(setup["state_key"]) != state {
+				return nil, contentError(path, "setup state mismatch")
+			}
+			if camKey := str(u["camera_key"]); camKey != "" && !hasString(setup["camera_keys"], camKey) {
+				return nil, contentError(path, "camera_key not in setup camera_keys")
 			}
 		}
 	}

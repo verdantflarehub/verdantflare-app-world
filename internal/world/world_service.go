@@ -2,6 +2,7 @@ package world
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"sort"
@@ -301,7 +302,7 @@ func (s *Service) saveWorldPlan(ctx context.Context, p Principal, c worldCommit)
 }
 func (s *Service) worldTerminal(ctx context.Context, p Principal, c worldCommit, state string, cause error) (WorldResult, error) {
 	code := cause.Error()
-	for _, known := range []error{ErrInvalid, ErrNotFound, ErrForbidden, ErrNotReady, ErrConflict} {
+	for _, known := range []error{ErrInvalid, ErrNotFound, ErrForbidden, ErrNotReady, ErrConflict, ErrEmptySetHasActors} {
 		if errors.Is(cause, known) {
 			code = known.Error()
 			break
@@ -389,7 +390,7 @@ func (s *Service) resumeWorld(ctx context.Context, p Principal, asset, commit st
 	if c.Plan.Grants == nil {
 		c.Plan.Grants, e = s.authorizationPlan(ctx, p, c)
 		if e != nil {
-			if errors.Is(e, ErrInvalid) || errors.Is(e, ErrNotFound) || errors.Is(e, ErrForbidden) {
+			if errors.Is(e, ErrInvalid) || errors.Is(e, ErrNotFound) || errors.Is(e, ErrForbidden) || errors.Is(e, ErrEmptySetHasActors) {
 				return s.worldTerminal(ctx, p, c, "failed", e)
 			}
 			return WorldResult{}, e
@@ -403,7 +404,7 @@ func (s *Service) resumeWorld(ctx context.Context, p Principal, asset, commit st
 	}
 	refs, e := s.checkWorldContents(ctx, p, c.Plan)
 	if e != nil {
-		if errors.Is(e, ErrInvalid) || errors.Is(e, ErrNotFound) || errors.Is(e, ErrForbidden) {
+		if errors.Is(e, ErrInvalid) || errors.Is(e, ErrNotFound) || errors.Is(e, ErrForbidden) || errors.Is(e, ErrEmptySetHasActors) {
 			return s.worldTerminal(ctx, p, c, "failed", e)
 		}
 		return WorldResult{}, e
@@ -480,6 +481,25 @@ func (s *Service) checkWorldContents(ctx context.Context, p Principal, plan worl
 		if m.Source.Relation == "produced_in" && v.Source.ProjectID != m.Source.ProjectID {
 			return nil, ErrInvalid
 		}
+		if IsSceneAssetType(m.AssetType) {
+			if f.Path == "set.json" || strings.HasSuffix(f.Path, "/set.json") {
+				data, err := s.content.Read(ctx, p, f.Content, Access{ProjectID: m.Source.ProjectID, RevisionID: m.Source.RevisionID}, MaxManifestBytes)
+				if err != nil {
+					return nil, err
+				}
+				if err := ValidateWorldEmptySetPackage(m.AssetType, data, nil); err != nil {
+					return nil, err
+				}
+			} else if (f.Path == "scene.glb" || strings.HasSuffix(f.Path, "/scene.glb")) && v.Size <= MaxManifestBytes {
+				data, err := s.content.Read(ctx, p, f.Content, Access{ProjectID: m.Source.ProjectID, RevisionID: m.Source.RevisionID}, MaxManifestBytes)
+				if err != nil {
+					return nil, err
+				}
+				if err := ValidateWorldEmptySetPackage(m.AssetType, nil, data); err != nil {
+					return nil, err
+				}
+			}
+		}
 		refs = append(refs, f.Content)
 	}
 	for _, a := range m.DependsOn {
@@ -490,6 +510,59 @@ func (s *Service) checkWorldContents(ctx context.Context, p Principal, plan worl
 		refs = append(refs, more...)
 	}
 	return uniqueRefs(refs), nil
+}
+
+// IsSceneAssetType returns true when the asset_type belongs to the World empty-set
+// scene domain (excluding standalone props).
+func IsSceneAssetType(assetType string) bool {
+	switch assetType {
+	case "scene", "location", "environment", "lighting":
+		return true
+	default:
+		return false
+	}
+}
+
+// ValidateWorldEmptySetPackage ensures that a World scene set package is an empty
+// set without actors: kind (if present) must be "world_empty", cast must be empty,
+// and scene.glb must not contain any node whose name starts with "ACTOR_".
+func ValidateWorldEmptySetPackage(assetType string, setJSON []byte, glbBytes []byte) error {
+	if !IsSceneAssetType(assetType) {
+		return nil
+	}
+	if len(setJSON) > 0 {
+		var obj map[string]any
+		if err := json.Unmarshal(setJSON, &obj); err != nil {
+			return ErrInvalid
+		}
+		if kind := str(obj["kind"]); kind != "" && kind != "world_empty" {
+			return ErrEmptySetHasActors
+		}
+		if len(listOf(obj["cast"])) > 0 {
+			return ErrEmptySetHasActors
+		}
+	}
+	if len(glbBytes) >= 20 {
+		magic := binary.LittleEndian.Uint32(glbBytes[0:4])
+		version := binary.LittleEndian.Uint32(glbBytes[4:8])
+		chunkLen := binary.LittleEndian.Uint32(glbBytes[12:16])
+		chunkType := binary.LittleEndian.Uint32(glbBytes[16:20])
+		if magic == 0x46546C67 && version == 2 && chunkType == 0x4E4F534A && int(20+chunkLen) <= len(glbBytes) {
+			var gltf struct {
+				Nodes []struct {
+					Name string `json:"name"`
+				} `json:"nodes"`
+			}
+			if err := json.Unmarshal(glbBytes[20:20+chunkLen], &gltf); err == nil {
+				for _, node := range gltf.Nodes {
+					if strings.HasPrefix(node.Name, "ACTOR_") {
+						return ErrEmptySetHasActors
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 func (s *Service) publishWorld(ctx context.Context, p Principal, c worldCommit) (WorldResult, error) {
 	tx, e := s.db.Begin(ctx)
