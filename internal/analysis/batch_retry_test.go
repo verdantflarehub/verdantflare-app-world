@@ -322,3 +322,85 @@ func TestPromptEmptyNegativeDiagnosticStrictAndBounded(t *testing.T) {
 		})
 	}
 }
+
+func TestPromptEvidenceDiagnosticPreservesNativeAndBounds(t *testing.T) {
+	task, b, a, _, _, drafts := qualityFixture(t)
+	for i := range drafts {
+		if len(drafts[i].Evidence) == 1 {
+			for _, n := range b.Nodes {
+				if n.Key != drafts[i].Evidence[0] && n.Kind != "uncertainties" {
+					drafts[i].Evidence = append(drafts[i].Evidence, n.Key)
+					break
+				}
+			}
+		}
+	}
+
+	plan, _, _, err := PlanDerivedPrompts(b, a, drafts, task.PromptTargets)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, call, native := promptNative(t, b, a, plan[0])
+	var n map[string]any
+	json.Unmarshal(promptBytes(t, native), &n)
+	o := n["analysis"].(map[string]any)
+	d := o["document"].(map[string]any)
+	item := d["items"].([]any)[0].(map[string]any)
+	evidence := item["evidence_keys"].([]any)
+	if len(evidence) < 2 {
+		t.Fatal("fixture needs multiple evidence nodes")
+	}
+	item["evidence_keys"] = evidence[:1]
+	o["text"] = string(promptBytes(t, d))
+	r := PromptRecord{OrganizationID: task.OrganizationID, OwnerID: task.OwnerID, Request: f, RequestHash: f.Digest(), Revision: 4, State: "failed", CallID: call, Result: promptBytes(t, n), ErrorCode: "prompt_invalid"}
+	before := string(r.Result)
+	for i := 1; i <= 3; i++ {
+		next, e := RetryPromptRequest(b, a, r, uuid.NewString())
+		if e != nil {
+			t.Fatal(i, e)
+		}
+		if next.Retry.Diagnostic != "prompt-evidence-v1" || next.TextHash != f.TextHash || next.BudgetLimit != f.BudgetLimit || !strings.Contains(string(next.Payload), "missing_evidence_keys") {
+			t.Fatal("missing bounded diagnostic")
+		}
+		r.Request = next
+		r.RequestHash = next.Digest()
+	}
+	if string(r.Result) != before {
+		t.Fatal("native rewritten")
+	}
+	if _, e := RetryPromptRequest(b, a, r, uuid.NewString()); e == nil {
+		t.Fatal("fourth attempt")
+	}
+	for _, bad := range []string{"unknown", "duplicate", "variable", "field", "scope", "finish", "identity", "text"} {
+		t.Run(bad, func(t *testing.T) {
+			var x map[string]any
+			json.Unmarshal(r.Result, &x)
+			out := x["analysis"].(map[string]any)
+			doc := out["document"].(map[string]any)
+			it := doc["items"].([]any)[0].(map[string]any)
+			switch bad {
+			case "unknown":
+				it["evidence_keys"] = []any{"unknown"}
+			case "duplicate":
+				it["evidence_keys"] = []any{evidence[0], evidence[0]}
+			case "variable":
+				it["variables"] = []any{map[string]any{"key": "unused", "description": "unused", "required": true}}
+			case "field":
+				it["unknown"] = true
+			case "scope":
+				it["scope_key"] = "foreign"
+			case "finish":
+				out["finish_reason"] = "MAX_TOKENS"
+			case "identity":
+				x["call_id"] = uuid.NewString()
+			}
+			out["text"] = string(promptBytes(t, doc))
+			if bad == "text" {
+				out["text"] = "{}"
+			}
+			if promptEvidenceOnly(b, a, f, call, promptBytes(t, x)) == nil {
+				t.Fatal("non-omission accepted")
+			}
+		})
+	}
+}

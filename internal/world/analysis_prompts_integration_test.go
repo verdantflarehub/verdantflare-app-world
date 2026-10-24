@@ -37,12 +37,14 @@ type promptChannelFixture struct {
 	corrupt       bool
 	schemaReject  bool
 	emptyNegative bool
+	omitEvidence  bool
 }
 
 func (c *promptChannelFixture) SubmitPrompts(_ context.Context, _ string, f analysis.PromptRequest) (analysis.Call, error) {
 	c.submits++
 	var payload struct {
 		Schema map[string]any `json:"response_schema"`
+		Text   string         `json:"source_text"`
 	}
 	if json.Unmarshal(f.Payload, &payload) != nil {
 		return analysis.Call{}, analysis.ErrInvalid
@@ -62,6 +64,29 @@ func (c *promptChannelFixture) SubmitPrompts(_ context.Context, _ string, f anal
 	if c.corrupt {
 		result.Items[0].Scope = "not-in-the-frozen-batch"
 	}
+	if c.omitEvidence {
+		original := result.Items[0].Evidence[0]
+		var input struct {
+			Observations struct {
+				Nodes []struct {
+					Key string `json:"key"`
+				} `json:"nodes"`
+			} `json:"observations"`
+		}
+		json.Unmarshal([]byte(payload.Text), &input)
+		changed := false
+		for _, node := range input.Observations.Nodes {
+			if node.Key != original {
+				result.Items[0].Evidence = []string{node.Key}
+				changed = true
+				break
+			}
+		}
+		if !changed {
+			return analysis.Call{}, fmt.Errorf("fixture lacks an independent observation node")
+		}
+	}
+
 	text, _ := json.Marshal(result)
 	c.result, _ = json.Marshal(map[string]any{"schema_version": 1, "call_id": c.call.CallID, "task_id": f.TaskID, "model_id": f.ModelID, "media": "analysis", "operation": "analyze", "state": "completed", "accepted": true, "analysis": map[string]any{
 		"text": string(text), "document": result, "model_id": f.ModelID, "finish_reason": "STOP", "response_schema_verified": true, "input": map[string]any{"source_text_sha256": f.TextHash, "response_schema_sha256": hex.EncodeToString(digest[:]), "media": nil, "video_range": nil},

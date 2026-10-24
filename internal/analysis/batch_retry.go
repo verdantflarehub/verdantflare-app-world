@@ -27,7 +27,7 @@ func validBatchOperation(task, key, operation string, version int, r *BatchRetry
 	if r == nil {
 		return operation == base
 	}
-	return version == 2 && validUUID(r.ID) && validUUID(r.PreviousCallID) && digestPattern.MatchString(r.PreviousRequestHash) && r.Number >= 1 && (r.Number <= 2 && r.Diagnostic == "" || r.Number == 3 && r.Diagnostic == "style-representation-v1" && len(r.FailureReceipt) > 0 || r.Number <= 3 && r.Diagnostic == "method-links-v1" && len(r.FailureReceipt) > 0 || r.Number == 3 && r.Diagnostic == "prompt-empty-negative-v1" && len(r.FailureReceipt) > 0) && operation == base+":retry:"+r.ID
+	return version == 2 && validUUID(r.ID) && validUUID(r.PreviousCallID) && digestPattern.MatchString(r.PreviousRequestHash) && r.Number >= 1 && (r.Number <= 2 && r.Diagnostic == "" || r.Number == 3 && r.Diagnostic == "style-representation-v1" && len(r.FailureReceipt) > 0 || r.Number <= 3 && r.Diagnostic == "method-links-v1" && len(r.FailureReceipt) > 0 || (r.Number == 3 && r.Diagnostic == "prompt-empty-negative-v1" || r.Number <= 3 && r.Diagnostic == "prompt-evidence-v1") && len(r.FailureReceipt) > 0) && operation == base+":retry:"+r.ID
 }
 
 const batchCorrection = "\n上一批原生结果未通过结构或语义校验。完整重新生成本批全部对象；所有 key、rule_key、变量键及结构标识只允许英文字母、数字、下划线、点或短横线，首字母或数字开头，禁止用中文作标识；title、purpose、description 与正文使用中文。scope_key、target_key、batch_key 及已有证据编号逐字保留，不增删对象，不省略 scope 中的必需证据。逐项核对 Schema、时间范围、输入输出引用和本批用途；简洁完整输出，不截断、不填造证据或可用性。"
@@ -137,13 +137,18 @@ func RetryPromptRequest(b Bundle, a Association, old PromptRecord, id string) (P
 	if _, err = VerifyPromptsNative(b, a, f, old.CallID, old.Result); err == nil {
 		return PromptRequest{}, ErrInvalid
 	}
+	evidenceFailure := old.ErrorCode == "prompt_invalid" && promptEvidenceOnly(b, a, f, old.CallID, old.Result) == nil
 	previous := f.Retry
 	f.Retry, err = nextBatchRetry(id, old.RequestHash, old.CallID, previous)
 	if err != nil {
-		if previous == nil || previous.Number != 2 || !validUUID(id) || old.ErrorCode != "native_failed" || promptEmptyNegativeOnly(b, a, old.Request, old.CallID, old.Result) != nil {
+		if previous == nil || previous.Number != 2 || !validUUID(id) || !evidenceFailure && (old.ErrorCode != "native_failed" || promptEmptyNegativeOnly(b, a, old.Request, old.CallID, old.Result) != nil) {
 			return PromptRequest{}, err
 		}
 		f.Retry = &BatchRetry{ID: id, Number: 3, PreviousRequestHash: old.RequestHash, PreviousCallID: old.CallID, Diagnostic: "prompt-empty-negative-v1", FailureReceipt: append(json.RawMessage(nil), old.Result...)}
+	}
+	if evidenceFailure {
+		f.Retry.Diagnostic = "prompt-evidence-v1"
+		f.Retry.FailureReceipt = append(json.RawMessage(nil), old.Result...)
 	}
 	if old.ErrorCode == "native_failed" {
 		f.Retry.FailureReceipt = append(json.RawMessage(nil), old.Result...)
@@ -158,6 +163,9 @@ func RetryPromptRequest(b Bundle, a Association, old PromptRecord, id string) (P
 	}
 	if !strings.Contains(p.Prompt, promptFormatInstruction) {
 		p.Prompt += promptFormatInstruction
+	}
+	if evidenceFailure {
+		p.Prompt = replacePromptEvidenceInstruction(p.Prompt, promptEvidenceInstruction(old.Request, old.Result))
 	}
 	f.Payload, err = json.Marshal(p)
 	if err != nil {
