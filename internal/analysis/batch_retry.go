@@ -1,9 +1,13 @@
 package analysis
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/santhosh-tekuri/jsonschema/v6"
+	"github.com/verdantflarehub/verdantflare-app-world/internal/strictjson"
+	"reflect"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -45,7 +49,11 @@ func nextBatchRetry(id, hash, call string, previous *BatchRetry) (*BatchRetry, e
 }
 func verifyBatchFailure(kind, code, call, task, model, textHash string, schema map[string]any, native []byte) error {
 	if code == "native_failed" {
-		return verifyTruncatedAssociation(Binding{call, task, model}, textHash, schema, native)
+		binding := Binding{call, task, model}
+		if verifyTruncatedAssociation(binding, textHash, schema, native) == nil {
+			return nil
+		}
+		return verifySchemaRejectedBatch(binding, textHash, schema, native)
 	}
 	if code != kind+"_invalid" {
 		return ErrInvalid
@@ -252,4 +260,55 @@ func (s PGStore) retryBatch(ctx context.Context, org, owner, task, id string, re
 		return err
 	}
 	return tx.Commit(ctx)
+}
+
+// A provider schema rejection is a confirmed content failure, not a submission
+// ambiguity. Verify both the native identity and the actual schema violation.
+func verifySchemaRejectedBatch(binding Binding, textHash string, schema map[string]any, data []byte) error {
+	clean, err := strictjson.ReadValue(bytes.NewReader(data), 8<<20)
+	if err != nil {
+		return ErrInvalid
+	}
+	var r struct {
+		Call
+		Reason   string `json:"reason_code"`
+		Analysis struct {
+			Model    string          `json:"model_id"`
+			Finish   string          `json:"finish_reason"`
+			Text     string          `json:"text"`
+			Document json.RawMessage `json:"document"`
+			Verified bool            `json:"response_schema_verified"`
+			Input    struct {
+				Text   string          `json:"source_text_sha256"`
+				Schema string          `json:"response_schema_sha256"`
+				Media  json.RawMessage `json:"media"`
+				Range  json.RawMessage `json:"video_range"`
+			} `json:"input"`
+		} `json:"analysis"`
+	}
+	if json.Unmarshal(clean, &r) != nil || !r.Call.matches(binding.TaskID, binding.ModelID, binding.CallID) || r.Binding != binding || r.Accepted == nil || !*r.Accepted || r.State != "failed" || r.Reason != "output_schema_mismatch" || r.Analysis.Model != binding.ModelID || r.Analysis.Finish != "STOP" || r.Analysis.Verified {
+		return ErrInvalid
+	}
+	input := r.Analysis.Input
+	if input.Text != textHash || input.Schema != canonicalHash(schema) || len(input.Media) > 0 && string(input.Media) != "null" || len(input.Range) > 0 && string(input.Range) != "null" {
+		return ErrInvalid
+	}
+	text, err := strictjson.ReadValue(bytes.NewReader([]byte(r.Analysis.Text)), 4<<20)
+	if err != nil {
+		return ErrInvalid
+	}
+	var original, document any
+	if json.Unmarshal(text, &original) != nil || json.Unmarshal(r.Analysis.Document, &document) != nil || !reflect.DeepEqual(original, document) {
+		return ErrInvalid
+	}
+	compiler := jsonschema.NewCompiler()
+	uri := "urn:verdantflare:analysis:failed-batch"
+	if compiler.AddResource(uri, schema) != nil {
+		return ErrInvalid
+	}
+	compiled, err := compiler.Compile(uri)
+	if err != nil || compiled.Validate(document) == nil {
+		return ErrInvalid
+	}
+	return nil
 }

@@ -16,6 +16,9 @@ func TestAnalysisQualityTypedBeforePrompts(t *testing.T) {
 func TestAnalysisQualityBatchRetriesPreserveFailuresAndSave(t *testing.T) {
 	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: syntheticPromptTargets(), retryBatches: true})
 }
+func TestAnalysisQualitySchemaRejectionsRecoverAndSave(t *testing.T) {
+	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: syntheticPromptTargets(), retryBatches: true, schemaRejections: true})
+}
 func TestAnalysisQualityEmptyPlanPersistsAndSaves(t *testing.T) {
 	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: []analysis.PromptTarget{{Key: "unavailable", RequestedLabel: "Unknown", TaskType: "unsupported", InputMode: "unknown", Guidance: "Keep limitations"}}})
 }
@@ -49,6 +52,8 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 			return "planned", svc.PrepareAnalysisResults(ctx, p, b.TaskID, true)
 		case analysis.IsResultBatchKey(w.StepKey):
 			rc.corrupt = options.retryBatches && rc.submits < 2
+			rc.schemaReject = options.schemaRejections && rc.corrupt
+			rc.call.State = "completed"
 			rc.call.CallID = newID()
 			r, e := svc.AdvanceAnalysisResult(ctx, p, b.TaskID, w.StepKey, rc, true)
 			return r.State, e
@@ -60,6 +65,8 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 			return "planned", svc.PrepareAnalysisPrompts(ctx, p, b.TaskID, true)
 		case analysis.IsPromptBatchKey(w.StepKey):
 			pc.corrupt = options.retryBatches && pc.submits == 0
+			pc.schemaReject = options.schemaRejections && pc.corrupt
+			pc.call.State = "completed"
 			pc.call.CallID = newID()
 			r, e := svc.AdvanceAnalysisPrompt(ctx, p, b.TaskID, w.StepKey, pc, true)
 			return r.State, e
@@ -106,8 +113,12 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 			if e = store.Retry(ctx, p.OrganizationID, newID(), b.TaskID, rid); e == nil {
 				t.Fatal("foreign batch retry")
 			}
+			var reader analysis.AssociationResultReader = rc
+			if kind == "prompt" {
+				reader = pc
+			}
 			for range 2 {
-				if e = store.Retry(ctx, p.OrganizationID, p.SubjectID, b.TaskID, rid); e != nil {
+				if e = store.Retry(ctx, p.OrganizationID, p.SubjectID, b.TaskID, rid, reader); e != nil {
 					t.Fatal("batch retry/replay", kind, e)
 				}
 			}

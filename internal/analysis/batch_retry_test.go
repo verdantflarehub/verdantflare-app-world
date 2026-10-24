@@ -76,3 +76,59 @@ func TestBatchRetryBoundsAndExactFrozenInputs(t *testing.T) {
 		t.Fatal("third prompt retry")
 	}
 }
+
+func TestBatchRetryVerifiedProviderSchemaRejection(t *testing.T) {
+	_, b, a, _, results, _ := qualityFixture(t)
+	old := results[0]
+	old.State = "failed"
+	old.ErrorCode = "native_failed"
+	var n map[string]any
+	json.Unmarshal(old.Result, &n)
+	n["state"] = "failed"
+	n["accepted"] = true
+	n["reason_code"] = "output_schema_mismatch"
+	output := n["analysis"].(map[string]any)
+	output["response_schema_verified"] = false
+	original := output["document"].(map[string]any)
+	delete(original, "items")
+	output["text"] = string(promptBytes(t, original))
+	old.Result = promptBytes(t, n)
+	next, err := RetryResultRequest(b, a, old, uuid.NewString())
+	if err != nil || len(next.Retry.FailureReceipt) == 0 {
+		t.Fatal("confirmed schema rejection", err)
+	}
+	for _, change := range []string{"identity", "text", "finish", "schema", "reason"} {
+		t.Run(change, func(t *testing.T) {
+			var x map[string]any
+			json.Unmarshal(old.Result, &x)
+			o := x["analysis"].(map[string]any)
+			switch change {
+			case "identity":
+				x["call_id"] = uuid.NewString()
+			case "text":
+				o["text"] = "{}"
+			case "finish":
+				o["finish_reason"] = "BLOCKED"
+			case "schema":
+				o["input"].(map[string]any)["response_schema_sha256"] = "bad"
+			case "reason":
+				x["reason_code"] = "provider_rejected"
+			}
+			wrong := old
+			wrong.Result = promptBytes(t, x)
+			if _, err := RetryResultRequest(b, a, wrong, uuid.NewString()); err == nil {
+				t.Fatal("unproven failure retried")
+			}
+		})
+	}
+	// A false rejection flag on schema-valid native bytes cannot trigger generation.
+	var valid map[string]any
+	json.Unmarshal(results[0].Result, &valid)
+	valid["state"] = "failed"
+	valid["reason_code"] = "output_schema_mismatch"
+	valid["analysis"].(map[string]any)["response_schema_verified"] = false
+	old.Result = promptBytes(t, valid)
+	if _, err := RetryResultRequest(b, a, old, uuid.NewString()); err == nil {
+		t.Fatal("valid content regenerated")
+	}
+}
