@@ -19,6 +19,9 @@ func TestAnalysisQualityBatchRetriesPreserveFailuresAndSave(t *testing.T) {
 func TestAnalysisQualitySchemaRejectionsRecoverAndSave(t *testing.T) {
 	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: syntheticPromptTargets(), retryBatches: true, schemaRejections: true})
 }
+func TestAnalysisQualityStyleDiagnosticCorrectionAndSave(t *testing.T) {
+	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: syntheticPromptTargets(), styleCorrection: true})
+}
 func TestAnalysisQualityEmptyPlanPersistsAndSaves(t *testing.T) {
 	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, typed: true, saveLearning: true, targets: []analysis.PromptTarget{{Key: "unavailable", RequestedLabel: "Unknown", TaskType: "unsupported", InputMode: "unknown", Guidance: "Keep limitations"}}})
 }
@@ -53,6 +56,7 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 		case analysis.IsResultBatchKey(w.StepKey):
 			rc.corrupt = options.retryBatches && rc.submits < 2
 			rc.schemaReject = options.schemaRejections && rc.corrupt
+			rc.styleCorrection = options.styleCorrection
 			rc.call.State = "completed"
 			rc.call.CallID = newID()
 			r, e := svc.AdvanceAnalysisResult(ctx, p, b.TaskID, w.StepKey, rc, true)
@@ -93,7 +97,7 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 		if err != nil {
 			t.Fatal(err)
 		}
-		if options.retryBatches && (progress.ResultFailed > 0 || progress.PromptFailed > 0) {
+		if (options.retryBatches || options.styleCorrection) && (progress.ResultFailed > 0 || progress.PromptFailed > 0) {
 			kind := "result"
 			if progress.PromptFailed > 0 {
 				kind = "prompt"
@@ -141,8 +145,12 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 			t.Fatal("pipeline did not finish")
 		}
 	}
-	if options.retryBatches {
-		if retryCounts["result"] != 2 || retryCounts["prompt"] != 1 {
+	if options.retryBatches || options.styleCorrection {
+		wantResult, wantPrompt := 2, 1
+		if options.styleCorrection {
+			wantResult, wantPrompt = 3, 0
+		}
+		if retryCounts["result"] != wantResult || retryCounts["prompt"] != wantPrompt {
 			t.Fatal("retry stages not covered", retryCounts)
 		}
 		for kind, before := range originals {

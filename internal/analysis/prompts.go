@@ -234,6 +234,9 @@ func FreezePrompts(b Bundle, a Association, batch PromptBatch, model, account, b
 }
 
 func (f PromptRequest) Validate() error {
+	if f.Retry != nil && f.Retry.Diagnostic != "" {
+		return ErrInvalid
+	}
 	if (f.Encoding != "" && f.Encoding != "short-v1") || f.Encoding != "" && f.Batch.Version != 2 || !validUUID(f.TaskID) || f.TaskID != f.Batch.TaskID || !validBatchOperation(f.TaskID, f.Batch.Key, f.OperationID, f.Batch.Version, f.Retry) || !identifier.MatchString(f.ModelID) || f.AccountID != "" && !validUUID(f.AccountID) || !positiveAmount.MatchString(f.BudgetLimit) || strings.Trim(f.BudgetLimit, "0.") == "" || !digestPattern.MatchString(f.TextHash) {
 		return ErrInvalid
 	}

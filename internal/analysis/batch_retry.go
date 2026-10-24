@@ -17,6 +17,7 @@ type BatchRetry struct {
 	Number              int             `json:"number"`
 	PreviousRequestHash string          `json:"previous_request_sha256"`
 	PreviousCallID      string          `json:"previous_call_id"`
+	Diagnostic          string          `json:"diagnostic,omitempty"`
 	FailureReceipt      json.RawMessage `json:"failure_receipt,omitempty"`
 }
 
@@ -25,7 +26,7 @@ func validBatchOperation(task, key, operation string, version int, r *BatchRetry
 	if r == nil {
 		return operation == base
 	}
-	return version == 2 && validUUID(r.ID) && validUUID(r.PreviousCallID) && digestPattern.MatchString(r.PreviousRequestHash) && r.Number >= 1 && r.Number <= 2 && operation == base+":retry:"+r.ID
+	return version == 2 && validUUID(r.ID) && validUUID(r.PreviousCallID) && digestPattern.MatchString(r.PreviousRequestHash) && r.Number >= 1 && (r.Number <= 2 && r.Diagnostic == "" || r.Number == 3 && r.Diagnostic == "style-representation-v1" && len(r.FailureReceipt) > 0) && operation == base+":retry:"+r.ID
 }
 
 const batchCorrection = "\n上一批原生结果未通过结构或语义校验。完整重新生成本批全部对象；所有 key、rule_key、变量键及结构标识只允许英文字母、数字、下划线、点或短横线，首字母或数字开头，禁止用中文作标识；title、purpose、description 与正文使用中文。scope_key、target_key、batch_key 及已有证据编号逐字保留，不增删对象，不省略 scope 中的必需证据。逐项核对 Schema、时间范围、输入输出引用和本批用途；简洁完整输出，不截断、不填造证据或可用性。"
@@ -34,6 +35,9 @@ func resultRetryInstruction(version int, r *BatchRetry) string {
 	s := resultInstructionFor(version)
 	if r != nil {
 		s += batchCorrection
+		if r.Diagnostic == "style-representation-v1" {
+			s += styleRepresentationInstruction
+		}
 	}
 	return s
 }
@@ -80,9 +84,13 @@ func RetryResultRequest(b Bundle, a Association, old ResultRecord, id string) (R
 	if _, err = VerifyResultsNative(b, a, f, old.CallID, old.Result); err == nil {
 		return ResultRequest{}, ErrInvalid
 	}
-	f.Retry, err = nextBatchRetry(id, old.RequestHash, old.CallID, f.Retry)
+	previous := f.Retry
+	f.Retry, err = nextBatchRetry(id, old.RequestHash, old.CallID, previous)
 	if err != nil {
-		return ResultRequest{}, err
+		if previous == nil || previous.Number != 2 || old.ErrorCode != "result_invalid" || !validUUID(id) || styleRepresentationOnly(b, a, old.Request, old.CallID, old.Result) != nil {
+			return ResultRequest{}, err
+		}
+		f.Retry = &BatchRetry{ID: id, Number: 3, PreviousRequestHash: old.RequestHash, PreviousCallID: old.CallID, Diagnostic: "style-representation-v1", FailureReceipt: append(json.RawMessage(nil), old.Result...)}
 	}
 	if old.ErrorCode == "native_failed" {
 		f.Retry.FailureReceipt = append(json.RawMessage(nil), old.Result...)

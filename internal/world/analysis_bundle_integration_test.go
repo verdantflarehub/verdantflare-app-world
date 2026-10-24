@@ -29,6 +29,7 @@ func testAnalysisBundle(t *testing.T, targets []analysis.PromptTarget, failPromp
 type bundleOptions struct {
 	retryBatches                    bool
 	schemaRejections                bool
+	styleCorrection                 bool
 	pipeline                        int
 	targets                         []analysis.PromptTarget
 	failPrompts, typed, failResults bool

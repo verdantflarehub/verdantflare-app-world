@@ -194,6 +194,18 @@ func (f ResultRequest) Validate() error {
 	if (f.Encoding != "" && f.Encoding != "short-v1") || f.Encoding != "" && f.Batch.Version != 2 || !validUUID(f.TaskID) || f.TaskID != f.Batch.TaskID || !validBatchOperation(f.TaskID, f.Batch.Key, f.OperationID, f.Batch.Version, f.Retry) || !identifier.MatchString(f.ModelID) || f.AccountID != "" && !validUUID(f.AccountID) || !positiveAmount.MatchString(f.BudgetLimit) || strings.Trim(f.BudgetLimit, "0.") == "" || !digestPattern.MatchString(f.TextHash) {
 		return ErrInvalid
 	}
+	if f.Retry != nil && f.Retry.Diagnostic != "" {
+		if f.Batch.Type != "style" || f.Retry.Number != 3 {
+			return ErrInvalid
+		}
+		schema, e := resultSchemaVersion(f.Batch.Type, f.Batch.Version)
+		if e != nil {
+			return ErrInvalid
+		}
+		if _, e = verifyTextNative(Binding{f.Retry.PreviousCallID, f.TaskID, f.ModelID}, f.TextHash, schema, f.Retry.FailureReceipt); e != nil {
+			return ErrInvalid
+		}
+	}
 	batch := f.Batch
 	if (batch.Version != 1 && batch.Version != 2) || !digestPattern.MatchString(batch.BundleHash) || !digestPattern.MatchString(batch.AssociationHash) || !digestPattern.MatchString(batch.PlanHash) || len(batch.Scopes) < 1 || len(batch.Scopes) > 8 || !strings.HasPrefix(batch.Key, "results-v1-"+batch.Type+"-") || !IsResultBatchKey(batch.Key) {
 		return ErrInvalid

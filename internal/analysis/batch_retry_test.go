@@ -132,3 +132,69 @@ func TestBatchRetryVerifiedProviderSchemaRejection(t *testing.T) {
 		t.Fatal("valid content regenerated")
 	}
 }
+
+func TestStyleFinalCorrectionRequiresOnlyRepresentationErrors(t *testing.T) {
+	_, b, a, _, records, _ := qualityFixture(t)
+	var old ResultRecord
+	for _, r := range records {
+		if r.Request.Batch.Type == "style" {
+			old = r
+			break
+		}
+	}
+	if old.CallID == "" {
+		t.Fatal("no style fixture")
+	}
+	var n map[string]any
+	json.Unmarshal(old.Result, &n)
+	output := n["analysis"].(map[string]any)
+	doc := output["document"].(map[string]any)
+	item := doc["items"].([]any)[0].(map[string]any)
+	item["payloads"].([]any)[0].(map[string]any)["palette"] = []any{"#123456 (示例色)"}
+	output["text"] = string(promptBytes(t, doc))
+	old.Result = promptBytes(t, n)
+	old.State = "failed"
+	old.ErrorCode = "result_invalid"
+	before := string(old.Result)
+	for i := 1; i <= 3; i++ {
+		f, e := RetryResultRequest(b, a, old, uuid.NewString())
+		if e != nil {
+			t.Fatal(i, e)
+		}
+		if i == 3 && f.Retry.Diagnostic != "style-representation-v1" {
+			t.Fatal("missing diagnostic")
+		}
+		old.Request = f
+		old.RequestHash = f.Digest()
+	}
+	if string(old.Result) != before {
+		t.Fatal("mutated original")
+	}
+	if _, e := RetryResultRequest(b, a, old, uuid.NewString()); e == nil {
+		t.Fatal("fourth correction")
+	}
+	for _, bad := range []string{"unknown_evidence", "bad_scope", "invalid_color", "duplicate_rule_evidence"} {
+		t.Run(bad, func(t *testing.T) {
+			var v map[string]any
+			json.Unmarshal(old.Result, &v)
+			o := v["analysis"].(map[string]any)
+			d := o["document"].(map[string]any)
+			it := d["items"].([]any)[0].(map[string]any)
+			switch bad {
+			case "unknown_evidence":
+				it["rule_evidence"].([]any)[0].(map[string]any)["evidence_keys"] = []any{"missing"}
+			case "bad_scope":
+				it["scope_key"] = "wrong"
+			case "invalid_color":
+				it["payloads"].([]any)[0].(map[string]any)["palette"] = []any{"#1234567"}
+			case "duplicate_rule_evidence":
+				rr := it["rule_evidence"].([]any)[0].(map[string]any)
+				rr["evidence_keys"] = append(rr["evidence_keys"].([]any), rr["evidence_keys"].([]any)[0])
+			}
+			o["text"] = string(promptBytes(t, d))
+			if styleRepresentationOnly(b, a, old.Request, old.CallID, promptBytes(t, v)) == nil {
+				t.Fatal("unexplained defect accepted")
+			}
+		})
+	}
+}
