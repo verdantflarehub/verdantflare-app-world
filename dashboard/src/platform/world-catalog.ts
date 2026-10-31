@@ -1,6 +1,6 @@
 import { resultRouteBase } from './route-links.ts'
 export const worldDomains = [
-  {key:'character',label:'人物',types:['character','character-image'],glyph:'人 · 物'},
+  {key:'character',label:'人物',types:['character','character-image','pose-reference','costume-reference'],glyph:'人 · 物'},
   {key:'scene',label:'场景',types:['scene'],glyph:'场 · 景'},
   {key:'sound',label:'声音',types:['sound','voice-model'],glyph:'声 · 音'},
   {key:'music',label:'音乐',types:['music','music-work'],glyph:'音 · 乐'},
@@ -10,6 +10,7 @@ export const worldDomains = [
 ] as const
 export const catalogTypes = [
   {value:'character',label:'人物设定'}, {value:'character-image',label:'人物形象'},
+  {value:'pose-reference',label:'姿势参考'}, {value:'costume-reference',label:'服装参考'},
   {value:'scene',label:'场景与道具'}, {value:'sound',label:'声音方案'}, {value:'voice-model',label:'声音模型'},
   {value:'music',label:'音乐结构与参考'}, {value:'music-work',label:'音乐作品'},
   {value:'shot',label:'镜头与运镜'}, {value:'video-project',label:'视频工程'},

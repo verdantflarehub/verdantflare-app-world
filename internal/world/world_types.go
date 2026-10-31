@@ -76,6 +76,7 @@ type WorldListItem struct {
 	AssetType     string    `json:"asset_type"`
 	Subjects      []string  `json:"subjects"`
 	CreatedAt     time.Time `json:"created_at"`
+	Preview       *File     `json:"preview,omitempty"`
 }
 type WorldListResult struct {
 	Items      []WorldListItem `json:"items"`

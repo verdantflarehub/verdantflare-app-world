@@ -1,5 +1,7 @@
+export interface AssetFile { file_id: string; path: string; role: string; content_ref: { store_id: string; artifact_id: string; version_id: string } }
 export interface AssetItem {
   asset_id: string; head_asset_version_id: string; name: string; asset_type: string; subjects: string[]; created_at: string
+  preview?: AssetFile
 }
 export type AssetSource =
   | { kind?: never; project_id: string; project_revision_id: string; relation: string }
@@ -9,7 +11,7 @@ export interface AssetOpen {
   manifest: {
     schema_version: 1 | 2; kind: 'asset-version'; asset_id: string
     name: string; asset_type: string; subjects: string[]
-    files: Array<{ file_id: string; path: string; role: string; content_ref: { store_id: string; artifact_id: string; version_id: string } }>
+    files: AssetFile[]
     source: AssetSource
     domain_documents?: Array<{ document_type: string; file_id: string }>
     depends_on: Array<{ asset_id: string; asset_version_id: string; purpose: string }>
@@ -21,6 +23,11 @@ function object(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 function text(value: unknown): value is string { return typeof value === 'string' }
+function assetFile(value: unknown): value is AssetFile {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const file = value as Record<string, unknown>, ref = file.content_ref as Record<string, unknown> | undefined
+  return isID(file.file_id) && text(file.path) && text(file.role) && !!ref && typeof ref === 'object' && isID(ref.store_id) && isID(ref.artifact_id) && isID(ref.version_id)
+}
 function strings(value: unknown): value is string[] { return Array.isArray(value) && value.length <= 256 && value.every(text) }
 export function readAssetList(value: unknown): { items: AssetItem[]; next_cursor: string } {
   const data = object(value)
@@ -30,6 +37,7 @@ export function readAssetList(value: unknown): { items: AssetItem[]; next_cursor
     const item = object(value)
     if (!isID(item.asset_id) || !isID(item.head_asset_version_id) || !text(item.name) || !text(item.asset_type) || !strings(item.subjects) || !text(item.created_at) || seen.has(item.asset_id)) throw new Error('资产列表返回内容不正确。')
     seen.add(item.asset_id)
+    if ('preview' in item && !assetFile(item.preview)) delete item.preview // a bad preview only loses the picture, never the list
   }
   return data as unknown as { items: AssetItem[]; next_cursor: string }
 }

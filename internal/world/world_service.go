@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -667,20 +668,25 @@ func (s *Service) WorldList(ctx context.Context, p Principal, r WorldListRequest
 	if e != nil {
 		return out, e
 	}
-	rows, e := s.db.Query(ctx, `SELECT a.asset_id::text,a.head_version_id::text,a.name,a.asset_type,a.subjects,a.created_at FROM studio.world_assets a JOIN studio.world_asset_grants g USING(organization_id,asset_id) JOIN studio.world_asset_versions v ON v.organization_id=a.organization_id AND v.asset_id=a.asset_id AND v.version_id=a.head_version_id WHERE a.organization_id=$1 AND g.subject_id=$2 AND a.head_version_id IS NOT NULL AND ($3='' OR a.asset_type=$3) AND ($4='' OR a.subjects ? $4) AND ($5='' OR a.asset_id>NULLIF($5,'')::uuid) AND (cardinality($7::text[])=0 OR a.asset_type=ANY($7::text[])) AND NOT EXISTS(SELECT 1 FROM unnest($8::text[]) term WHERE strpos(lower(a.name),lower(term))=0 AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements_text(a.subjects) tag WHERE strpos(lower(tag),lower(term))>0)) AND ($9='' OR v.manifest_json->'source'->>'relation'=$9) ORDER BY a.asset_id LIMIT $6`, p.OrganizationID, p.SubjectID, r.AssetType, r.Subject, r.Cursor, r.Limit+1, types, terms, r.Relation)
+	rows, e := s.db.Query(ctx, `SELECT a.asset_id::text,a.head_version_id::text,a.name,a.asset_type,a.subjects,a.created_at,COALESCE(v.manifest_json->'files','[]'::jsonb) FROM studio.world_assets a JOIN studio.world_asset_grants g USING(organization_id,asset_id) JOIN studio.world_asset_versions v ON v.organization_id=a.organization_id AND v.asset_id=a.asset_id AND v.version_id=a.head_version_id WHERE a.organization_id=$1 AND g.subject_id=$2 AND a.head_version_id IS NOT NULL AND ($3='' OR a.asset_type=$3) AND ($4='' OR a.subjects ? $4) AND ($5='' OR a.asset_id>NULLIF($5,'')::uuid) AND (cardinality($7::text[])=0 OR a.asset_type=ANY($7::text[])) AND NOT EXISTS(SELECT 1 FROM unnest($8::text[]) term WHERE strpos(lower(a.name),lower(term))=0 AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements_text(a.subjects) tag WHERE strpos(lower(tag),lower(term))>0)) AND ($9='' OR v.manifest_json->'source'->>'relation'=$9) ORDER BY a.asset_id LIMIT $6`, p.OrganizationID, p.SubjectID, r.AssetType, r.Subject, r.Cursor, r.Limit+1, types, terms, r.Relation)
 	if e != nil {
 		return out, e
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var v WorldListItem
-		var subjects []byte
-		if e = rows.Scan(&v.AssetID, &v.HeadVersionID, &v.Name, &v.AssetType, &subjects, &v.CreatedAt); e != nil {
+		var subjects, files []byte
+		if e = rows.Scan(&v.AssetID, &v.HeadVersionID, &v.Name, &v.AssetType, &subjects, &v.CreatedAt, &files); e != nil {
 			return out, e
 		}
 		if e = json.Unmarshal(subjects, &v.Subjects); e != nil {
 			return out, e
 		}
+		var manifestFiles []File
+		if e = json.Unmarshal(files, &manifestFiles); e != nil {
+			return out, e
+		}
+		v.Preview = listPreview(manifestFiles)
 		v.CreatedAt = v.CreatedAt.UTC()
 		out.Items = append(out.Items, v)
 	}
@@ -694,11 +700,30 @@ func (s *Service) WorldList(ctx context.Context, p Principal, r WorldListRequest
 	return out, nil
 }
 
+// listPreview picks the catalog card image from the head version's own files:
+// a declared thumbnail first, otherwise the first raster image. Assets without
+// images keep the type placeholder; no preview is derived from other versions.
+func listPreview(files []File) *File {
+	for i := range files {
+		if files[i].Role == "thumbnail" {
+			return &files[i]
+		}
+	}
+	for i := range files {
+		if previewImage.MatchString(files[i].Path) {
+			return &files[i]
+		}
+	}
+	return nil
+}
+
+var previewImage = regexp.MustCompile(`(?i)\.(png|jpe?g|webp|gif)$`)
+
 // Domain aliases preserve existing asset identities; unknown types remain
 // queryable by exact asset_type and in the unfiltered catalog.
 func worldCatalogFilters(r WorldListRequest) ([]string, []string, error) {
 	domains := map[string][]string{
-		"character": {"character", "character-image"}, "scene": {"scene"},
+		"character": {"character", "character-image", "pose-reference", "costume-reference"}, "scene": {"scene"},
 		"sound": {"sound", "voice-model"}, "music": {"music", "music-work"},
 		"shot": {"shot", "video-project"}, "script": {"script"}, "knowledge": {"knowledge", "prompt"},
 	}

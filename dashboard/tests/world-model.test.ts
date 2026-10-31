@@ -37,3 +37,11 @@ test('independent draft assets remain usable without inventing a source project'
     { ...manifest, source: { ...manifest.source, draft_revision_id: 'latest' } },
   ]) assert.throws(() => readAsset({ ...asset, manifest: bad }, id(1), id(2)))
 })
+
+test('pose and costume references browse under the character domain', async () => {
+  const { assetDomain, assetTypeLabel } = await import('../src/platform/world-catalog.ts')
+  assert.equal(assetDomain('pose-reference')?.key, 'character')
+  assert.equal(assetDomain('costume-reference')?.key, 'character')
+  assert.equal(assetTypeLabel('pose-reference'), '姿势参考')
+  assert.equal(assetTypeLabel('costume-reference'), '服装参考')
+})
