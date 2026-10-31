@@ -6,6 +6,8 @@ import { worldDomains } from './platform/world-catalog'
 import CollectionsPage from './pages/CollectionsPage.vue'
 import LearnPage from './pages/LearnPage.vue'
 import PublicationPage from './pages/PublicationPage.vue'
+import ReferenceGallery from './pages/ReferenceGallery.vue'
+import ReferenceDetailPage from './pages/ReferenceDetailPage.vue'
 import { connectHost, disconnectHost } from './platform/host'
 import { canonicalRoute } from './platform/route-links'
 import { createNavigationQueue } from './platform/navigation-queue'
@@ -19,8 +21,12 @@ async function mount() {
     { path: '/', component: Browser },
     { path: '/scene/:assetId/versions/:assetVersionId/review', component: SetReviewPage },
     { path: '/item/:resultKey', component: Browser },
-    ...worldDomains.map(d=>({path:'/'+d.key,component:Browser})),
-    ...worldDomains.map(d=>({path:'/'+d.key+'/item/:resultKey',component:Browser})),
+    ...(['pose', 'costume'] as const).flatMap(kind => [
+      { path: '/' + kind, component: ReferenceGallery, props: { kind } },
+      { path: '/' + kind + '/asset/:assetId', component: ReferenceDetailPage, props: { kind } },
+    ]),
+    ...worldDomains.filter(d=>d.key!=='pose'&&d.key!=='costume').map(d=>({path:'/'+d.key,component:Browser})),
+    ...worldDomains.filter(d=>d.key!=='pose'&&d.key!=='costume').map(d=>({path:'/'+d.key+'/item/:resultKey',component:Browser})),
     { path: '/publish', component: PublicationPage },
     { path: '/collections', component: CollectionsPage },
     { path: '/collections/:draftId', component: CollectionsPage },

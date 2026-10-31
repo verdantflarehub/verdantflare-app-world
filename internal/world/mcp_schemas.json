@@ -225,6 +225,8 @@
           "type": "string",
           "enum": [
             "character",
+            "pose",
+            "costume",
             "scene",
             "sound",
             "music",
@@ -244,6 +246,31 @@
             "curated_in",
             "produced_in"
           ]
+        },
+        "subjects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "facets": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[^:]{1,32}$"
+          }
+        },
+        "preview_hint": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,31}$"
         }
       }
     }

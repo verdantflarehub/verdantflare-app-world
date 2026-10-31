@@ -36,7 +36,7 @@ func validNavigationChildren(version int, children []navigationChild) bool {
 	if version != 2 || len(children) == 0 || len(children) > 32 {
 		return false
 	}
-	routes := map[string]bool{"/": true, "/character": true, "/scene": true, "/sound": true, "/music": true, "/shot": true, "/script": true, "/knowledge": true, "/collections": true, "/learn": true}
+	routes := map[string]bool{"/": true, "/character": true, "/pose": true, "/costume": true, "/scene": true, "/sound": true, "/music": true, "/shot": true, "/script": true, "/knowledge": true, "/collections": true, "/learn": true}
 	ids := map[string]bool{"main": true}
 	used := map[string]bool{}
 	for _, child := range children {

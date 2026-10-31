@@ -1,6 +1,8 @@
 import { resultRouteBase } from './route-links.ts'
 export const worldDomains = [
-  {key:'character',label:'人物',types:['character','character-image','pose-reference','costume-reference'],glyph:'人 · 物'},
+  {key:'character',label:'人物',types:['character','character-image'],glyph:'人 · 物'},
+  {key:'pose',label:'姿势',types:['pose-reference'],glyph:'姿 · 势'},
+  {key:'costume',label:'服装',types:['costume-reference'],glyph:'服 · 装'},
   {key:'scene',label:'场景',types:['scene'],glyph:'场 · 景'},
   {key:'sound',label:'声音',types:['sound','voice-model'],glyph:'声 · 音'},
   {key:'music',label:'音乐',types:['music','music-work'],glyph:'音 · 乐'},

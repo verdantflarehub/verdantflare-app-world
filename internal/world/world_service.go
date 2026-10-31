@@ -661,14 +661,21 @@ func (s *Service) WorldList(ctx context.Context, p Principal, r WorldListRequest
 	if r.Limit == 0 {
 		r.Limit = 50
 	}
-	if r.Limit < 1 || r.Limit > 100 || (r.Cursor != "" && !ValidID(r.Cursor)) || (r.AssetType != "" && !tokenPattern.MatchString(r.AssetType)) || (r.Subject != "" && !validText(r.Subject)) {
+	if r.Limit < 1 || r.Limit > 100 || (r.Cursor != "" && !ValidID(r.Cursor)) || (r.AssetType != "" && !tokenPattern.MatchString(r.AssetType)) || (r.Subject != "" && !validText(r.Subject)) || !validListExtras(r) {
 		return out, ErrInvalid
 	}
 	types, terms, e := worldCatalogFilters(r)
 	if e != nil {
 		return out, e
 	}
-	rows, e := s.db.Query(ctx, `SELECT a.asset_id::text,a.head_version_id::text,a.name,a.asset_type,a.subjects,a.created_at,COALESCE(v.manifest_json->'files','[]'::jsonb) FROM studio.world_assets a JOIN studio.world_asset_grants g USING(organization_id,asset_id) JOIN studio.world_asset_versions v ON v.organization_id=a.organization_id AND v.asset_id=a.asset_id AND v.version_id=a.head_version_id WHERE a.organization_id=$1 AND g.subject_id=$2 AND a.head_version_id IS NOT NULL AND ($3='' OR a.asset_type=$3) AND ($4='' OR a.subjects ? $4) AND ($5='' OR a.asset_id>NULLIF($5,'')::uuid) AND (cardinality($7::text[])=0 OR a.asset_type=ANY($7::text[])) AND NOT EXISTS(SELECT 1 FROM unnest($8::text[]) term WHERE strpos(lower(a.name),lower(term))=0 AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements_text(a.subjects) tag WHERE strpos(lower(tag),lower(term))>0)) AND ($9='' OR v.manifest_json->'source'->>'relation'=$9) ORDER BY a.asset_id LIMIT $6`, p.OrganizationID, p.SubjectID, r.AssetType, r.Subject, r.Cursor, r.Limit+1, types, terms, r.Relation)
+	subjects, e := json.Marshal(append([]string{}, r.Subjects...))
+	if e != nil {
+		return out, e
+	}
+	// One filter shared by the page, the total and the facets; the cursor only pages.
+	const from = ` FROM studio.world_assets a JOIN studio.world_asset_grants g USING(organization_id,asset_id) JOIN studio.world_asset_versions v ON v.organization_id=a.organization_id AND v.asset_id=a.asset_id AND v.version_id=a.head_version_id WHERE a.organization_id=$1 AND g.subject_id=$2 AND a.head_version_id IS NOT NULL AND ($3='' OR a.asset_type=$3) AND ($4='' OR a.subjects ? $4) AND (cardinality($5::text[])=0 OR a.asset_type=ANY($5::text[])) AND NOT EXISTS(SELECT 1 FROM unnest($6::text[]) term WHERE strpos(lower(a.name),lower(term))=0 AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements_text(a.subjects) tag WHERE strpos(lower(tag),lower(term))>0)) AND ($7='' OR v.manifest_json->'source'->>'relation'=$7) AND a.subjects @> $8::jsonb`
+	filter := []any{p.OrganizationID, p.SubjectID, r.AssetType, r.Subject, types, terms, r.Relation, string(subjects)}
+	rows, e := s.db.Query(ctx, `SELECT a.asset_id::text,a.head_version_id::text,a.name,a.asset_type,a.subjects,a.created_at,COALESCE(v.manifest_json->'files','[]'::jsonb)`+from+` AND ($9='' OR a.asset_id>NULLIF($9,'')::uuid) ORDER BY a.asset_id LIMIT $10`, append(filter, r.Cursor, r.Limit+1)...)
 	if e != nil {
 		return out, e
 	}
@@ -686,7 +693,7 @@ func (s *Service) WorldList(ctx context.Context, p Principal, r WorldListRequest
 		if e = json.Unmarshal(files, &manifestFiles); e != nil {
 			return out, e
 		}
-		v.Preview = listPreview(manifestFiles)
+		v.Preview = listPreview(manifestFiles, r.PreviewHint)
 		v.CreatedAt = v.CreatedAt.UTC()
 		out.Items = append(out.Items, v)
 	}
@@ -697,13 +704,44 @@ func (s *Service) WorldList(ctx context.Context, p Principal, r WorldListRequest
 		out.Items = out.Items[:r.Limit]
 		out.NextCursor = out.Items[len(out.Items)-1].AssetID
 	}
-	return out, nil
+	if len(r.Facets) == 0 {
+		return out, nil
+	}
+	var total int
+	if e = s.db.QueryRow(ctx, `SELECT count(*)`+from, filter...).Scan(&total); e != nil {
+		return out, e
+	}
+	out.Total, out.Facets = &total, map[string]map[string]int{}
+	facets, e := s.db.Query(ctx, `SELECT split_part(tag,':',1),substr(tag,strpos(tag,':')+1),count(*) FROM (SELECT a.subjects`+from+`) f CROSS JOIN LATERAL jsonb_array_elements_text(f.subjects) tag WHERE strpos(tag,':')>1 AND split_part(tag,':',1)=ANY($9::text[]) GROUP BY 1,2`, append(filter, r.Facets)...)
+	if e != nil {
+		return out, e
+	}
+	defer facets.Close()
+	for facets.Next() {
+		var dimension, value string
+		var n int
+		if e = facets.Scan(&dimension, &value, &n); e != nil {
+			return out, e
+		}
+		if out.Facets[dimension] == nil {
+			out.Facets[dimension] = map[string]int{}
+		}
+		out.Facets[dimension][value] = n
+	}
+	return out, facets.Err()
 }
 
 // listPreview picks the catalog card image from the head version's own files:
 // a declared thumbnail first, otherwise the first raster image. Assets without
 // images keep the type placeholder; no preview is derived from other versions.
-func listPreview(files []File) *File {
+func listPreview(files []File, hint string) *File {
+	if hint != "" {
+		for i := range files {
+			if files[i].Role == "thumbnail" && strings.Contains(files[i].Path, "/"+hint+".") {
+				return &files[i]
+			}
+		}
+	}
 	for i := range files {
 		if files[i].Role == "thumbnail" {
 			return &files[i]
@@ -718,12 +756,33 @@ func listPreview(files []File) *File {
 }
 
 var previewImage = regexp.MustCompile(`(?i)\.(png|jpe?g|webp|gif)$`)
+var previewHintPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
+
+func validListExtras(r WorldListRequest) bool {
+	if len(r.Subjects) > 8 || len(r.Facets) > 8 || (r.PreviewHint != "" && !previewHintPattern.MatchString(r.PreviewHint)) {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, v := range r.Subjects {
+		if !validText(v) || seen["s:"+v] {
+			return false
+		}
+		seen["s:"+v] = true
+	}
+	for _, v := range r.Facets {
+		if v == "" || len([]rune(v)) > 32 || strings.Contains(v, ":") || seen["f:"+v] {
+			return false
+		}
+		seen["f:"+v] = true
+	}
+	return true
+}
 
 // Domain aliases preserve existing asset identities; unknown types remain
 // queryable by exact asset_type and in the unfiltered catalog.
 func worldCatalogFilters(r WorldListRequest) ([]string, []string, error) {
 	domains := map[string][]string{
-		"character": {"character", "character-image", "pose-reference", "costume-reference"}, "scene": {"scene"},
+		"character": {"character", "character-image"}, "pose": {"pose-reference"}, "costume": {"costume-reference"}, "scene": {"scene"},
 		"sound": {"sound", "voice-model"}, "music": {"music", "music-work"},
 		"shot": {"shot", "video-project"}, "script": {"script"}, "knowledge": {"knowledge", "prompt"},
 	}

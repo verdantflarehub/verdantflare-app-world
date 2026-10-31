@@ -68,6 +68,12 @@ type WorldListRequest struct {
 	Subject   string `json:"subject,omitempty"`
 	Cursor    string `json:"cursor,omitempty"`
 	Limit     int    `json:"limit,omitempty"`
+	// Subjects must all be present on an asset; Facets counts "dimension:value"
+	// subjects of the filtered set for the named dimensions; PreviewHint prefers
+	// a thumbnail whose path contains "/<hint>.".
+	Subjects    []string `json:"subjects,omitempty"`
+	Facets      []string `json:"facets,omitempty"`
+	PreviewHint string   `json:"preview_hint,omitempty"`
 }
 type WorldListItem struct {
 	AssetID       string    `json:"asset_id"`
@@ -79,8 +85,10 @@ type WorldListItem struct {
 	Preview       *File     `json:"preview,omitempty"`
 }
 type WorldListResult struct {
-	Items      []WorldListItem `json:"items"`
-	NextCursor string          `json:"next_cursor"`
+	Items      []WorldListItem           `json:"items"`
+	NextCursor string                    `json:"next_cursor"`
+	Total      *int                      `json:"total,omitempty"`
+	Facets     map[string]map[string]int `json:"facets,omitempty"`
 }
 type WorldStatusRequest struct {
 	AssetID  string `json:"asset_id,omitempty"`
