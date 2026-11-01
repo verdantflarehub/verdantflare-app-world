@@ -24,7 +24,7 @@ func assetRole(ctx context.Context, q queryer, p Principal, id string) (string, 
 		return "", ErrForbidden
 	}
 	var value string
-	e := q.QueryRow(ctx, "SELECT role FROM studio.world_asset_grants WHERE organization_id=$1 AND asset_id=$2 AND subject_id=$3", p.OrganizationID, id, p.SubjectID).Scan(&value)
+	e := q.QueryRow(ctx, "SELECT role FROM studio.world_asset_grants WHERE organization_id=$1 AND asset_id=$2 AND (subject_id=$3 OR (subject_id=$1 AND role='reader')) ORDER BY CASE role WHEN 'owner' THEN 3 WHEN 'editor' THEN 2 ELSE 1 END DESC LIMIT 1", p.OrganizationID, id, p.SubjectID).Scan(&value)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return "", ErrForbidden
 	}
@@ -673,7 +673,7 @@ func (s *Service) WorldList(ctx context.Context, p Principal, r WorldListRequest
 		return out, e
 	}
 	// One filter shared by the page, the total and the facets; the cursor only pages.
-	const from = ` FROM studio.world_assets a JOIN studio.world_asset_grants g USING(organization_id,asset_id) JOIN studio.world_asset_versions v ON v.organization_id=a.organization_id AND v.asset_id=a.asset_id AND v.version_id=a.head_version_id WHERE a.organization_id=$1 AND g.subject_id=$2 AND a.head_version_id IS NOT NULL AND ($3='' OR a.asset_type=$3) AND ($4='' OR a.subjects ? $4) AND (cardinality($5::text[])=0 OR a.asset_type=ANY($5::text[])) AND NOT EXISTS(SELECT 1 FROM unnest($6::text[]) term WHERE strpos(lower(a.name),lower(term))=0 AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements_text(a.subjects) tag WHERE strpos(lower(tag),lower(term))>0)) AND ($7='' OR v.manifest_json->'source'->>'relation'=$7) AND a.subjects @> $8::jsonb`
+	const from = ` FROM studio.world_assets a JOIN studio.world_asset_versions v ON v.organization_id=a.organization_id AND v.asset_id=a.asset_id AND v.version_id=a.head_version_id WHERE a.organization_id=$1 AND EXISTS(SELECT 1 FROM studio.world_asset_grants g WHERE g.organization_id=a.organization_id AND g.asset_id=a.asset_id AND (g.subject_id=$2 OR (g.subject_id=$1 AND g.role='reader'))) AND a.head_version_id IS NOT NULL AND ($3='' OR a.asset_type=$3) AND ($4='' OR a.subjects ? $4) AND (cardinality($5::text[])=0 OR a.asset_type=ANY($5::text[])) AND NOT EXISTS(SELECT 1 FROM unnest($6::text[]) term WHERE strpos(lower(a.name),lower(term))=0 AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements_text(a.subjects) tag WHERE strpos(lower(tag),lower(term))>0)) AND ($7='' OR v.manifest_json->'source'->>'relation'=$7) AND a.subjects @> $8::jsonb`
 	filter := []any{p.OrganizationID, p.SubjectID, r.AssetType, r.Subject, types, terms, r.Relation, string(subjects)}
 	rows, e := s.db.Query(ctx, `SELECT a.asset_id::text,a.head_version_id::text,a.name,a.asset_type,a.subjects,a.created_at,COALESCE(v.manifest_json->'files','[]'::jsonb)`+from+` AND ($9='' OR a.asset_id>NULLIF($9,'')::uuid) ORDER BY a.asset_id LIMIT $10`, append(filter, r.Cursor, r.Limit+1)...)
 	if e != nil {

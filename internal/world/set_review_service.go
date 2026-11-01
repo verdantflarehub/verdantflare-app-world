@@ -103,7 +103,7 @@ func lockReviewAccess(ctx context.Context, tx pgx.Tx, p Principal, t ReviewTarge
 			return "", ErrForbidden
 		}
 		var member string
-		e := tx.QueryRow(ctx, `SELECT role FROM studio.world_asset_grants WHERE organization_id=$1 AND asset_id=$2 AND subject_id=$3 FOR SHARE`, p.OrganizationID, id, p.SubjectID).Scan(&member)
+		e := tx.QueryRow(ctx, `SELECT role FROM studio.world_asset_grants WHERE organization_id=$1 AND asset_id=$2 AND (subject_id=$3 OR (subject_id=$1 AND role='reader')) ORDER BY CASE role WHEN 'owner' THEN 3 WHEN 'editor' THEN 2 ELSE 1 END DESC LIMIT 1 FOR SHARE`, p.OrganizationID, id, p.SubjectID).Scan(&member)
 		if errors.Is(e, pgx.ErrNoRows) {
 			return "", ErrForbidden
 		}

@@ -102,13 +102,15 @@ type WorldStatus struct {
 	CurrentVersionID string       `json:"current_asset_version_id,omitempty"`
 }
 type WorldGrantRequest struct {
+	Scope     string `json:"scope,omitempty"`
 	AssetID   string `json:"asset_id"`
-	SubjectID string `json:"subject_id"`
+	SubjectID string `json:"subject_id,omitempty"`
 	Role      string `json:"role"`
 }
 type WorldRevokeRequest struct {
+	Scope     string `json:"scope,omitempty"`
 	AssetID   string `json:"asset_id"`
-	SubjectID string `json:"subject_id"`
+	SubjectID string `json:"subject_id,omitempty"`
 }
 type WorldGrantResult struct {
 	AssetID   string `json:"asset_id"`

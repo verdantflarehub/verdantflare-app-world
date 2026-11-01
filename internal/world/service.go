@@ -48,7 +48,7 @@ func NewService(ctx context.Context, db *pgxpool.Pool, content Artifact, project
 			return err
 		}
 		var role string
-		err = tx.QueryRow(ctx, "SELECT role FROM studio.world_asset_grants WHERE organization_id=$1 AND asset_id=$2 AND subject_id=$3 FOR SHARE", p.OrganizationID, g.ResourceID, p.SubjectID).Scan(&role)
+		err = tx.QueryRow(ctx, "SELECT role FROM studio.world_asset_grants WHERE organization_id=$1 AND asset_id=$2 AND (subject_id=$3 OR (subject_id=$1 AND role='reader')) ORDER BY CASE role WHEN 'owner' THEN 3 WHEN 'editor' THEN 2 ELSE 1 END DESC LIMIT 1 FOR SHARE", p.OrganizationID, g.ResourceID, p.SubjectID).Scan(&role)
 		if errors.Is(err, pgx.ErrNoRows) || err == nil && (g.Write && role != "owner" && role != "editor") {
 			return coordination.ErrDenied
 		}

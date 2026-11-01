@@ -121,7 +121,7 @@ func TestSetReviewAtomicCASReplayRevocationAndVersionIsolation(t *testing.T) {
 	}
 	guest := p
 	guest.SubjectID = newID()
-	if _, e = svc.WorldGrant(ctx, p, WorldGrantRequest{asset.AssetID, guest.SubjectID, "editor"}); e != nil {
+	if _, e = svc.WorldGrant(ctx, p, WorldGrantRequest{AssetID: asset.AssetID, SubjectID: guest.SubjectID, Role: "editor"}); e != nil {
 		t.Fatal(e)
 	}
 	current, e := svc.ReviewOpen(ctx, guest, ReviewOpenRequest{Target: locator})
@@ -135,7 +135,7 @@ func TestSetReviewAtomicCASReplayRevocationAndVersionIsolation(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if _, e = svc.WorldRevoke(ctx, p, WorldRevokeRequest{asset.AssetID, guest.SubjectID}); e != nil {
+	if _, e = svc.WorldRevoke(ctx, p, WorldRevokeRequest{AssetID: asset.AssetID, SubjectID: guest.SubjectID}); e != nil {
 		t.Fatal(e)
 	}
 	if _, e = svc.ReviewAppend(ctx, guest, g); !errors.Is(e, ErrForbidden) {

@@ -106,14 +106,14 @@ func TestWorldIndependentPublicationAndPendingRevocation(t *testing.T) {
 		t.Fatal("fixed source proof missing", err)
 	}
 	guest := testID(60)
-	if _, err = svc.WorldGrant(ctx, p, WorldGrantRequest{published.AssetID, guest, "editor"}); err != nil {
+	if _, err = svc.WorldGrant(ctx, p, WorldGrantRequest{AssetID: published.AssetID, SubjectID: guest, Role: "editor"}); err != nil {
 		t.Fatal(err)
 	}
 	op := coordination.Operation{Coordinator: "project", OrganizationID: p.OrganizationID, SubjectID: guest, ResourceID: testID(61), CommitID: testID(62), RequestHash: strings.Repeat("a", 64), Fence: 1}
 	if err = svc.coord.Store.Prepare(ctx, op, []coordination.Grant{{ResourceID: published.AssetID, Write: false}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = svc.WorldRevoke(ctx, p, WorldRevokeRequest{published.AssetID, guest}); !errors.Is(err, coordination.ErrPending) {
+	if _, err = svc.WorldRevoke(ctx, p, WorldRevokeRequest{AssetID: published.AssetID, SubjectID: guest}); !errors.Is(err, coordination.ErrPending) {
 		t.Fatal("revoke skipped active reservation", err)
 	}
 	var role string
@@ -132,7 +132,7 @@ func TestWorldIndependentPublicationAndPendingRevocation(t *testing.T) {
 	if err = svc.coord.Finalize(ctx, op); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = svc.WorldRevoke(ctx, p, WorldRevokeRequest{published.AssetID, guest}); err != nil {
+	if _, err = svc.WorldRevoke(ctx, p, WorldRevokeRequest{AssetID: published.AssetID, SubjectID: guest}); err != nil {
 		t.Fatal("authorized retry could not finish", err)
 	}
 	if _, err = assetRole(ctx, db, Principal{OrganizationID: p.OrganizationID, SubjectID: guest, RequestID: p.RequestID}, published.AssetID); !errors.Is(err, ErrForbidden) {

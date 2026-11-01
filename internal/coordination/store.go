@@ -173,6 +173,18 @@ func (s *Store) Prepare(ctx context.Context, o Operation, grants []Grant) error 
 		return err
 	}
 	for _, grant := range grants {
+		if s.Domain == "world" {
+			if _, err = tx.Exec(ctx, "INSERT INTO "+s.prefix+"barriers(organization_id,resource_id,subject_id) VALUES($1,$2,$1) ON CONFLICT DO NOTHING", o.OrganizationID, grant.ResourceID); err != nil {
+				return err
+			}
+			var blocked bool
+			if err = tx.QueryRow(ctx, "SELECT blocked FROM "+s.prefix+"barriers WHERE organization_id=$1 AND resource_id=$2 AND subject_id=$1 FOR UPDATE", o.OrganizationID, grant.ResourceID).Scan(&blocked); err != nil {
+				return err
+			}
+			if blocked {
+				return ErrDenied
+			}
+		}
 		if _, err = tx.Exec(ctx, "INSERT INTO "+s.prefix+"barriers(organization_id,resource_id,subject_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", o.OrganizationID, grant.ResourceID, o.SubjectID); err != nil {
 			return err
 		}
@@ -338,7 +350,7 @@ func (s *Store) BlockTx(ctx context.Context, tx pgx.Tx, org, resource, subject s
 		return false, err
 	}
 	var pending bool
-	err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM "+s.prefix+"reservations WHERE organization_id=$1 AND grant_resource_id=$2 AND subject_id=$3)", org, resource, subject).Scan(&pending)
+	err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM "+s.prefix+"reservations WHERE organization_id=$1 AND grant_resource_id=$2 AND (subject_id=$3 OR ($4 AND $3::uuid=$1::uuid)))", org, resource, subject, s.Domain == "world").Scan(&pending)
 	return pending, err
 }
 

@@ -63,7 +63,7 @@ func assetReferences(ctx context.Context, q queryer, p Principal, a AssetRef, lo
 		}
 		if lock {
 			var role string
-			e := q.QueryRow(ctx, "SELECT role FROM studio.world_asset_grants WHERE organization_id=$1 AND asset_id=$2 AND subject_id=$3 FOR SHARE", p.OrganizationID, key.AssetID, p.SubjectID).Scan(&role)
+			e := q.QueryRow(ctx, "SELECT role FROM studio.world_asset_grants WHERE organization_id=$1 AND asset_id=$2 AND (subject_id=$3 OR (subject_id=$1 AND role='reader')) ORDER BY CASE role WHEN 'owner' THEN 3 WHEN 'editor' THEN 2 ELSE 1 END DESC LIMIT 1 FOR SHARE", p.OrganizationID, key.AssetID, p.SubjectID).Scan(&role)
 			if errors.Is(e, pgx.ErrNoRows) {
 				return nil, ErrForbidden
 			}
@@ -255,10 +255,18 @@ func (s *Service) WorldGrant(ctx context.Context, p Principal, r WorldGrantReque
 	if r.Role != "reader" && r.Role != "editor" {
 		return WorldGrantResult{}, ErrInvalid
 	}
-	return s.setWorldGrant(ctx, p, r.AssetID, r.SubjectID, r.Role)
+	subject, err := worldGrantSubject(p, r.Scope, r.SubjectID, r.Role)
+	if err != nil {
+		return WorldGrantResult{}, err
+	}
+	return s.setWorldGrant(ctx, p, r.AssetID, subject, r.Role)
 }
 func (s *Service) WorldRevoke(ctx context.Context, p Principal, r WorldRevokeRequest) (WorldGrantResult, error) {
-	return s.setWorldGrant(ctx, p, r.AssetID, r.SubjectID, "none")
+	subject, err := worldGrantSubject(p, r.Scope, r.SubjectID, "none")
+	if err != nil {
+		return WorldGrantResult{}, err
+	}
+	return s.setWorldGrant(ctx, p, r.AssetID, subject, "none")
 }
 func (s *Service) setWorldGrant(ctx context.Context, p Principal, asset, subject, wanted string) (WorldGrantResult, error) {
 	result := WorldGrantResult{AssetID: asset, SubjectID: subject, Role: wanted}
@@ -348,4 +356,25 @@ func (s *Service) setWorldGrant(ctx context.Context, p Principal, asset, subject
 		return result, e
 	}
 	return result, tx.Commit(ctx)
+}
+
+// Organization IDs are reserved grant subjects, never personal grant targets.
+func worldGrantSubject(p Principal, scope, subject, role string) (string, error) {
+	if !p.Valid() {
+		return "", ErrInvalid
+	}
+	switch scope {
+	case "", "subject":
+		if !ValidID(subject) || subject == p.OrganizationID {
+			return "", ErrInvalid
+		}
+		return subject, nil
+	case "organization":
+		if subject != "" || (role != "reader" && role != "none") {
+			return "", ErrInvalid
+		}
+		return p.OrganizationID, nil
+	default:
+		return "", ErrInvalid
+	}
 }

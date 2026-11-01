@@ -308,7 +308,6 @@
       "additionalProperties": false,
       "required": [
         "asset_id",
-        "subject_id",
         "role"
       ],
       "properties": {
@@ -325,8 +324,45 @@
             "reader",
             "editor"
           ]
+        },
+        "scope": {
+          "enum": [
+            "subject",
+            "organization"
+          ],
+          "default": "subject"
         }
-      }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "scope": {
+              "const": "subject"
+            }
+          },
+          "required": [
+            "subject_id"
+          ]
+        },
+        {
+          "properties": {
+            "scope": {
+              "const": "organization"
+            },
+            "role": {
+              "const": "reader"
+            }
+          },
+          "required": [
+            "scope"
+          ],
+          "not": {
+            "required": [
+              "subject_id"
+            ]
+          }
+        }
+      ]
     }
   },
   {
@@ -338,8 +374,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "asset_id",
-        "subject_id"
+        "asset_id"
       ],
       "properties": {
         "asset_id": {
@@ -349,8 +384,42 @@
         "subject_id": {
           "type": "string",
           "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "scope": {
+          "enum": [
+            "subject",
+            "organization"
+          ],
+          "default": "subject"
         }
-      }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "scope": {
+              "const": "subject"
+            }
+          },
+          "required": [
+            "subject_id"
+          ]
+        },
+        {
+          "properties": {
+            "scope": {
+              "const": "organization"
+            }
+          },
+          "required": [
+            "scope"
+          ],
+          "not": {
+            "required": [
+              "subject_id"
+            ]
+          }
+        }
+      ]
     }
   },
   {
