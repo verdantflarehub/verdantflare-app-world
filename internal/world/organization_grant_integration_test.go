@@ -54,6 +54,14 @@ func TestWorldOrganizationReadAndRevocation(t *testing.T) {
 		t.Fatal("ungranted read", e)
 	}
 	grant := WorldGrantRequest{Scope: "organization", AssetID: published.AssetID, Role: "reader"}
+	// Publication has committed, but its participant reservation is still held
+	// until outbox delivery. Organization changes conservatively wait for it.
+	if _, e := svc.WorldGrant(ctx, p, grant); !errors.Is(e, coordination.ErrPending) {
+		t.Fatal("initial grant skipped publication reservation", e)
+	}
+	if e := svc.coord.Deliver(ctx); e != nil {
+		t.Fatal(e)
+	}
 	if _, e := svc.WorldGrant(ctx, p, grant); e != nil {
 		t.Fatal(e)
 	}
