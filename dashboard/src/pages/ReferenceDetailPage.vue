@@ -105,7 +105,7 @@ watch(() => [assetID.value, versionID.value], () => void load(), { immediate: tr
         <aside class="side">
           <section class="panel"><h3>概览</h3><dl><template v-for="row in domain.overview" :key="row[0]"><dt>{{ row[0] }}</dt><dd>{{ row[1] }}</dd></template><dt>固定版本</dt><dd class="mono">{{ asset.asset_version_id }}</dd></dl></section>
           <section class="panel"><h3>来源与权利</h3><dl><dt>来源</dt><dd>{{ domain.source.collection }}</dd><template v-if="domain.source.author"><dt>作者</dt><dd>{{ domain.source.author }}</dd></template><dt>权利</dt><dd><span class="pill" :class="{ warn: domain.source.rights === 'third-party-internal-only' }">{{ RIGHTS_LABELS[domain.source.rights] || domain.source.rights }}</span></dd></dl></section>
-          <section v-if="related.length" class="panel"><h3>{{ kind === 'pose' ? '同类动作' : '同分类推荐' }}</h3><div class="related"><button v-for="r in related" :key="r.asset_id" :title="r.subjects[0] || r.name" @click="go(r)"><img v-if="relatedUrls[r.asset_id]" :src="relatedUrls[r.asset_id]" alt=""></button></div></section>
+          <section v-if="related.length" class="panel"><h3>{{ kind === 'pose' ? '同类动作' : '同分类推荐' }}</h3><div class="related"><button v-for="r in related" :key="r.asset_id" :title="r.subjects.find(s => !s.includes(':')) || r.name" @click="go(r)"><img v-if="relatedUrls[r.asset_id]" :src="relatedUrls[r.asset_id]" alt=""></button></div></section>
           <p class="hint">← → 切换上一个／下一个，Esc 返回列表</p>
         </aside>
       </div>
