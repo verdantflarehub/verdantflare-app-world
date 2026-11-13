@@ -15,6 +15,11 @@ const items = ref<AssetItem[]>([]), cursor = ref(''), total = ref(0), loading = 
 const outer = ref<Record<string, Record<string, number>>>({}), inner = ref<Record<string, Record<string, number>>>({})
 const urls = ref<Record<string, string>>({}), grid = ref<HTMLElement>(), sentinel = ref<HTMLElement>(), columns = ref(4)
 const search = ref(filters.value.q)
+const failed = ref<Record<string, boolean>>({}), loaded = ref<Record<string, boolean>>({})
+let mediaGeneration = 0, active = true
+const pending = new Set<string>()
+const call = (n: string, a: Record<string, unknown>) => appSDK.capabilities.call(n, a as never)
+const mediaKey = (item: AssetItem) => `${item.asset_id}:${item.head_asset_version_id}:${item.preview?.file_id || ''}`
 let generation = 0, alive = true, observer: IntersectionObserver | undefined, resize: ResizeObserver | undefined
 
 const title = computed(() => props.kind === 'pose' ? '姿势' : '服装')
@@ -45,10 +50,28 @@ async function loadPage(reset: boolean) {
   } catch (e) { if (alive && current === generation) error.value = e instanceof Error ? e.message : '读取失败，请重试。' }
   finally { if (alive && current === generation) loading.value = false }
 }
-async function preview(item: AssetItem) {
-  if (!item.preview || urls.value[item.asset_id]) return
-  try { const url = await assetFileURL((n, a) => appSDK.capabilities.call(n, a as never), { asset_id: item.asset_id, asset_version_id: item.head_asset_version_id }, item.preview); if (alive) urls.value = { ...urls.value, [item.asset_id]: url } } catch { /* tile keeps its neutral background */ }
+async function preview(item: AssetItem, refresh = false) {
+  const key = mediaKey(item), epoch = mediaGeneration
+  if (!active || !item.preview || urls.value[key] || pending.has(key)) return
+  pending.add(key); delete failed.value[key]
+  try {
+    const url = await assetFileURL(call, { asset_id: item.asset_id, asset_version_id: item.head_asset_version_id }, item.preview, refresh)
+    if (alive && active && epoch === mediaGeneration) urls.value[key] = url
+  } catch { if (alive && active && epoch === mediaGeneration) failed.value[key] = true }
+  finally { if (epoch === mediaGeneration) pending.delete(key) }
 }
+function retryImages() {
+  for (const item of items.value) {
+    const key = mediaKey(item)
+    const refresh = !!failed.value[key]
+    if (refresh) { delete urls.value[key]; delete loaded.value[key] }
+    void preview(item, refresh)
+  }
+}
+const stopLifecycle = appSDK.lifecycle.subscribe(event => {
+  if (event === 'hidden' || event === 'dispose') { active = false; mediaGeneration++; pending.clear() }
+  else if (event === 'active') { active = true; if (!items.value.length) void reload(); else retryImages() }
+})
 async function reload() {
   const saved = recall(memoryKey(props.kind, filters.value))
   void loadFacets().catch(() => { outer.value = {}; inner.value = {} })
@@ -78,7 +101,7 @@ onMounted(() => {
   resize = new ResizeObserver(() => { const w = grid.value?.clientWidth || 1200; columns.value = Math.max(2, Math.min(6, Math.floor(w / 230))) })
   if (grid.value) resize.observe(grid.value)
 })
-onBeforeUnmount(() => { alive = false; generation++; observer?.disconnect(); resize?.disconnect() })
+onBeforeUnmount(() => { alive = false; generation++; mediaGeneration++; stopLifecycle(); observer?.disconnect(); resize?.disconnect() })
 </script>
 <template>
   <main class="gallery" :aria-label="title">
@@ -113,10 +136,13 @@ onBeforeUnmount(() => { alive = false; generation++; observer?.disconnect(); res
 
     <div v-if="error && !items.length" class="state error" role="alert"><strong>读取{{ title }}目录失败</strong><span>{{ error }}</span><button class="btn" @click="loadPage(true)">重试</button></div>
     <div v-else-if="!loading && !items.length" class="state"><strong>没有符合条件的{{ title }}</strong><span>调整分类或清空搜索后再试。</span></div>
+    <p v-if="Object.values(failed).some(Boolean)" class="end" role="status">部分图片加载失败。<button class="btn" @click="retryImages">重试图片</button></p>
     <div ref="grid" class="masonry" :aria-busy="loading">
       <div v-for="(col, ci) in cols" :key="ci" class="col">
-        <button v-for="a in col" :key="a.asset_id" class="tile" :style="{ aspectRatio: urls[a.asset_id] ? undefined : `1 / ${ratio(a)}` }" @click="open(a)">
-          <img v-if="urls[a.asset_id]" :src="urls[a.asset_id]" alt="" loading="lazy">
+        <button v-for="a in col" :key="a.asset_id" class="tile" :style="{ aspectRatio: loaded[mediaKey(a)] ? undefined : `1 / ${ratio(a)}` }" @click="open(a)">
+          <img v-if="urls[mediaKey(a)]" :src="urls[mediaKey(a)]" :alt="label(a)" loading="lazy" @load="loaded[mediaKey(a)] = true; delete failed[mediaKey(a)]" @error="failed[mediaKey(a)] = true">
+          <span v-if="failed[mediaKey(a)]" class="image-state">图片加载失败</span>
+          <span v-else-if="!loaded[mediaKey(a)]" class="image-state">{{ a.preview ? '正在加载…' : '暂无预览' }}</span>
           <span class="cap">{{ label(a) }}<small>{{ caption(a) }}</small></span>
         </button>
       </div>
@@ -139,6 +165,7 @@ onBeforeUnmount(() => { alive = false; generation++; observer?.disconnect(); res
 .chip:focus-visible,.seg button:focus-visible,.tabs button:focus-visible,.tile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .masonry{display:flex;gap:12px;align-items:flex-start}.col{flex:1;min-width:0;display:grid;gap:12px}
 .tile{position:relative;display:block;width:100%;padding:0;border:0;border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 0 0 1px var(--line);cursor:pointer;transition:transform .18s,box-shadow .18s}.tile:hover{transform:translateY(-2px);box-shadow:0 0 0 1px var(--accent),0 10px 24px -10px #0003}
+.image-state{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:12px;pointer-events:none}
 .tile img{display:block;width:100%;height:auto}
 .cap{position:absolute;left:0;right:0;bottom:0;padding:22px 10px 8px;background:linear-gradient(transparent,#0a120fb8);color:#fff;font-size:12px;line-height:1.4;text-align:left;opacity:0;transition:opacity .16s}.cap small{display:block;opacity:.8;font-size:11px}.tile:hover .cap,.tile:focus-visible .cap{opacity:1}
 .skeleton{background:linear-gradient(105deg,var(--shell-button) 20%,color-mix(in srgb,var(--accent) 10%,var(--shell-button)) 48%,var(--shell-button) 76%);background-size:220% 100%;animation:shimmer 1.4s linear infinite}

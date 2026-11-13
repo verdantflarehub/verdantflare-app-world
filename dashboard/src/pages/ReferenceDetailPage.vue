@@ -16,8 +16,9 @@ const route = useRoute(), router = useRouter(), { appSDK, dashboardHost } = useH
 const call = (n: string, a: Record<string, unknown>) => appSDK.capabilities.call(n, a as never)
 const asset = ref<AssetOpen | null>(null), domain = ref<ReferenceDomain | null>(null), error = ref(''), loading = ref(true), notice = ref('')
 const urls = ref<Record<string, string>>({}), related = ref<AssetItem[]>([]), relatedUrls = ref<Record<string, string>>({})
+const failed = ref<Record<string, boolean>>({})
 let generation = 0, alive = true
-onBeforeUnmount(() => { alive = false; generation++; window.removeEventListener('keydown', keys) })
+onBeforeUnmount(() => { alive = false; generation++; stopLifecycle(); window.removeEventListener('keydown', keys) })
 
 const assetID = computed(() => String(route.params.assetId || '')), versionID = computed(() => typeof route.query.version === 'string' ? route.query.version : '')
 const title = computed(() => props.kind === 'pose' ? '姿势' : '服装')
@@ -29,13 +30,26 @@ const current = computed(() => { const v = typeof route.query.v === 'string' ? r
 const files = computed(() => new Map((asset.value?.manifest.files || []).map(f => [f.path, f])))
 const scope = computed(() => ({ asset_id: assetID.value, asset_version_id: versionID.value }))
 
-async function url(file: AssetFile | undefined) {
-  if (!file || urls.value[file.path]) return
-  try { const path = await assetFileURL(call, scope.value, file); if (alive) urls.value = { ...urls.value, [file.path]: path } } catch { /* slot keeps its placeholder */ }
+async function url(file: AssetFile | undefined, refresh = false) {
+  if (!file || (urls.value[file.path] && !refresh)) return
+  const epoch = generation
+  delete failed.value[file.path]
+  try {
+    const path = await assetFileURL(call, scope.value, file, refresh)
+    if (alive && epoch === generation) urls.value[file.path] = path
+  } catch { if (alive && epoch === generation) failed.value[file.path] = true }
 }
+function retryImages() {
+  if (current.value) void url(files.value.get(current.value.image), true)
+  for (const v of views.value) void url(files.value.get(v.thumb || v.image), true)
+}
+const stopLifecycle = appSDK.lifecycle.subscribe(event => {
+  if (event === 'hidden') generation++
+  else if (event === 'active') { if (!domain.value) void load(); else retryImages() }
+})
 async function load() {
   const current = ++generation
-  loading.value = true; error.value = ''; asset.value = null; domain.value = null; urls.value = {}; related.value = []
+  loading.value = true; error.value = ''; asset.value = null; domain.value = null; urls.value = {}; failed.value = {}; related.value = []
   try {
     if (!isID(assetID.value) || !isID(versionID.value)) throw new Error('资产地址无效。')
     const opened = readAsset(await callTool('world.get', { asset_id: assetID.value, asset_version_id: versionID.value }), assetID.value, versionID.value)
@@ -94,10 +108,11 @@ watch(() => [assetID.value, versionID.value], () => void load(), { immediate: tr
           <button class="btn primary" @click="bringIntoProject">选择项目并引用此版本</button>
         </div>
       </header>
+      <p v-if="Object.values(failed).some(Boolean)" class="notice" role="status">部分图片加载失败。<button class="btn" @click="retryImages">重试图片</button></p>
       <p v-if="notice" class="notice" role="status">{{ notice }}</p>
       <div class="layout">
         <section class="stage" aria-label="大图">
-          <div class="big" :class="{ loading: !current || !urls[current.image] }"><img v-if="current && urls[current.image]" :src="urls[current.image]" :alt="`${domain.title} ${current.label}`"></div>
+          <div class="big" :class="{ loading: !current || !urls[current.image] }"><img v-if="current && urls[current.image]" :src="urls[current.image]" :alt="`${domain.title} ${current.label}`" @error="failed[current.image] = true" @load="delete failed[current.image]"></div>
           <div v-if="views.length > 1" class="views" role="tablist" aria-label="视角">
             <button v-for="v in views" :key="v.key" role="tab" :aria-selected="v.key === current?.key" @click="setView(v.key)"><span class="thumb"><img v-if="urls[v.thumb || v.image]" :src="urls[v.thumb || v.image]" alt=""></span>{{ v.label }}</button>
           </div>
