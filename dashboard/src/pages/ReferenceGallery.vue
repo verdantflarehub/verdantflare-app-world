@@ -6,6 +6,7 @@ import { useHost } from '../platform/host'
 import { readAssetList, type AssetItem } from '../platform/world-model'
 import { assetFileURL } from '../platform/asset-media'
 import { ANGLES, chipValues, facetRequests, listArgs, masonry, memoryKey, readFacets, readFilters, recall, remember, setLastList, subjectValue, type GalleryKind } from '../platform/reference-gallery'
+import WorldTrail from '../components/WorldTrail.vue'
 // Pose / costume gallery (World / Pose §9, Costume §8): category chips with
 // counts, image masonry with incremental loading, and a detail sub-page.
 const props = defineProps<{ kind: GalleryKind }>()
@@ -105,6 +106,7 @@ onBeforeUnmount(() => { alive = false; generation++; mediaGeneration++; stopLife
 </script>
 <template>
   <main class="gallery" :aria-label="title">
+    <WorldTrail :items="[{ label: '数字世界', to: '/' }, { label: title }]" />
     <header class="head"><div><h1>{{ title }}</h1><p>{{ kind === 'pose' ? '线稿人偶姿势参考，每个姿势含多个机位视角；可用于生图、试装与动作设计' : '整套穿搭与单品参考，用于试装与生图迁移款式、材质与配色' }}</p></div><span class="pill">私有 · 内部组织</span></header>
 
     <nav v-if="kind === 'costume'" class="tabs" aria-label="服装范围">

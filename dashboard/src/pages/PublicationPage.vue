@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from 'vue-router'
 import { useHost } from '../platform/host'
+import WorldTrail from '../components/WorldTrail.vue'
 import { publicationError, publicationIdentity } from '../platform/publication-client'
 import { createWorldPublication, publicationPointer, type PublicationPreview, type PublicationRecord } from '../platform/world-publication'
 const route = useRoute(), { appSDK, dashboardHost } = useHost()
@@ -58,7 +59,8 @@ onBeforeUnmount(() => { alive = false; generation++; navigation?.abort(); client
 </script>
 <template>
   <main class="main publication">
-    <header class="heading"><div class="heading-left"><div class="eyebrow">数字世界</div><h1>确认固定版本入库</h1><p>核对项目已准备的版本与文件范围，再确认保存。</p></div><RouterLink class="btn" to="/">返回资产目录</RouterLink></header>
+    <WorldTrail :items="[{ label: '数字世界', to: '/' }, { label: '确认固定版本入库' }]" />
+    <header class="heading"><div class="heading-left"><div class="eyebrow">数字世界</div><h1>确认固定版本入库</h1><p>核对项目已准备的版本与文件范围，再确认保存。</p></div></header>
     <p v-if="busy" role="status" class="state">正在核对原操作…</p><p v-if="error" role="alert" class="state error">{{ error }}</p>
     <section v-if="preview" class="panel"><h2>{{ preview.request.name }}</h2><p class="hint">来源项目的固定修订：<code>{{ preview.request.source_revision_id }}</code></p><ul><li v-for="version in preview.versions" :key="version.version_key">{{ version.label }} · {{ version.file_ids.length }} 个成果文件</li></ul><p class="hint">共 {{ preview.request.file_ids.length }} 个文件，包含明确登记的随附资料。项目后续选用变化不会改变本次范围。</p>
       <template v-if="!pending || ['unknown','preparing'].includes(pending.state)"><label><input v-model="acknowledged" type="checkbox" :disabled="busy || hidden">确认按上述版本和范围入库</label><div class="actions"><button class="btn primary" :disabled="busy || hidden || !acknowledged" @click="confirm">{{ pending ? '恢复原入库操作' : '确认入库' }}</button><button v-if="pending?.result || pending?.preview.request.asset_id" class="btn" :disabled="busy || hidden" @click="status">查询原操作结果</button></div></template>
