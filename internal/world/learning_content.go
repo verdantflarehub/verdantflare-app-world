@@ -413,8 +413,23 @@ func validateLearningSystem(p contentObject, results map[string]contentObject) e
 	if err != nil {
 		return err
 	}
-	if _, err = learningIndex(p["coordination_rules"], "coordination_rules"); err != nil {
+	rules, err := learningIndex(p["coordination_rules"], "coordination_rules")
+	if err != nil {
 		return err
+	}
+	// Version 1 exceptions remain text; version 2 objects are schema-discriminated.
+	exceptions := listOf(p["exceptions"])
+	if len(exceptions) > 0 && objectOf(exceptions[0]) != nil {
+		if _, err = learningIndex(p["exceptions"], "exceptions"); err != nil {
+			return err
+		}
+		for _, value := range exceptions {
+			for _, key := range listOf(objectOf(value)["target_rule_keys"]) {
+				if rules[str(key)] == nil {
+					return learningError("exceptions", "exception targets missing rule")
+				}
+			}
+		}
 	}
 	edges := [][2]string{}
 	for key, m := range modules {

@@ -1539,6 +1539,2401 @@
     "file_ids": []
   },
   {
+    "case": "test_creative_system_v2_and_v1_are_separate_contracts",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": 10,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_and_v1_are_separate_contracts",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": 10,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_and_v1_are_separate_contracts",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": []
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ]
+              }
+            ],
+            "exceptions": [
+              "Historical text remains text"
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_and_v1_are_separate_contracts",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": []
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ]
+              }
+            ],
+            "exceptions": [
+              "Historical text remains text"
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_exception_keys_targets_and_evidence",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": 10,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_exception_keys_targets_and_evidence",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": 10,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "missing"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_exception_keys_targets_and_evidence",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": 10,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              },
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Different text cannot hide duplicate identity",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_exception_keys_targets_and_evidence",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": 10,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "missing"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_exception_keys_targets_and_evidence",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": 10,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "missing"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": []
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_rejects_missing_or_invalid_priority",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_rejects_missing_or_invalid_priority",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": true,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_rejects_missing_or_invalid_priority",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": 1.5,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_rejects_missing_or_invalid_priority",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": 10001,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_rejects_missing_or_invalid_priority",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": -10001,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_rejects_missing_or_invalid_priority",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": -10000,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_rejects_missing_or_invalid_priority",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": 0,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_creative_system_v2_rejects_missing_or_invalid_priority",
+    "valid": true,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": 10000,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
     "case": "test_engineering_needs_file_and_proven_verification",
     "valid": false,
     "document": {
@@ -3920,6 +6315,292 @@
                 }
               }
             ]
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_system_v2_does_not_enable_other_type_versions",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 2,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": 10,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
+          }
+        }
+      ],
+      "relations": [],
+      "uses": []
+    },
+    "file_ids": []
+  },
+  {
+    "case": "test_system_v2_does_not_enable_other_type_versions",
+    "valid": false,
+    "document": {
+      "schema_version": 1,
+      "document_kind": "reference-learning",
+      "origin": "manual",
+      "coverage": [],
+      "sources": [],
+      "results": [
+        {
+          "key": "method",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "method",
+          "type_version": 1,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "purpose": "creative_reuse",
+            "objective": "Explain a mechanism",
+            "applicability": "Visible process",
+            "inputs": [
+              {
+                "key": "subject",
+                "value_type": "string",
+                "required": true,
+                "description": "Subject"
+              }
+            ],
+            "steps": [
+              {
+                "key": "plan",
+                "instruction": "Write a shot plan",
+                "input_keys": [
+                  "subject"
+                ],
+                "output_keys": [
+                  "plan"
+                ]
+              }
+            ],
+            "constraints": [],
+            "expected_outputs": [
+              {
+                "key": "plan",
+                "type_key": "shot",
+                "description": "Shot plan",
+                "checks": []
+              }
+            ],
+            "counterexamples": []
+          }
+        },
+        {
+          "key": "system",
+          "title": "Test fixture",
+          "domain": "knowledge",
+          "type_key": "creative_system",
+          "type_version": 3,
+          "basis": "created",
+          "basis_note": "Synthetic contract fixture, not real media output.",
+          "source_refs": [],
+          "evidence": [],
+          "use_conditions": [
+            {
+              "mode": "reference",
+              "purpose": "read_reference",
+              "availability": "unknown",
+              "required_inputs": [],
+              "missing_items": []
+            }
+          ],
+          "payload": {
+            "research_subjects": [],
+            "corpus_refs": [],
+            "scope_note": "Synthetic original system",
+            "modules": [
+              {
+                "key": "a",
+                "method_ref": {
+                  "kind": "result",
+                  "key": "method"
+                },
+                "domain": "shot",
+                "required": true,
+                "depends_on_keys": [],
+                "default_scope": "Scenes explicitly selected by the user"
+              }
+            ],
+            "coordination_rules": [
+              {
+                "key": "rule",
+                "condition": "Synthetic condition",
+                "effect": "Synthetic effect",
+                "target_module_keys": [
+                  "a"
+                ],
+                "priority": 10,
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "exceptions": [
+              {
+                "key": "exception",
+                "condition": "Synthetic exception",
+                "reason": "Synthetic reason",
+                "target_rule_keys": [
+                  "rule"
+                ],
+                "evidence_refs": [
+                  {
+                    "kind": "result",
+                    "key": "method"
+                  }
+                ]
+              }
+            ],
+            "validation_case_refs": []
           }
         }
       ],
