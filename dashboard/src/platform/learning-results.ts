@@ -9,6 +9,11 @@ export const resultTypes: Record<string,string> = {
   blender_scene:'Blender 片场',camera_animation:'连续运镜',comfyui_workflow:'ComfyUI 工程',
 }
 export const basisLabels: Record<string,string> = {observed:'画面或原文观察',measured:'测量',inferred:'分析推断',external:'外部拆解',created:'原创',reconstruction:'重建方案'}
+export function resultBasisLabel(basis:string):string {
+  if(basis==='created')return '原创收录 · 审核状态未核验'
+  if(Object.hasOwn(basisLabels,basis))return basisLabels[basis]+' · 内容待核验'
+  return '来源未知 · 待补充来源依据'
+}
 export const compatibilityLabels: Record<string,string> = {unresolved:'目标模型待解析',draft:'尚未校验适配',schema_checked:'参数结构已校验',incompatible:'当前配置不兼容'}
 export interface UseCondition {mode:string;availability:string;purpose:string;required_inputs:string[];missing_items:string[]}
 export interface PromptVariant extends Record<string,unknown> {

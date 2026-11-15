@@ -41,19 +41,19 @@ onBeforeUnmount(()=>{alive=false;generation++;stop()})
 <template>
 <div v-if="thumbnail" class="reference-thumbnail" aria-hidden="true"><img v-if="poster" :src="poster" alt=""><span v-else>{{loading?'正在读取原片画面':reference?'原片参考画面':'缺少对应画面'}}</span></div>
 <section v-else class="reference-panel" aria-label="原片参考">
-<header><strong>{{audio?'听听原片中的声音':image?(result.type_key==='character'?'人物参考图片':'原片参考图片'):'观看对应原片片段'}}</strong><span>{{audio?'原片混合音轨':'原片参考 · 非生成样例'}}</span></header>
+<header><strong>{{audio?(result.basis==='created'?'试听声音参考':'听听原片中的声音'):image?(result.type_key==='character'?'人物参考图片':'原片参考图片'):'观看对应原片片段'}}</strong><span>{{audio?'原片混合音轨':'原片参考 · 非生成样例'}}</span></header>
 <template v-if="reference && range">
 <label v-if="reference.ranges.length>1" class="segment-select">{{image?'选择参考图片':'选择出现片段'}}<select v-model="selected"><option v-for="(r,i) in reference.ranges" :key="i" :value="i">片段 {{i+1}} · {{timeLabel(r.start)}}–{{timeLabel(r.end)}}</option></select></label>
 <div v-if="loading" class="loading" role="status">正在读取原片{{audio?'声音':'画面'}}…</div>
 <button v-if="image && poster" class="still" :aria-label="`放大${result.title}的原片画面`" @click="preview"><img :src="poster" :alt="`${result.title}的关联镜头参考画面`"></button>
-<template v-if="source && audio"><audio ref="player" :src="source" preload="metadata" @loadedmetadata="loaded" @play="play();audioPlaying=true" @pause="audioPlaying=false" @timeupdate="boundary" @seeked="boundary" @error="error='浏览器暂不能播放这段原片声音。'"/><div class="audition"><button class="btn primary" @click="toggleAudio">{{audioPlaying?'暂停试听':'试听原片声音'}}</button><label>试听进度<input type="range" min="0" :max="range.end-range.start" step="0.05" :value="elapsed" aria-label="试听片段进度" @input="seekAudio"></label><span>{{elapsed.toFixed(1)}} / {{(range.end-range.start).toFixed(1)}} 秒</span></div></template>
+<template v-if="source && audio"><audio ref="player" :src="source" preload="metadata" @loadedmetadata="loaded" @play="play();audioPlaying=true" @pause="audioPlaying=false" @timeupdate="boundary" @seeked="boundary" @error="error='浏览器暂不能播放这段原片声音。'"/><div class="audition"><button class="btn primary" @click="toggleAudio">{{audioPlaying?'暂停试听':'试听声音'}}</button><label>试听进度<input type="range" min="0" :max="range.end-range.start" step="0.05" :value="elapsed" aria-label="试听片段进度" @input="seekAudio"></label><span>{{elapsed.toFixed(1)}} / {{(range.end-range.start).toFixed(1)}} 秒</span></div></template>
 <video v-else-if="source && !image" ref="player" :src="source" :poster="poster" controls playsinline preload="metadata" @loadedmetadata="loaded" @play="play" @timeupdate="boundary" @seeked="boundary" @error="error='浏览器暂不能播放这段原片。'"/>
 <div class="caption"><span>{{timeLabel(range.start)}}–{{timeLabel(range.end)}} · {{(range.end-range.start).toFixed(1)}} 秒</span></div>
 <details v-if="image && source" class="original-video"><summary @click="player?.pause()">查看原片来源视频</summary><video ref="player" :src="source" controls playsinline preload="metadata" @loadedmetadata="loaded" @play="play" @timeupdate="boundary" @seeked="boundary"/></details>
 <p v-if="range.note" class="observation">{{range.note}}</p><p class="note">{{audio?'保留原片中的全部声音，未分离人声或配乐。':'原片截图 · 对应关系由自动分析定位，待核对。'}}</p>
 <p v-if="error" role="alert">{{error}}</p><button v-if="error && media?.active.value" class="btn" @click="load">重试读取原片</button>
 </template>
-<div v-else class="missing"><strong>{{audio?'缺少可定位的试听片段':'缺少可定位的原片画面'}}</strong><p>这项目前只有分析说明，尚不能作为完整的{{audio?'声音':'视觉'}}参考。</p></div>
+<div v-else class="missing"><strong>{{audio?'缺少可定位的试听片段':'缺少可定位的原片画面'}}</strong><p>这项目前只有文字说明，尚不能作为完整的{{audio?'声音':'视觉'}}参考。</p></div>
 </section>
 </template>
 <style scoped>

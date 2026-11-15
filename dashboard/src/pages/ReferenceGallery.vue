@@ -175,4 +175,6 @@ onBeforeUnmount(() => { alive = false; generation++; mediaGeneration++; stopLife
 @media (prefers-reduced-motion:reduce){.skeleton{animation:none}.tile{transition:none}}
 .sentinel{height:1px}.end{text-align:center;color:var(--muted);font-size:12px;padding:16px 0}
 .state{display:grid;gap:6px;justify-items:center;padding:40px;border:1px dashed var(--line);border-radius:12px;color:var(--muted);margin-bottom:16px}.state strong{color:var(--ink)}.state.error strong{color:var(--danger)}
+.search{flex:1 1 280px;min-width:0;max-width:100%;flex-wrap:wrap}.search input{flex:1 1 180px;min-width:0;width:auto;max-width:100%}.search .btn{flex:0 0 auto}.tabs{flex-wrap:wrap}.row>*{max-width:100%;min-width:0}.row button{white-space:normal;overflow-wrap:anywhere}.head>*{min-width:0}.head h1,.head p{overflow-wrap:anywhere}
+@media(max-width:600px){.head{align-items:flex-start;flex-wrap:wrap}.search .btn,.row button{min-height:44px}}
 </style>
