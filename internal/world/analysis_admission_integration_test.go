@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"math/big"
+	"strings"
 	"sync"
 	"testing"
 
@@ -82,6 +83,7 @@ func admissionFrozenTask(t *testing.T, svc *Service, p Principal, r AnalyzeReque
 	task := analysis.Task{OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: r.TaskID, DraftID: r.Source.DraftID, RevisionID: r.Source.RevisionID, FileID: r.Source.FileID, Plan: plan, PromptTargets: r.PromptTargets, IncludeTypedResults: true, SaveLearning: true, TotalBudget: r.BudgetLimit}
 	if admitted, err := (analysis.PGStore{DB: svc.db}).Submission(t.Context(), p.OrganizationID, p.SubjectID, r.TaskID); err == nil {
 		task.PipelineVersion = admitted.PipelineVersion
+		task.AssemblyVersion = admitted.AssemblyVersion
 	} else if !errors.Is(err, analysis.ErrMissing) {
 		t.Fatal(err)
 	}
@@ -166,6 +168,17 @@ func TestAnalysisAdmissionDurableReplayOwnershipAndLease(t *testing.T) {
 	}
 	// Model preparation completed before death, but queued marker was lost.
 	task, requests := admissionFrozenTask(t, svc, p, r, 45000)
+	if task.LearningAssemblyVersion() != "2" {
+		t.Fatal("new admission did not freeze version 2")
+	}
+	wrong := task
+	wrong.AssemblyVersion = "1"
+	if err = store.Create(ctx, wrong, requests); err == nil || !strings.Contains(err.Error(), "task assembly differs from frozen admission") {
+		t.Fatal("mismatched admission version was not rejected", err)
+	}
+	if _, err = svc.db.Exec(ctx, `UPDATE studio.world_analysis_requests SET assembly_version='1' WHERE task_id=$1`, r.TaskID); err == nil {
+		t.Fatal("admission assembly mutable")
+	}
 	if err = store.Create(ctx, task, requests); err != nil {
 		t.Fatal(err)
 	}

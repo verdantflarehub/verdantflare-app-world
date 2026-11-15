@@ -44,7 +44,7 @@ var draftSchemas = sync.OnceValues(func() (map[string]*jsonschema.Schema, error)
 		}
 	}
 	out := map[string]*jsonschema.Schema{}
-	for _, name := range []string{"world-analyze-request", "world-draft-request", "world-draft-manifest", "world-draft-response", "reference-learning"} {
+	for _, name := range []string{"world-analyze-request", "world-draft-request", "world-draft-manifest", "world-draft-response", "reference-learning", "reference-learning-v2"} {
 		s, err := c.Compile("station://contracts/v2/" + name)
 		if err != nil {
 			return nil, err
@@ -62,6 +62,19 @@ func validateLearningJSON(data []byte, name string) error {
 	var value any
 	if json.Unmarshal(clean, &value) != nil {
 		return ErrInvalid
+	}
+	if name == "reference-learning" {
+		doc, ok := value.(map[string]any)
+		if !ok {
+			return ErrInvalid
+		}
+		switch doc["schema_version"] {
+		case float64(1):
+		case float64(2):
+			name = "reference-learning-v2"
+		default:
+			return ErrNotReady
+		}
 	}
 	schemas, err := draftSchemas()
 	if err != nil {

@@ -203,7 +203,7 @@ func (s *Service) WorldAnalyze(ctx context.Context, p Principal, input AnalyzeRe
 		if e != nil {
 			return nil, e
 		}
-		e = store.CreateSubmission(ctx, analysis.Submission{PipelineVersion: 2, OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: r.TaskID, DraftID: r.Source.DraftID, RevisionID: r.Source.RevisionID, FileID: r.Source.FileID, SourceHash: version.SHA256, Hash: hash, Request: data})
+		e = store.CreateSubmission(ctx, analysis.Submission{AssemblyVersion: "2", PipelineVersion: 2, OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: r.TaskID, DraftID: r.Source.DraftID, RevisionID: r.Source.RevisionID, FileID: r.Source.FileID, SourceHash: version.SHA256, Hash: hash, Request: data})
 		if e != nil {
 			return nil, analysisAPIError(e)
 		}
@@ -298,7 +298,7 @@ func (s *Service) PrepareAnalysisSubmission(ctx context.Context, w analysis.Work
 		if s.analysis != nil {
 			processor = s.analysis.Processor
 		}
-		_, err = s.PrepareVideoAnalysis(ctx, p, w.TaskID, *r.Source, AnalysisExecution{PipelineVersion: row.PipelineVersion, ModelID: r.ModelID, BudgetPerStep: r.BudgetPerCall, PromptTargets: r.PromptTargets, IncludeTypedResults: true, SaveLearning: true, TotalBudget: r.BudgetLimit}, processor)
+		_, err = s.PrepareVideoAnalysis(ctx, p, w.TaskID, *r.Source, AnalysisExecution{AssemblyVersion: row.AssemblyVersion, PipelineVersion: row.PipelineVersion, ModelID: r.ModelID, BudgetPerStep: r.BudgetPerCall, PromptTargets: r.PromptTargets, IncludeTypedResults: true, SaveLearning: true, TotalBudget: r.BudgetLimit}, processor)
 	}
 	if err != nil {
 		if errors.Is(err, ErrForbidden) || errors.Is(err, ErrInvalid) || errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotReady) || errors.Is(err, analysis.ErrInvalid) || errors.Is(err, analysis.ErrMediaInvalid) || errors.Is(err, analysis.ErrMediaUnsupported) {

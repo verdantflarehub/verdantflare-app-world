@@ -353,6 +353,9 @@ func ValidateLearningContent(data []byte, files []File) (LearningContent, error)
 		out.RunRefs = append(out.RunRefs, run)
 	}
 	sort.Slice(out.RunRefs, func(i, j int) bool { return learningJSONKey(out.RunRefs[i]) < learningJSONKey(out.RunRefs[j]) })
+	if err = validateLearningCuration(out); err != nil {
+		return out, err
+	}
 	return out, nil
 }
 func validateLearningMethod(p contentObject) error {

@@ -26,6 +26,22 @@ export interface LearningResult extends Record<string,unknown> {
   use_conditions:UseCondition[];source_refs:unknown[];evidence:unknown[];payload:Record<string,unknown>
 }
 export interface LearningDocument extends CollectionDocument {results:LearningResult[]}
+function resultReviewContext(result: LearningResult, document: LearningDocument): Record<string, unknown> {
+  if (!document.results.some(r => r === result)) fail()
+  if (document.schema_version === 1) return {}
+  const curation = object(document.curation)
+  const assessments = list(curation.assessments).map(object).filter(a => a.result_key === result.key)
+  if (assessments.length !== 1) fail()
+  const assessment = assessments[0], packageKeys = list(assessment.package_keys).map(v => { if (!text(v)) fail(); return v as string })
+  const packages = list(curation.packages).map(object).filter(p => packageKeys.includes(String(p.key)))
+  if (packages.length !== packageKeys.length) fail()
+  return { schema_version: document.schema_version,
+    curation: { packages, assessments: [assessment] }, processing_snapshot: document.processing_snapshot,
+    provenance: document.provenance }
+}
+export function resultConfiguration(result: LearningResult, document: LearningDocument, source: Record<string, string>): string {
+  return JSON.stringify({ source, result, ...resultReviewContext(result, document) }, null, 2)
+}
 function fail():never {throw Error('成果正文不完整，不能作为可用配置展示。')}
 function text(v:unknown,max=65536):v is string{return typeof v==='string'&&v.trim().length>0&&v.length<=max}
 function list(v:unknown,max=10000):unknown[]{if(!Array.isArray(v)||v.length>max)fail();return v as unknown[]}
@@ -68,9 +84,10 @@ export function promptBody(v:PromptVariant):string {
   if(v.messages)parts.push(v.messages.map(m=>`[${m.role}]\n${m.content}`).join('\n\n'))
   return parts.join('\n\n')
 }
-export function promptConfiguration(result:LearningResult,v:PromptVariant,asset:AssetOpen):string {
+export function promptConfiguration(result:LearningResult,v:PromptVariant,asset:AssetOpen,document?:LearningDocument):string {
   return JSON.stringify({source:{asset_id:asset.asset_id,asset_version_id:asset.asset_version_id,result_key:result.key},
-    creative_intent:result.payload.creative_intent,variables:result.payload.variables,variant:v},null,2)
+    creative_intent:result.payload.creative_intent,variables:result.payload.variables,variant:v,
+    ...(document ? resultReviewContext(result, document) : {})},null,2)
 }
 export function filterResults(results:LearningResult[],type:string,query:string):LearningResult[]{
   const q=query.trim().toLocaleLowerCase()

@@ -60,11 +60,19 @@ async function mount() {
     if (failure || disposed || hostPaths.has(to.fullPath)) return
     navigation.request(to.fullPath)
   })
+  // Do not expose a detail page before its browser-history entry exists.
+  // Otherwise an immediate Back operates on the previous list/filter entry.
+  const stopBefore = router.beforeEach(to => {
+    if (disposed || hostPaths.has(to.fullPath) || !to.path.includes('/item/')) return
+    if (canonicalRoute('world', sdk.navigation.get().path) === to.fullPath) return
+    navigation.request(to.fullPath)
+    return false
+  })
   const resize = new ResizeObserver(() => { if (!disposed) host.resize(Math.ceil(root.getBoundingClientRect().height)) })
   resize.observe(root)
   const stopLifecycle = sdk.lifecycle.subscribe(event => {
     if (event !== 'dispose' || disposed) return
-    disposed = true; navigation.dispose(); resize.disconnect(); stopTheme(); stopRoute(); stopAfter(); stopLifecycle(); app.unmount(); disconnectHost()
+    disposed = true; navigation.dispose(); resize.disconnect(); stopTheme(); stopRoute(); stopAfter(); stopBefore(); stopLifecycle(); app.unmount(); disconnectHost()
   })
   host.ready()
   host.setDirty(false)

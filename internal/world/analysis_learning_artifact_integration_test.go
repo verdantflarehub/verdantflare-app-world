@@ -76,6 +76,14 @@ func (p *realLearningPort) Read(ctx context.Context, actor world.Principal, ref 
 // Real Artifact 0.2.6 and private disposable S3; observations remain synthetic.
 // No business Project, model inference, or user installation participates.
 func TestAnalysisLearningSaveArtifactS3(t *testing.T) {
+	runAnalysisLearningSaveArtifactS3(t, "1")
+}
+
+func TestAnalysisLearningV2SaveArtifactS3(t *testing.T) {
+	runAnalysisLearningSaveArtifactS3(t, "2")
+}
+
+func runAnalysisLearningSaveArtifactS3(t *testing.T, assemblyVersion string) {
 	binary, endpoint := os.Getenv("WORLD_TEST_ARTIFACT_BINARY"), os.Getenv("WORLD_TEST_S3_ENDPOINT")
 	if binary == "" || endpoint == "" {
 		t.Skip("remote Artifact and S3 required")
@@ -276,6 +284,39 @@ func TestAnalysisLearningSaveArtifactS3(t *testing.T) {
 		if e != nil || !bytes.Equal(actual, expected) {
 			t.Fatal("fixed document mismatch", e)
 		}
+		validated, e := world.ValidateLearningContent(actual, nil)
+		if e != nil {
+			t.Fatal("saved document invalid", e)
+		}
+		provenance, ok := validated.Document["provenance"].(map[string]any)
+		if !ok || provenance["version"] != assemblyVersion {
+			t.Fatal("saved document assembly version changed")
+		}
+		if assemblyVersion == "2" {
+			curation, ok := validated.Document["curation"].(map[string]any)
+			if !ok {
+				t.Fatal("saved curation missing")
+			}
+			assessments, ok := curation["assessments"].([]any)
+			results, resultsOK := validated.Document["results"].([]any)
+			if !ok || !resultsOK || len(assessments) == 0 || len(assessments) != len(results) {
+				t.Fatal("saved curation lost result assessments")
+			}
+			for _, item := range assessments {
+				assessment, ok := item.(map[string]any)
+				if !ok || assessment["selection"] != "unassessed" {
+					t.Fatal("unreviewed analysis promoted by persistence")
+				}
+			}
+		}
+		for _, other := range []world.Principal{{OrganizationID: p.OrganizationID, SubjectID: id(), RequestID: id()}, {OrganizationID: id(), SubjectID: p.SubjectID, RequestID: id()}} {
+			if _, e = svc.WorldDraft(ctx, other, world.DraftRequest{Mode: "get", DraftID: saved.Revision.DraftID, RevisionID: saved.Revision.RevisionID}); !errors.Is(e, world.ErrNotFound) && !errors.Is(e, world.ErrForbidden) {
+				t.Fatal("foreign fixed draft not denied", e)
+			}
+			if _, e = svc.SaveAnalysisLearning(ctx, other, b.TaskID); !errors.Is(e, world.ErrNotFound) && !errors.Is(e, world.ErrForbidden) && !errors.Is(e, analysis.ErrMissing) {
+				t.Fatal("foreign save not denied", e)
+			}
+		}
 		objMeta, e := client.Metadata(ctx, p, file.Content, scope)
 		if e != nil || objMeta.Source.TaskID != b.TaskID || objMeta.Source.ServiceID != "world" || objMeta.CreatedBy != p.SubjectID {
 			t.Fatal("source binding lost", e)
@@ -296,6 +337,6 @@ func TestAnalysisLearningSaveArtifactS3(t *testing.T) {
 		if bytes.Contains(raw, []byte(`"project_id"`)) {
 			t.Fatal("unexpected project binding")
 		}
-		t.Logf("REAL_LEARNING_SAVE objects_created=%d fixed_revision=true original_source=true recovery_after_write=true recovery_after_commit=true artifact_restart=true model_calls=synthetic", 3)
-	})
+		t.Logf("REAL_LEARNING_SAVE assembly_version=%s objects_created=%d fixed_revision=true original_source=true recovery_after_write=true recovery_after_commit=true artifact_restart=true model_calls=synthetic", assemblyVersion, 3)
+	}, assemblyVersion)
 }

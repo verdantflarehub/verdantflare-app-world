@@ -61,6 +61,9 @@ func (s *Service) checkLearningBindings(ctx context.Context, p Principal, doc Le
 			return learningError("references", "fixed reference is absent from manifest source_refs")
 		}
 	}
+	if err := s.checkLearningCurationBindings(ctx, p, doc, m, inputs); err != nil {
+		return err
+	}
 	// Generated provenance requires exact native reconstruction; independently
 	// curated samples require current producer and project verification.
 	if len(doc.RunRefs) > 0 {

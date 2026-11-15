@@ -36,7 +36,7 @@ void load()
 <WorldTrail v-if="!document" :items="[...parents,{label:asset.manifest.name}]"/><slot v-if="!document"/><div v-if="loading" class="state" role="status">正在读取固定版本的成果正文…</div>
 <div v-else-if="error" class="state error" role="alert"><p>{{error}}</p><button class="btn" @click="load">重新读取正文</button></div>
 <div v-else-if="!document" class="state">这份资产没有类型化成果正文，已保存文件见下方清单。</div>
-<template v-else><ResultBrowser :results="businessOrder(document.results)" :code="r=>resultCode(r,document!)" :parents="parents" :label="asset.manifest.name" :audition="asset.manifest.asset_type==='sound'">
+<template v-else><ResultBrowser :document="document" :results="businessOrder(document.results)" :code="r=>resultCode(r,document!)" :parents="parents" :label="asset.manifest.name" :audition="asset.manifest.asset_type==='sound'">
 <template #intro><header><h2>{{asset.manifest.name}}</h2><p>共 {{document.results.length}} 项 · 当前资产的固定版本</p></header><slot/></template>
 <template #thumbnail="{result}"><ResultReferenceMedia v-if="['character','scene','prop','shot'].includes(result.type_key)" :result="result" :document="document!" thumbnail/></template>
 <template #default="{result}">

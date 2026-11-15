@@ -22,7 +22,7 @@ let copyGeneration=0
 onBeforeUnmount(()=>{copyGeneration++})
 watch(()=>[props.asset.asset_id,props.asset.asset_version_id,props.result.key,chosen.value],()=>{copyGeneration++;copyStatus.value='';manual.value=''})
 async function copy(config=false){
- const generation=++copyGeneration,value=config?promptConfiguration(props.result,current.value,props.asset):promptBody(current.value)
+ const generation=++copyGeneration,value=config?promptConfiguration(props.result,current.value,props.asset,props.document):promptBody(current.value)
  try{await navigator.clipboard.writeText(value);if(generation===copyGeneration)copyStatus.value=config?'已复制完整配置，包含变量、参数和参考绑定。':'已复制正文；参数、负向提示和素材绑定请另取完整配置。'}
  catch{if(generation!==copyGeneration)return;manual.value=value;copyStatus.value='当前环境不能自动复制，已选中内容，可手动复制。';await nextTick();if(generation===copyGeneration){manualInput.value?.focus();manualInput.value?.select()}}
 }

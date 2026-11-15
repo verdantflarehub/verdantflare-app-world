@@ -47,7 +47,7 @@ func (s *Service) AnalysisLearningDocument(ctx context.Context, p Principal, tas
 	if err != nil {
 		return nil, err
 	}
-	return assembleAnalysisLearning(material)
+	return assembleAnalysisLearningVersion(material, task, task.LearningAssemblyVersion())
 }
 
 type learningEvidencePosition struct{ Chunk, Line int }
@@ -382,7 +382,7 @@ func assembleAnalysisLearning(m analysis.LearningMaterial) ([]byte, error) {
 // authorized immutable task. Other producer or execution claims stay closed.
 func (s *Service) checkAnalysisLearning(ctx context.Context, p Principal, doc LearningContent) error {
 	provenance := objectOf(doc.Document["provenance"])
-	if str(doc.Document["origin"]) != "generated" || str(provenance["producer"]) != "world-analysis" || str(provenance["version"]) != "1" || len(doc.RunRefs) != 1 {
+	if s.db == nil || str(doc.Document["origin"]) != "generated" || str(provenance["producer"]) != "world-analysis" || (str(provenance["version"]) != "1" && str(provenance["version"]) != "2") || len(doc.RunRefs) != 1 {
 		return ErrNotReady
 	}
 	run := doc.RunRefs[0]

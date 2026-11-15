@@ -71,12 +71,16 @@ func (s *Service) checkAnalysisOutput(ctx context.Context, p Principal, v Conten
 	if err != nil {
 		return err
 	}
-	if r.Version != "1" || (r.State != "pending" && r.State != "saved") {
+	if (r.Version != "1" && r.Version != "2") || (r.State != "pending" && r.State != "saved") {
 		return ErrNotReady
 	}
 	expected, err := s.AnalysisLearningDocument(ctx, p, v.Source.TaskID)
 	if err != nil {
 		return err
+	}
+	verified, verifyErr := ValidateLearningContent(expected, nil)
+	if verifyErr != nil || str(objectOf(verified.Document["provenance"])["version"]) != r.Version {
+		return ErrNotReady
 	}
 	if r.Hash != analysisDocumentHash(expected) || v.SHA256 != r.Hash || v.Size != int64(len(expected)) {
 		return ErrNotReady
@@ -159,7 +163,7 @@ func (s *Service) SaveAnalysisLearning(ctx context.Context, p Principal, id stri
 		return AnalysisLearningSave{}, err
 	}
 	hash := analysisDocumentHash(data)
-	_, err = s.db.Exec(ctx, `INSERT INTO studio.world_analysis_learning(organization_id,owner_id,task_id,assembly_version,document_sha256,create_id,write_id,commit_id,file_id) VALUES($1,$2,$3,'1',$4,$5,$6,$7,$8) ON CONFLICT(organization_id,owner_id,task_id) DO NOTHING`, p.OrganizationID, p.SubjectID, id, hash, newID(), newID(), newID(), newID())
+	_, err = s.db.Exec(ctx, `INSERT INTO studio.world_analysis_learning(organization_id,owner_id,task_id,assembly_version,document_sha256,create_id,write_id,commit_id,file_id) VALUES($1,$2,$3,$9,$4,$5,$6,$7,$8) ON CONFLICT(organization_id,owner_id,task_id) DO NOTHING`, p.OrganizationID, p.SubjectID, id, hash, newID(), newID(), newID(), newID(), task.LearningAssemblyVersion())
 	if err != nil {
 		return AnalysisLearningSave{}, err
 	}
@@ -167,7 +171,7 @@ func (s *Service) SaveAnalysisLearning(ctx context.Context, p Principal, id stri
 	if err != nil {
 		return AnalysisLearningSave{}, err
 	}
-	if r.Version != "1" || r.Hash != hash {
+	if r.Version != task.LearningAssemblyVersion() || r.Hash != hash {
 		return AnalysisLearningSave{}, ErrIdempotency
 	}
 	if r.State == "conflict" || r.State == "failed" {

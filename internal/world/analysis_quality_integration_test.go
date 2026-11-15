@@ -109,6 +109,10 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 			if !seenPrompts {
 				t.Fatal("learning saved before applicability")
 			}
+			if options.verifySave != nil {
+				options.verifySave(t, svc, p, b)
+				return "saved", nil
+			}
 			_, e := svc.SaveAnalysisLearning(ctx, p, b.TaskID)
 			return "saved", e
 		}

@@ -49,7 +49,7 @@ func TestAdmissionUpgradePreservesLearningAndLegacyRequests(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	const snapshot = `SELECT jsonb_build_object('tasks',(SELECT jsonb_agg(to_jsonb(t)-'pipeline_version'-'total_budget') FROM studio.world_analysis_tasks t),'steps',(SELECT jsonb_agg(to_jsonb(s)) FROM studio.world_analysis_steps s),'learning',(SELECT jsonb_agg(to_jsonb(l)) FROM studio.world_analysis_learning l),'schedule',(SELECT jsonb_agg(to_jsonb(q)) FROM studio.world_analysis_schedule q),'gate',(SELECT to_jsonb(g) FROM studio.world_handoff g),'history',(SELECT jsonb_agg(to_jsonb(h) ORDER BY version) FROM studio.world_schema_history h WHERE version<=11))::text`
+	const snapshot = `SELECT jsonb_build_object('tasks',(SELECT jsonb_agg(to_jsonb(t)-'assembly_version'-'pipeline_version'-'total_budget') FROM studio.world_analysis_tasks t),'steps',(SELECT jsonb_agg(to_jsonb(s)) FROM studio.world_analysis_steps s),'learning',(SELECT jsonb_agg(to_jsonb(l)) FROM studio.world_analysis_learning l),'schedule',(SELECT jsonb_agg(to_jsonb(q)) FROM studio.world_analysis_schedule q),'gate',(SELECT to_jsonb(g) FROM studio.world_handoff g),'history',(SELECT jsonb_agg(to_jsonb(h) ORDER BY version) FROM studio.world_schema_history h WHERE version<=11))::text`
 	var before, after string
 	if err = db.QueryRow(ctx, snapshot).Scan(&before); err != nil {
 		t.Fatal(err)
@@ -63,6 +63,9 @@ func TestAdmissionUpgradePreservesLearningAndLegacyRequests(t *testing.T) {
 		t.Fatal("migration changed preserved task/save state", err)
 	}
 	var n int
+	if err = db.QueryRow(ctx, `SELECT count(*) FROM studio.world_analysis_tasks WHERE assembly_version <> '1'`).Scan(&n); err != nil || n != 0 {
+		t.Fatal("upgrade changed legacy assembly version", err)
+	}
 	if err = db.QueryRow(ctx, `SELECT count(*) FROM studio.world_analysis_requests`).Scan(&n); err != nil || n != 0 {
 		t.Fatal("upgrade created unsolicited analysis", err)
 	}

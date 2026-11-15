@@ -17,8 +17,11 @@ export function createNavigationQueue(hostPath: () => string, request: (path: st
             timer = setTimeout(() => reject(Error('HOST_ROUTE_TIMEOUT')), 15_000)
           })])
         }
-      } catch {
-        if (!disposed && desired === path) { desired = null; rollback(hostPath()) }
+      } catch (error) {
+        // Host history can change before its subscription reaches the app.
+        // A superseded permission check cancels the whole queued intent.
+        const superseded = error instanceof Error && error.message === 'NAVIGATION_SUPERSEDED'
+        if (!disposed && (superseded || desired === path)) { desired = null; rollback(hostPath()) }
       } finally {
         if (timer) clearTimeout(timer)
         acknowledge = null
@@ -30,7 +33,13 @@ export function createNavigationQueue(hostPath: () => string, request: (path: st
   return {
     request(path: string) { if (disposed) return; desired = path; void drain() },
     staleEcho(path: string) {
-      if (inflight !== path) return false
+      if (inflight !== path) {
+        // Browser Back or another host navigation supersedes queued app clicks.
+        // A pending permission check may still finish; drain must restore this
+        // latest host intent rather than replaying a queued detail afterwards.
+        if (inflight !== null) desired = path
+        return false
+      }
       acknowledge?.()
       return desired !== null && desired !== path
     },

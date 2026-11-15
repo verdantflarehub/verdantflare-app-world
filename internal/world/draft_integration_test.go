@@ -93,6 +93,18 @@ func (a *draftTestArtifact) Retain(ctx context.Context, p Principal, o Retention
 	return nil
 }
 func TestDraftPersistenceRecoveryIsolationAndCAS(t *testing.T) {
+	testDraftPersistenceRecoveryIsolationAndCAS(t, learningPromptFixture(t))
+}
+
+func TestDraftCurationPersistenceRecoveryIsolationAndCAS(t *testing.T) {
+	raw, err := json.Marshal(learningCurationFixture(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	testDraftPersistenceRecoveryIsolationAndCAS(t, raw)
+}
+
+func testDraftPersistenceRecoveryIsolationAndCAS(t *testing.T, learningDocument []byte) {
 	ctx := context.Background()
 	db := testdb.New(t)
 	if err := migrations.ApplyFresh(ctx, db, 1, 1); err != nil {
@@ -191,7 +203,7 @@ func TestDraftPersistenceRecoveryIsolationAndCAS(t *testing.T) {
 	// Domain validation reads the real candidate bytes before publishing a head.
 	domainRef := ContentRef{testID(3), testID(100), testID(101)}
 	var invalidDoc contentObject
-	if json.Unmarshal(learningPromptFixture(t), &invalidDoc) != nil {
+	if json.Unmarshal(learningDocument, &invalidDoc) != nil {
 		t.Fatal("fixture")
 	}
 	item := objectOf(listOf(invalidDoc["results"])[0])
@@ -217,7 +229,7 @@ func TestDraftPersistenceRecoveryIsolationAndCAS(t *testing.T) {
 	// Corrected immutable bytes require a new content version and a new commit.
 	validRef := ContentRef{testID(3), testID(100), testID(104)}
 	content.versions[validRef] = ContentVersion{ContentRef: validRef, OrganizationID: p.OrganizationID, Source: Source{Kind: "user_edit", WorldDraftID: created.DraftID}, MIME: "application/json"}
-	content.bytes[validRef] = learningPromptFixture(t)
+	content.bytes[validRef] = learningDocument
 	withDomain.Files[1].Content = validRef
 	validCommit := invalidCommit
 	validCommit.CommitID = testID(105)

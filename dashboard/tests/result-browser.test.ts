@@ -3,7 +3,29 @@ import assert from 'node:assert/strict'
 import { effectScope, ref } from 'vue'
 import { useResultBrowser, resultSummary } from '../src/platform/result-browser.ts'
 import type { LearningResult } from '../src/platform/learning-results.ts'
+import { resultReviews, reviewSelection, unassessedReview, fixedMergeLabel } from '../src/platform/result-review.ts'
 function result(i:number):LearningResult {return {key:`item-${i}`,title:`成果 ${i}`,type_key:i%2?'shot':'scene',type_version:1,domain:'shot',basis:'observed',basis_note:'来源说明',use_conditions:[],source_refs:[],evidence:[],payload:{description:`内容 ${i}`}}}
+
+test('review filters intersect type and search, reset paging, and never promote legacy results',()=>{
+ const scope=effectScope()
+ scope.run(()=>{
+  const rows=Array.from({length:60},(_,i)=>result(i))
+  const states=['unassessed','recommended','needs_review','excluded'] as const
+  const state=useResultBrowser(()=>rows,r=>r.key,r=>states[Number(r.key.split('-')[1])%4])
+  state.page.value=4;state.selected.value='item-40'
+  state.selection.value='excluded'
+  assert.equal(state.page.value,1);assert.equal(state.selected.value,'');assert.equal(state.filtered.value.length,15)
+  state.type.value='scene';assert.equal(state.filtered.value.length,0)
+  state.type.value='shot';state.query.value='item-7';assert.deepEqual(state.filtered.value.map(r=>r.key),['item-7'])
+  state.query.value='';state.page.value=2;state.selected.value='item-55';state.selected.value=''
+  assert.equal(state.selection.value,'excluded');assert.equal(state.page.value,2)
+  const legacy=useResultBrowser(()=>rows);legacy.selection.value='recommended';assert.equal(legacy.filtered.value.length,0)
+  legacy.selection.value='unassessed';assert.equal(legacy.filtered.value.length,60)
+ });scope.stop()
+ assert.equal(reviewSelection('toString'),'');assert.equal(reviewSelection(['recommended']),'')
+ assert.equal(resultReviews().size,0);assert.equal(unassessedReview.selection,'unassessed')
+ assert.match(fixedMergeLabel({kind:'asset',asset_id:'asset',asset_version_id:'fixed',file_id:'file',object_key:'result'}),/fixed/)
+})
 test('232 results stay bounded; detail return preserves filtering and page; adjacent crosses pages',()=>{
  const scope=effectScope()
  scope.run(()=>{

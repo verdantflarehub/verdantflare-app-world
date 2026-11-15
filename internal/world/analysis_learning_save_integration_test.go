@@ -5,6 +5,7 @@ package world
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -104,11 +105,29 @@ func TestAnalysisLearningSaveRecoveryAndFixedRead(t *testing.T) {
 	testAnalysisBundleOptions(t, bundleOptions{targets: syntheticPromptTargets(), typed: true, saveLearning: true})
 }
 
-func verifyAnalysisLearningSave(t *testing.T, svc *Service, p Principal, b analysis.Bundle, port *analysisSaveTestArtifact) {
+func TestAnalysisLearningV2SaveRecoveryAndFixedRead(t *testing.T) {
+	testAnalysisBundleOptions(t, bundleOptions{pipeline: 2, assemblyVersion: "2", targets: syntheticPromptTargets(), typed: true, saveLearning: true,
+		verifySave: func(t *testing.T, svc *Service, p Principal, b analysis.Bundle) {
+			verifyAnalysisLearningSave(t, svc, p, b, svc.content.(*analysisSaveTestArtifact), true)
+		}})
+}
+
+func verifyAnalysisLearningSave(t *testing.T, svc *Service, p Principal, b analysis.Bundle, port *analysisSaveTestArtifact, alreadyClaimed ...bool) {
 	t.Helper()
 	ctx := t.Context()
 	store := analysis.PGStore{DB: svc.db}
+	task, taskErr := store.Task(ctx, p.OrganizationID, p.SubjectID, b.TaskID)
+	if taskErr != nil {
+		t.Fatal(taskErr)
+	}
 	before := len(port.writes)
+	wrongVersion := "2"
+	if task.LearningAssemblyVersion() == "2" {
+		wrongVersion = "1"
+	}
+	if _, err := svc.db.Exec(ctx, `INSERT INTO studio.world_analysis_learning(organization_id,owner_id,task_id,assembly_version,document_sha256,create_id,write_id,commit_id,file_id) VALUES($1,$2,$3,$4,repeat('a',64),$5,$6,$7,$8)`, p.OrganizationID, p.SubjectID, b.TaskID, wrongVersion, newID(), newID(), newID(), newID()); err == nil || !strings.Contains(err.Error(), "save assembly differs from frozen task") {
+		t.Fatal("mismatched save version was not rejected", err)
+	}
 	port.loseWrite, port.loseRead, port.loseCommit = true, true, true
 	var identity analysisLearningSaveRecord
 	for attempt := 0; attempt < 3; attempt++ {
@@ -142,7 +161,12 @@ func verifyAnalysisLearningSave(t *testing.T, svc *Service, p Principal, b analy
 		r, err := svc.SaveAnalysisLearning(ctx, Principal{OrganizationID: w.OrganizationID, SubjectID: w.OwnerID, RequestID: w.LeaseID}, w.TaskID)
 		return r.State, err
 	}}
-	if worked, err := worker.Tick(ctx); err != nil || !worked {
+	if len(alreadyClaimed) > 0 && alreadyClaimed[0] {
+		// The pipeline scheduler already owns the lease; resume through that callback.
+		if _, err := svc.SaveAnalysisLearning(ctx, p, b.TaskID); err != nil {
+			t.Fatal("claimed recovery did not save", err)
+		}
+	} else if worked, err := worker.Tick(ctx); err != nil || !worked {
 		t.Fatal("automatic recovery did not save", err)
 	}
 	saved, err := svc.SaveAnalysisLearning(ctx, p, b.TaskID)
@@ -151,6 +175,16 @@ func verifyAnalysisLearningSave(t *testing.T, svc *Service, p Principal, b analy
 	}
 	if len(port.writes) != before+3 {
 		t.Fatal("duplicate writes", len(port.writes)-before)
+	}
+	finalRecord, err := svc.loadAnalysisLearningSave(ctx, p, b.TaskID)
+	if err != nil || finalRecord.Version != task.LearningAssemblyVersion() {
+		t.Fatal("save lost frozen assembly", err)
+	}
+	if _, err = svc.db.Exec(ctx, `UPDATE studio.world_analysis_tasks SET assembly_version=CASE assembly_version WHEN '1' THEN '2' ELSE '1' END WHERE task_id=$1`, b.TaskID); err == nil {
+		t.Fatal("task assembly was mutable")
+	}
+	if _, err = svc.db.Exec(ctx, `UPDATE studio.world_analysis_learning SET assembly_version=CASE assembly_version WHEN '1' THEN '2' ELSE '1' END WHERE task_id=$1`, b.TaskID); err == nil {
+		t.Fatal("saved assembly was mutable")
 	}
 	progress, err := store.Progress(ctx, p.OrganizationID, p.SubjectID, b.TaskID)
 	if err != nil || progress.Stage != "learning_saved_need_evidence" {

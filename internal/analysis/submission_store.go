@@ -28,6 +28,7 @@ func (s PGStore) CheckSubmissionLease(ctx context.Context, w Work) error {
 }
 
 type Submission struct {
+	AssemblyVersion                                                                                        string
 	PipelineVersion                                                                                        int
 	OrganizationID, OwnerID, TaskID, DraftID, RevisionID, FileID, SourceHash, Hash, State, ErrorCode, Name string
 	Request                                                                                                json.RawMessage
@@ -37,6 +38,13 @@ type Submission struct {
 var ErrSourceTrashed = errors.New("collection is in trash")
 
 func (s PGStore) CreateSubmission(ctx context.Context, r Submission) error {
+	assembly, versionErr := NormalizeAssemblyVersion(r.AssemblyVersion)
+	if versionErr != nil || assembly == "2" && r.PipelineVersion != 2 {
+		return ErrInvalid
+	}
+	if assembly == "" {
+		assembly = "1"
+	}
 	if (r.PipelineVersion != 0 && r.PipelineVersion != 2) || s.DB == nil || !validUUID(r.OrganizationID) || !validUUID(r.OwnerID) || !validUUID(r.TaskID) || !validUUID(r.DraftID) || !validUUID(r.RevisionID) || !validUUID(r.FileID) || !digestPattern.MatchString(r.SourceHash) || !digestPattern.MatchString(r.Hash) || !json.Valid(r.Request) {
 		return ErrInvalid
 	}
@@ -68,9 +76,9 @@ func (s PGStore) CreateSubmission(ctx context.Context, r Submission) error {
 	if state != "active" {
 		return ErrSourceTrashed
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO studio.world_analysis_requests(organization_id,owner_id,task_id,draft_id,revision_id,file_id,source_sha256,request_sha256,request,pipeline_version)
- SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10 WHERE EXISTS(SELECT 1 FROM studio.world_drafts d JOIN studio.world_draft_revisions v USING(organization_id,draft_id) WHERE d.organization_id=$1 AND d.owner_id=$2 AND d.draft_id=$4 AND v.revision_id=$5 AND d.purpose='collection' AND EXISTS(SELECT 1 FROM jsonb_array_elements(v.manifest_json->'files') f WHERE f->>'file_id'=$6::uuid::text))
- ON CONFLICT(organization_id,owner_id,task_id) DO NOTHING`, r.OrganizationID, r.OwnerID, r.TaskID, r.DraftID, r.RevisionID, r.FileID, r.SourceHash, r.Hash, []byte(r.Request), r.PipelineVersion)
+	_, err = tx.Exec(ctx, `INSERT INTO studio.world_analysis_requests(organization_id,owner_id,task_id,draft_id,revision_id,file_id,source_sha256,request_sha256,request,pipeline_version,assembly_version)
+ SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11 WHERE EXISTS(SELECT 1 FROM studio.world_drafts d JOIN studio.world_draft_revisions v USING(organization_id,draft_id) WHERE d.organization_id=$1 AND d.owner_id=$2 AND d.draft_id=$4 AND v.revision_id=$5 AND d.purpose='collection' AND EXISTS(SELECT 1 FROM jsonb_array_elements(v.manifest_json->'files') f WHERE f->>'file_id'=$6::uuid::text))
+ ON CONFLICT(organization_id,owner_id,task_id) DO NOTHING`, r.OrganizationID, r.OwnerID, r.TaskID, r.DraftID, r.RevisionID, r.FileID, r.SourceHash, r.Hash, []byte(r.Request), r.PipelineVersion, assembly)
 	if err != nil {
 		return err
 	}
@@ -91,9 +99,12 @@ func (s PGStore) Submission(ctx context.Context, org, owner, id string) (Submiss
 	if s.DB == nil || !validUUID(org) || !validUUID(owner) || !validUUID(id) {
 		return r, ErrInvalid
 	}
-	err := s.DB.QueryRow(ctx, `SELECT q.draft_id::text,q.revision_id::text,q.file_id::text,q.source_sha256,q.request_sha256,q.request,q.state,q.error_code,q.created_at,COALESCE(v.manifest_json->>'name',''),q.pipeline_version FROM studio.world_analysis_requests q JOIN studio.world_draft_revisions v ON v.organization_id=q.organization_id AND v.draft_id=q.draft_id AND v.revision_id=q.revision_id WHERE q.organization_id=$1 AND q.owner_id=$2 AND q.task_id=$3`, org, owner, id).Scan(&r.DraftID, &r.RevisionID, &r.FileID, &r.SourceHash, &r.Hash, &r.Request, &r.State, &r.ErrorCode, &r.CreatedAt, &r.Name, &r.PipelineVersion)
+	err := s.DB.QueryRow(ctx, `SELECT q.draft_id::text,q.revision_id::text,q.file_id::text,q.source_sha256,q.request_sha256,q.request,q.state,q.error_code,q.created_at,COALESCE(v.manifest_json->>'name',''),q.pipeline_version,q.assembly_version FROM studio.world_analysis_requests q JOIN studio.world_draft_revisions v ON v.organization_id=q.organization_id AND v.draft_id=q.draft_id AND v.revision_id=q.revision_id WHERE q.organization_id=$1 AND q.owner_id=$2 AND q.task_id=$3`, org, owner, id).Scan(&r.DraftID, &r.RevisionID, &r.FileID, &r.SourceHash, &r.Hash, &r.Request, &r.State, &r.ErrorCode, &r.CreatedAt, &r.Name, &r.PipelineVersion, &r.AssemblyVersion)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return r, ErrMissing
+	}
+	if err == nil {
+		r.AssemblyVersion, err = NormalizeAssemblyVersion(r.AssemblyVersion)
 	}
 	return r, err
 }

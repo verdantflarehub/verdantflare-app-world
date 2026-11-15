@@ -21,6 +21,23 @@ func (s *Service) checkLearningExecutions(ctx context.Context, p Principal, doc 
 		}
 	}
 	checked := map[RunRef]bool{}
+	for _, assessment := range listOf(objectOf(doc.Document["curation"])["assessments"]) {
+		result := doc.Results[str(objectOf(assessment)["result_key"])]
+		for _, item := range listOf(objectOf(assessment)["previews"]) {
+			preview := objectOf(item)
+			if str(preview["state"]) != "ready" || str(preview["role"]) == "original_reference" {
+				continue
+			}
+			if str(result["type_key"]) == "prompt" && !curationPreviewMatchesPrompt(result, preview) {
+				return learningError("curation.previews", "preview is not a verified sample of this prompt")
+			}
+			run, err := s.checkCurationPreviewExecution(ctx, p, preview, inputs)
+			if err != nil {
+				return err
+			}
+			checked[run] = true
+		}
+	}
 	for _, result := range doc.Results {
 		if str(result["type_key"]) != "prompt" {
 			continue

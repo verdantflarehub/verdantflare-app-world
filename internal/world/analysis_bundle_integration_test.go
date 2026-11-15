@@ -27,6 +27,7 @@ func testAnalysisBundle(t *testing.T, targets []analysis.PromptTarget, failPromp
 }
 
 type bundleOptions struct {
+	assemblyVersion                 string
 	retryBatches                    bool
 	schemaRejections                bool
 	styleCorrection                 bool
@@ -46,8 +47,16 @@ type bundleOptions struct {
 
 // RunAnalysisSaveFixture is a test-only bridge for the external package to
 // exercise the production Artifact client without a world/artifactclient cycle.
-func RunAnalysisSaveFixture(t *testing.T, port Artifact, source func(*testing.T, Principal, string) ContentVersion, verify func(*testing.T, *Service, Principal, analysis.Bundle)) {
-	testAnalysisBundleOptions(t, bundleOptions{typed: true, saveLearning: true, external: port, writeSource: source, verifySave: verify})
+func RunAnalysisSaveFixture(t *testing.T, port Artifact, source func(*testing.T, Principal, string) ContentVersion, verify func(*testing.T, *Service, Principal, analysis.Bundle), assemblyVersion ...string) {
+	options := bundleOptions{typed: true, saveLearning: true, external: port, writeSource: source, verifySave: verify}
+	if len(assemblyVersion) > 0 {
+		options.assemblyVersion = assemblyVersion[0]
+		if options.assemblyVersion == "2" {
+			options.pipeline = 2
+			options.targets = syntheticPromptTargets()
+		}
+	}
+	testAnalysisBundleOptions(t, options)
 }
 
 func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
@@ -101,7 +110,7 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	task := analysis.Task{PipelineVersion: options.pipeline, OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: newID(), DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: fileID, Plan: plan, PromptTargets: targets, IncludeTypedResults: options.typed, SaveLearning: options.saveLearning}
+	task := analysis.Task{AssemblyVersion: options.assemblyVersion, PipelineVersion: options.pipeline, OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: newID(), DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: fileID, Plan: plan, PromptTargets: targets, IncludeTypedResults: options.typed, SaveLearning: options.saveLearning}
 	step := plan.Steps[0]
 	prepared := analysis.Prepared{SourceHash: hash, MediaHash: hash, MIME: "video/mp4", Range: step.Input}
 	request, err := analysis.Freeze(task.TaskID, "gemini-3.1-pro-preview", "", "1.00", step, prepared, 10)

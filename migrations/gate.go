@@ -69,6 +69,14 @@ var referenceEncodingSQL string
 //go:embed 0020_analysis_final_coverage.sql
 var finalCoverageSQL string
 
+//go:embed 0028_analysis_learning_version.sql
+var learningVersionSQL string
+
+func learningVersionDigest() string {
+	s := sha256.Sum256([]byte(learningVersionSQL))
+	return hex.EncodeToString(s[:])
+}
+
 //go:embed 0027_analysis_prompt_evidence.sql
 var promptEvidenceSQL string
 
@@ -210,7 +218,7 @@ func applyGate(ctx context.Context, tx pgx.Tx) error {
 	for _, step := range []struct {
 		version     int
 		sql, digest string
-	}{{2, gateSQL, gateDigest()}, {3, fenceSQL, fenceDigest()}, {4, draftSQL, draftDigest()}, {5, draftAssetSQL, draftAssetDigest()}, {6, analysisSQL, analysisDigest()}, {7, scheduleSQL, scheduleDigest()}, {8, associationSQL, associationDigest()}, {9, promptsSQL, promptsDigest()}, {10, resultsSQL, resultsDigest()}, {11, learningSQL, learningDigest()}, {12, admissionSQL, admissionDigest()}, {13, budgetStatusSQL, budgetStatusDigest()}, {14, setReviewSQL, setReviewDigest()}, {15, lifecycleSQL, lifecycleDigest()}, {16, qualitySQL, qualityDigest()}, {17, retrySQL, retryDigest()}, {18, associationRetrySQL, associationRetryDigest()}, {19, referenceEncodingSQL, referenceEncodingDigest()}, {20, finalCoverageSQL, finalCoverageDigest()}, {21, revalidationSQL, revalidationDigest()}, {22, batchRetrySQL, batchRetryDigest()}, {23, styleCorrectionSQL, styleCorrectionDigest()}, {24, resultRevalidationSQL, resultRevalidationDigest()}, {25, methodDiagnosticSQL, methodDiagnosticDigest()}, {26, promptDiagnosticSQL, promptDiagnosticDigest()}, {27, promptEvidenceSQL, promptEvidenceDigest()}} {
+	}{{2, gateSQL, gateDigest()}, {3, fenceSQL, fenceDigest()}, {4, draftSQL, draftDigest()}, {5, draftAssetSQL, draftAssetDigest()}, {6, analysisSQL, analysisDigest()}, {7, scheduleSQL, scheduleDigest()}, {8, associationSQL, associationDigest()}, {9, promptsSQL, promptsDigest()}, {10, resultsSQL, resultsDigest()}, {11, learningSQL, learningDigest()}, {12, admissionSQL, admissionDigest()}, {13, budgetStatusSQL, budgetStatusDigest()}, {14, setReviewSQL, setReviewDigest()}, {15, lifecycleSQL, lifecycleDigest()}, {16, qualitySQL, qualityDigest()}, {17, retrySQL, retryDigest()}, {18, associationRetrySQL, associationRetryDigest()}, {19, referenceEncodingSQL, referenceEncodingDigest()}, {20, finalCoverageSQL, finalCoverageDigest()}, {21, revalidationSQL, revalidationDigest()}, {22, batchRetrySQL, batchRetryDigest()}, {23, styleCorrectionSQL, styleCorrectionDigest()}, {24, resultRevalidationSQL, resultRevalidationDigest()}, {25, methodDiagnosticSQL, methodDiagnosticDigest()}, {26, promptDiagnosticSQL, promptDiagnosticDigest()}, {27, promptEvidenceSQL, promptEvidenceDigest()}, {28, learningVersionSQL, learningVersionDigest()}} {
 		var hash string
 		err := tx.QueryRow(ctx, "SELECT "+gateHashColumn+" FROM "+gateHistory+" WHERE version=$1", step.version).Scan(&hash)
 		if err == nil {
@@ -255,7 +263,7 @@ func UpgradeGates(ctx context.Context, db *pgxpool.Pool) error {
 	if err = tx.QueryRow(ctx, "SELECT count(*) FROM "+gateHistory).Scan(&count); err != nil {
 		return err
 	}
-	if count != 2 && count != 3 && count != 4 && count != 5 && count != 6 && count != 7 && count != 8 && count != 9 && count != 10 && count != 11 && count != 12 && count != 13 && count != 14 && count != 15 && count != 16 && count != 17 && count != 18 && count != 19 && count != 20 && count != 21 && count != 22 && count != 23 && count != 24 && count != 25 && count != 26 && count != 27 {
+	if count != 2 && count != 3 && count != 4 && count != 5 && count != 6 && count != 7 && count != 8 && count != 9 && count != 10 && count != 11 && count != 12 && count != 13 && count != 14 && count != 15 && count != 16 && count != 17 && count != 18 && count != 19 && count != 20 && count != 21 && count != 22 && count != 23 && count != 24 && count != 25 && count != 26 && count != 27 && count != 28 {
 		return errors.New("unsupported gate upgrade source")
 	}
 	var owner bool
@@ -281,7 +289,7 @@ func CheckGate(ctx context.Context, q gateQuery) error {
 	if e := q.QueryRow(ctx, "SELECT count(*) FROM "+gateHistory).Scan(&count); e != nil {
 		return e
 	}
-	if hash != gateDigest() || count != 27 {
+	if hash != gateDigest() || count != 28 {
 		return errors.New("handoff migration mismatch")
 	}
 	if e := q.QueryRow(ctx, "SELECT "+gateHashColumn+" FROM "+gateHistory+" WHERE version=3").Scan(&hash); e != nil {
@@ -486,6 +494,34 @@ func CheckGate(ctx context.Context, q gateQuery) error {
 		return errors.New("prompt evidence migration mismatch")
 	}
 
+	if err := q.QueryRow(ctx, "SELECT digest FROM studio.world_schema_history WHERE version=28").Scan(&hash); err != nil {
+		return err
+	}
+	if hash != learningVersionDigest() {
+		return errors.New("learning version migration mismatch")
+	}
+	_, assemblyBody, ok := strings.Cut(learningVersionSQL, "RETURNS trigger LANGUAGE plpgsql AS $$")
+	if !ok {
+		return errors.New("invalid assembly guard source")
+	}
+	assemblyBody, _, ok = strings.Cut(assemblyBody, "$$;")
+	if !ok {
+		return errors.New("invalid assembly guard body")
+	}
+	if err := q.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_proc WHERE oid='studio.world_analysis_assembly_guard()'::regprocedure AND prosrc=$1)`, assemblyBody).Scan(&valid); err != nil {
+		return err
+	}
+	if !valid {
+		return errors.New("assembly guard changed")
+	}
+	for _, table := range []string{"world_analysis_requests", "world_analysis_tasks", "world_analysis_learning"} {
+		if err := q.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=$1::regclass AND tgname='world_analysis_assembly_identity' AND tgenabled='O' AND NOT tgisinternal AND tgtype=23 AND tgnargs=0 AND tgqual IS NULL AND tgfoid='studio.world_analysis_assembly_guard()'::regprocedure)`, "studio."+table).Scan(&valid); err != nil {
+			return err
+		}
+		if !valid {
+			return errors.New("assembly identity guard disabled")
+		}
+	}
 	return nil
 }
 func ActivateFresh(ctx context.Context, db *pgxpool.Pool) error {

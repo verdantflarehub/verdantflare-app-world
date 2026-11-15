@@ -68,7 +68,7 @@ export function readLifecycle(value: unknown): DraftLifecycle | undefined {
   return v as unknown as DraftLifecycle
 }
 export interface CollectionForm { name: string; text: string; url: string }
-export interface CollectionDocument extends Record<string, unknown> { schema_version: 1; document_kind: 'reference-learning'; origin: string; sources: Record<string, unknown>[]; results: unknown[]; coverage: unknown[]; relations: unknown[]; uses: unknown[] }
+export interface CollectionDocument extends Record<string, unknown> { schema_version: 1 | 2; document_kind: 'reference-learning'; origin: string; sources: Record<string, unknown>[]; results: unknown[]; coverage: unknown[]; relations: unknown[]; uses: unknown[] }
 export function collectionForm(input: CollectionForm): CollectionForm {
   const value = { name: input.name.trim(), text: input.text, url: input.url.trim() }
   if (!value.name || value.name.length > 256 || (!value.text.trim() && !value.url) || new TextEncoder().encode(value.text).length > 64 * 1024) throw Error('请填写名称，以及正文或来源链接；正文最多 64 KiB。')
@@ -89,15 +89,74 @@ export function makeCollectionDocument(input: CollectionForm): CollectionDocumen
 export function readCollectionDocument(raw: string, maxBytes = 1 << 20): CollectionDocument {
   if (new TextEncoder().encode(raw).length > maxBytes) invalid()
   const d = object(JSON.parse(raw))
-  if (d.schema_version !== 1 || d.document_kind !== 'reference-learning' || !['manual','imported','generated'].includes(String(d.origin))) invalid()
+  if (![1, 2].includes(Number(d.schema_version)) || typeof d.schema_version !== 'number' || d.document_kind !== 'reference-learning' || !['manual','imported','generated'].includes(String(d.origin))) invalid()
   for (const key of ['sources','results','coverage','relations','uses']) if (!Array.isArray(d[key])) invalid()
   for (const v of d.sources as unknown[]) { const s = object(v); if (!text(s.key) || !text(s.title) || !text(s.acquisition_state)) invalid() }
+  if (d.schema_version === 2) readCuration(d)
   return d as unknown as CollectionDocument
+}
+
+// Presentation integrity only; the service authenticates fixed references and runs.
+function readCuration(d: Record<string, unknown>): void {
+  const c = object(d.curation)
+  const array = (v: unknown, max = 10000): unknown[] => { if (!Array.isArray(v) || v.length > max) invalid(); return v as unknown[] }
+  const keys = (v: unknown): string[] => {
+    const a = array(v)
+    if (!a.every(x => text(x)) || new Set(a).size !== a.length) invalid()
+    return a as string[]
+  }
+  const results = new Map<string, Set<string>>()
+  for (const item of array(d.results)) {
+    const r = object(item)
+    if (!text(r.key) || results.has(String(r.key))) invalid()
+    results.set(String(r.key), new Set())
+  }
+  const packages = new Set<string>()
+  for (const item of array(c.packages, 1000)) {
+    const p = object(item)
+    if (!text(p.key) || !text(p.purpose) || packages.has(String(p.key))) invalid()
+    packages.add(String(p.key))
+    const members = keys(p.result_keys)
+    if (!members.length) invalid()
+    for (const key of members) { if (!results.has(key)) invalid(); results.get(key)!.add(String(p.key)) }
+  }
+  const seen = new Set<string>()
+  for (const item of array(c.assessments)) {
+    const a = object(item), key = String(a.result_key), membership = results.get(key)
+    if (!text(a.result_key) || !membership || seen.has(key)) invalid()
+    seen.add(key)
+    const assigned = keys(a.package_keys)
+    if (assigned.length !== membership!.size || assigned.some(k => !membership!.has(k))) invalid()
+    if (!['unassessed', 'recommended', 'needs_review', 'excluded'].includes(String(a.selection)) || !text(a.note, 65536)) invalid()
+    if (!keys(a.reason_codes).length) invalid()
+    const evidence = array(a.evidence_refs)
+    if (['recommended', 'excluded'].includes(String(a.selection)) && !evidence.length) invalid()
+    for (const ref of [...evidence, ...array(a.merged_from_refs)]) object(ref)
+    const previews = new Set<string>()
+    for (const item of array(a.previews)) {
+      const p = object(item)
+      if (!text(p.key) || previews.has(String(p.key)) || !['ready', 'missing'].includes(String(p.state)) || !['image', 'audio', 'video'].includes(String(p.media_kind)) || !['original_reference', 'generated_effect', 'reconstruction_preview'].includes(String(p.role)) || !text(p.note, 65536)) invalid()
+      previews.add(String(p.key))
+      if (p.role === 'original_reference' && ('run_ref' in p || 'input_refs' in p)) invalid()
+      if (p.state === 'ready') {
+        if ('reason_code' in p) invalid()
+        object(p.file_ref); object(p.locator)
+        if (typeof p.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(p.sha256)) invalid()
+        if (p.role !== 'original_reference') { const run = object(p.run_ref); if (!text(run.service_id) || !text(run.run_id)) invalid(); array(p.input_refs).forEach(object) }
+      } else if (!text(p.reason_code) || ['file_ref', 'locator', 'sha256', 'run_ref', 'input_refs'].some(key => key in p)) invalid()
+    }
+  }
+  if (seen.size !== results.size) invalid()
+  if (d.origin === 'generated') {
+    object(d.provenance)
+    const snapshot = object(d.processing_snapshot)
+    if (!isID(snapshot.task_id) || typeof snapshot.pipeline_version !== 'number' || ![0, 2].includes(snapshot.pipeline_version) || !text(snapshot.assembly_version) || !text(snapshot.adapter_revision) || typeof snapshot.plan_sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(snapshot.plan_sha256)) invalid()
+  } else if ('processing_snapshot' in d) invalid()
 }
 export function editableCollection(d: CollectionDocument): CollectionForm | null {
   // Only the bounded capture shape is edited here. Imported analyses, multi-source
   // documents and file sources need their typed editors; never discard them.
-  if ('provenance' in d || d.origin !== 'manual' || d.sources.length !== 1 || d.results.length || d.coverage.length || d.relations.length || d.uses.length) return null
+  if (d.schema_version !== 1 || 'provenance' in d || d.origin !== 'manual' || d.sources.length !== 1 || d.results.length || d.coverage.length || d.relations.length || d.uses.length) return null
   const s = d.sources[0], content = s.content ? object(s.content) : null
   if (s.key !== 'reference' || s.role !== 'original' || content && (content.kind !== 'inline' || typeof content.text !== 'string') || s.acquisition_state === 'unavailable') return null
   const allowed = ['key','title','media_kind','role','acquisition_state','content','source_url']

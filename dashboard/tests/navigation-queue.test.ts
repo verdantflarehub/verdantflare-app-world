@@ -2,6 +2,29 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createNavigationQueue } from '../src/platform/navigation-queue.ts'
 const tick=()=>new Promise(resolve=>setImmediate(resolve))
+
+test('host supersession before its route echo cancels the queued detail',async()=>{
+ let reject!:(e:Error)=>void
+ const calls:string[]=[],rolled:string[]=[]
+ const q=createNavigationQueue(()=>'/list',path=>{calls.push(path);return new Promise((_,r)=>{reject=r})},p=>rolled.push(p))
+ q.request('/filter');q.request('/item/result')
+ reject(Error('NAVIGATION_SUPERSEDED'));await tick()
+ assert.deepEqual(calls,['/filter']);assert.deepEqual(rolled,['/list'])
+ q.dispose()
+})
+
+test('browser back supersedes a queued detail during an older filter request',async()=>{
+ let host='/list', finish!:()=>void
+ const calls:string[]=[],rolled:string[]=[]
+ const q=createNavigationQueue(()=>host,path=>{calls.push(path);return new Promise<void>(r=>{finish=()=>{host=path;r()}})},p=>rolled.push(p))
+ q.request('/list?filter=unassessed');q.request('/item/result')
+ host='/list?filter=excluded';assert.equal(q.staleEcho(host),false)
+ assert.equal(q.staleEcho('/list?filter=unassessed'),true)
+ finish();await tick()
+ assert.deepEqual(calls,['/list?filter=unassessed','/list?filter=excluded'])
+ assert.equal(q.staleEcho('/list?filter=excluded'),false);finish();await tick()
+ assert.equal(host,'/list?filter=excluded');assert.deepEqual(rolled,[]);q.dispose()
+})
 test('rapid return waits for older host request and ignores its late echo',async()=>{
  let host='/collections', finish!:()=>void
  const calls:string[]=[], rolled:string[]=[]

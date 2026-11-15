@@ -60,6 +60,10 @@ func TestWorldDraftAcrossArtifactS3AndRestart(t *testing.T) {
 	runWorldDraftAcrossArtifact(t, false)
 }
 
+func TestWorldCurationAcrossArtifactS3AndRestart(t *testing.T) {
+	runWorldDraftAcrossArtifact(t, false, true)
+}
+
 func TestWorldPromptProjectAcrossArtifact(t *testing.T) {
 	if os.Getenv("WORLD_TEST_PROJECT_BINARY") == "" {
 		t.Skip("remote Project executable required")
@@ -67,7 +71,8 @@ func TestWorldPromptProjectAcrossArtifact(t *testing.T) {
 	runWorldDraftAcrossArtifact(t, true)
 }
 
-func runWorldDraftAcrossArtifact(t *testing.T, withProject bool) {
+func runWorldDraftAcrossArtifact(t *testing.T, withProject bool, curation ...bool) {
+	withCuration := len(curation) == 1 && curation[0]
 	binary, endpoint := os.Getenv("WORLD_TEST_ARTIFACT_BINARY"), os.Getenv("WORLD_TEST_S3_ENDPOINT")
 	if binary == "" || endpoint == "" {
 		t.Skip("remote Artifact executable and disposable S3 endpoint required")
@@ -326,6 +331,24 @@ func runWorldDraftAcrossArtifact(t *testing.T, withProject bool) {
 	if learning == "" {
 		t.Fatal("learning fixture missing")
 	}
+	var curated map[string]any
+	if withCuration {
+		if err := json.Unmarshal([]byte(learning), &curated); err != nil {
+			t.Fatal(err)
+		}
+		curated["schema_version"] = 2
+		assessments := []any{}
+		for _, item := range curated["results"].([]any) {
+			result := item.(map[string]any)
+			assessments = append(assessments, map[string]any{"result_key": result["key"], "package_keys": []any{}, "selection": "unassessed", "reason_codes": []string{"pending_review"}, "note": "Synthetic manual curation", "evidence_refs": []any{}, "merged_from_refs": []any{}, "previews": []any{}})
+		}
+		curated["curation"] = map[string]any{"packages": []any{}, "assessments": assessments}
+		raw, err := json.Marshal(curated)
+		if err != nil {
+			t.Fatal(err)
+		}
+		learning = string(raw)
+	}
 	promptRef, privateRef := write(learning, "application/json"), write("PRIVATE_REFERENCE_NOT_PUBLISHED", "text/plain")
 	promptID, privateID := newTestID(), newTestID()
 	manifest := created.Manifest
@@ -344,24 +367,108 @@ func runWorldDraftAcrossArtifact(t *testing.T, withProject bool) {
 	guest := world.Principal{OrganizationID: p.OrganizationID, SubjectID: newTestID(), RequestID: newTestID()}
 	call(p, "world.grant", world.WorldGrantRequest{AssetID: asset.AssetID, SubjectID: guest.SubjectID, Role: "reader"}, nil, false)
 	assetAccess := world.Access{AssetID: asset.AssetID, AssetVersionID: asset.VersionID}
-	got, err := content.Read(ctx, guest, promptRef, assetAccess, world.MaxManifestBytes)
+	// Current Artifact is a one-way storage proxy. Exercise the real World
+	// authority before bytes, as business callers must; this is not a gateway test.
+	authorizedRead := func(ctx context.Context, actor world.Principal, ref world.ContentRef, access world.Access, max int64) ([]byte, error) {
+		version, err := content.Metadata(ctx, actor, ref, access)
+		if err != nil {
+			return nil, err
+		}
+		if err = service.AuthorizeArtifact(ctx, actor, world.Permission{Action: "read", Version: &version, Access: &access}); err != nil {
+			return nil, err
+		}
+		return content.Read(ctx, actor, ref, access, max)
+	}
+	got, err := authorizedRead(ctx, guest, promptRef, assetAccess, world.MaxManifestBytes)
 	if err != nil || string(got) != learning {
 		t.Fatal("shared prompt bytes did not survive Artifact/S3", err)
 	}
 	for _, ref := range []world.ContentRef{privateRef, saved.ManifestRef} {
-		if _, err = content.Read(ctx, guest, ref, assetAccess, world.MaxManifestBytes); !errors.Is(err, world.ErrForbidden) {
+		if _, err = authorizedRead(ctx, guest, ref, assetAccess, world.MaxManifestBytes); !errors.Is(err, world.ErrForbidden) {
 			t.Fatal("asset grant exposed private draft content", err)
 		}
 	}
-	if _, err = content.Read(ctx, guest, promptRef, world.Access{WorldDraftID: saved.DraftID, WorldDraftRevisionID: saved.RevisionID}, world.MaxManifestBytes); !errors.Is(err, world.ErrForbidden) {
+	if _, err = authorizedRead(ctx, guest, promptRef, world.Access{WorldDraftID: saved.DraftID, WorldDraftRevisionID: saved.RevisionID}, world.MaxManifestBytes); !errors.Is(err, world.ErrForbidden) {
 		t.Fatal("asset grant exposed source workspace", err)
 	}
 	foreign := guest
 	foreign.OrganizationID = newTestID()
-	if _, err = content.Read(ctx, foreign, promptRef, assetAccess, world.MaxManifestBytes); !errors.Is(err, world.ErrForbidden) && !errors.Is(err, world.ErrNotFound) {
+	if _, err = authorizedRead(ctx, foreign, promptRef, assetAccess, world.MaxManifestBytes); !errors.Is(err, world.ErrForbidden) && !errors.Is(err, world.ErrNotFound) {
 		t.Fatal("cross-organization read was not denied", err)
 	}
 	call(guest, "world.commit_status", world.WorldStatusRequest{CommitID: register.CommitID}, nil, true)
+	if withCuration {
+		fixedEvidence := []world.DraftSourceRef{}
+		for _, item := range curated["curation"].(map[string]any)["assessments"].([]any) {
+			a := item.(map[string]any)
+			a["selection"], a["reason_codes"], a["note"] = "excluded", []string{"wrong_use"}, "Excluded for the synthetic test purpose"
+			ref := world.DraftSourceRef{Kind: "world_draft", DraftID: saved.DraftID, RevisionID: saved.RevisionID, FileID: promptID, ObjectKey: a["result_key"].(string), Purpose: "Fixed result reviewed for exclusion"}
+			a["evidence_refs"] = []world.DraftSourceRef{ref}
+			fixedEvidence = append(fixedEvidence, ref)
+		}
+		raw, err := json.Marshal(curated)
+		if err != nil {
+			t.Fatal(err)
+		}
+		editedRef := write(string(raw), "application/json")
+		editedManifest := saved.Manifest
+		editedManifest.Files = append([]world.File{}, saved.Manifest.Files...)
+		editedManifest.Files[0].Content = editedRef
+		editedManifest.SourceRefs = fixedEvidence
+		edit := world.DraftRequest{Mode: "commit", DraftID: saved.DraftID, ExpectedRevisionID: saved.RevisionID, CommitID: newTestID(), Manifest: &editedManifest}
+		loseRetention.Store(true)
+		if _, err = service.WorldDraft(ctx, p, edit); !errors.Is(err, world.ErrDependency) {
+			t.Fatal("curation retention loss was not recoverable", err)
+		}
+		var current world.DraftRevision
+		call(p, "world.draft", world.DraftRequest{Mode: "get", DraftID: saved.DraftID}, &current, false)
+		if current.RevisionID != saved.RevisionID {
+			t.Fatal("pending curation changed head")
+		}
+		if err = artifactDB.QueryRow(ctx, "SELECT count(*) FROM station.artifact_versions").Scan(&before); err != nil {
+			t.Fatal(err)
+		}
+		stop()
+		stop = start()
+		rebuild()
+		var edited, replay world.DraftRevision
+		call(p, "world.draft", edit, &edited, false)
+		call(p, "world.draft", edit, &replay, false)
+		if edited.RevisionID == saved.RevisionID || replay.RevisionID != edited.RevisionID {
+			t.Fatal("curation revision replay differs")
+		}
+		if err = artifactDB.QueryRow(ctx, "SELECT count(*) FROM station.artifact_versions").Scan(&after); err != nil || after != before {
+			t.Fatal("curation recovery duplicated content", err)
+		}
+		fixed := world.Access{WorldDraftID: edited.DraftID, WorldDraftRevisionID: edited.RevisionID}
+		got, err = authorizedRead(ctx, p, editedRef, fixed, world.MaxManifestBytes)
+		if err != nil || !bytes.Equal(got, raw) {
+			t.Fatal("edited curation changed after restart", err)
+		}
+		got, err = authorizedRead(ctx, guest, promptRef, assetAccess, world.MaxManifestBytes)
+		if err != nil || string(got) != learning {
+			t.Fatal("curation edit changed published fixed body", err)
+		}
+		if _, err = authorizedRead(ctx, guest, editedRef, assetAccess, world.MaxManifestBytes); !errors.Is(err, world.ErrForbidden) {
+			t.Fatal("old asset grant exposed unpublished curation", err)
+		}
+		call(guest, "world.draft", edit, nil, true)
+		if projects.calls.Load() != 0 || projectCalls.Load() != 0 {
+			t.Fatal("manual curation unexpectedly used Project")
+		}
+		objects := 0
+		for obj := range s3.ListObjects(ctx, bucket, minio.ListObjectsOptions{Recursive: true}) {
+			if obj.Err != nil {
+				t.Fatal("S3 inventory failed", obj.Err)
+			}
+			objects++
+		}
+		if objects != after {
+			t.Fatal("S3 inventory differs from immutable versions", objects, after)
+		}
+		t.Logf("manual v2 curation: %d actual S3 objects; fixed published body, edited exclusion, lost retain response, Artifact restart, World rebuild, idempotency and private-source isolation passed", objects)
+		return
+	}
 	// Use the actual Dashboard derivation shape, rebinding only the synthetic
 	// source identifiers. A source asset reader owns no source draft permission.
 	derivedFixture, err := os.ReadFile("testdata/prompt-copy.generated.json")
@@ -432,12 +539,12 @@ func runWorldDraftAcrossArtifact(t *testing.T, withProject bool) {
 		if !reflect.DeepEqual(recovered, derivedAsset) {
 			t.Fatal("fixed derived asset changed")
 		}
-		body, e := content.Read(ctx, guest, written.ContentRef, derivedAccess, world.MaxManifestBytes)
+		body, e := authorizedRead(ctx, guest, written.ContentRef, derivedAccess, world.MaxManifestBytes)
 		if e != nil || !bytes.Equal(body, derivative.Plan.Document) {
 			t.Fatal("derived prompt body changed", e)
 		}
 		for _, ref := range []world.ContentRef{promptRef, privateRef, saved.ManifestRef} {
-			if _, e = content.Read(ctx, guest, ref, derivedAccess, world.MaxManifestBytes); !errors.Is(e, world.ErrForbidden) {
+			if _, e = authorizedRead(ctx, guest, ref, derivedAccess, world.MaxManifestBytes); !errors.Is(e, world.ErrForbidden) {
 				t.Fatal("derived grant exposed source content", e)
 			}
 		}
@@ -467,7 +574,7 @@ func runWorldDraftAcrossArtifact(t *testing.T, withProject bool) {
 	stop = start()
 	rebuild()
 	call(guest, "world.get", world.WorldGetRequest{AssetID: asset.AssetID, VersionID: asset.VersionID}, &asset, false)
-	got, err = content.Read(ctx, guest, promptRef, assetAccess, world.MaxManifestBytes)
+	got, err = authorizedRead(ctx, guest, promptRef, assetAccess, world.MaxManifestBytes)
 	if err != nil || string(got) != learning {
 		t.Fatal("fixed asset failed after restart", err)
 	}
@@ -481,14 +588,14 @@ func runWorldDraftAcrossArtifact(t *testing.T, withProject bool) {
 	if revokePending.Code != coordination.ErrPending.Error() {
 		t.Fatal("revocation did not report outstanding reservations", revokePending.Code)
 	}
-	if _, err = content.Read(ctx, guest, promptRef, assetAccess, world.MaxManifestBytes); err != nil {
+	if _, err = authorizedRead(ctx, guest, promptRef, assetAccess, world.MaxManifestBytes); err != nil {
 		t.Fatal("pending revocation prematurely removed access", err)
 	}
 	if err = service.Recover(ctx); err != nil {
 		t.Fatal("restart recovery failed to finalize committed operations", err)
 	}
 	call(p, "world.revoke", world.WorldRevokeRequest{AssetID: asset.AssetID, SubjectID: guest.SubjectID}, nil, false)
-	if _, err = content.Read(ctx, guest, promptRef, assetAccess, world.MaxManifestBytes); !errors.Is(err, world.ErrForbidden) {
+	if _, err = authorizedRead(ctx, guest, promptRef, assetAccess, world.MaxManifestBytes); !errors.Is(err, world.ErrForbidden) {
 		t.Fatal("revoked reader kept Artifact access", err)
 	}
 	// A saved derivative remains its own content; its source reference grants no
