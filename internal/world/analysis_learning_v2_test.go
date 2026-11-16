@@ -117,3 +117,58 @@ func TestAnalysisLearningVersionTwoRejectsTaskOrSourceSubstitution(t *testing.T)
 		t.Fatal("unknown assembler version accepted")
 	}
 }
+
+func TestAudioLearningUsesAudioOriginalAndNoVisualCoverage(t *testing.T) {
+	// Synthetic formatter input; actual source access and media decoding are
+	// independently checked by the admission and media integration suites.
+	m := learningMaterialFixture(t)
+	m.Bundle.Source.Kind = "audio"
+	m.Bundle.Receipts = m.Bundle.Receipts[1:]
+	m.Prompts = nil
+	var results []analysis.ResultDraft
+	for _, r := range m.Results {
+		if r.Type == "sound_cue" || r.Type == "music_structure" {
+			results = append(results, r)
+		}
+	}
+	m.Results = results
+	for i := range m.Bundle.Nodes {
+		m.Bundle.Nodes[i].Kind = "music"
+	}
+	raw, err := assembleAnalysisLearningVersion(m, learningTaskFixture(m), "2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := ValidateLearningContent(raw, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if str(objectOf(doc.Sources["original"])["media_kind"]) != "audio" {
+		t.Fatal("audio source mislabeled as video")
+	}
+	found := false
+	for _, item := range listOf(doc.Document["coverage"]) {
+		c := objectOf(item)
+		if str(c["dimension"]) == "visual_observations" {
+			found = true
+			if str(c["state"]) != "not_applicable" || len(listOf(c["covered_scopes"])) != 0 {
+				t.Fatal("fabricated visual coverage")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("missing explicit visual applicability")
+	}
+	count := 0
+	for _, item := range listOf(objectOf(doc.Document["curation"])["assessments"]) {
+		for _, preview := range listOf(objectOf(item)["previews"]) {
+			count++
+			if str(objectOf(preview)["media_kind"]) != "audio" {
+				t.Fatal("audio preview mislabeled")
+			}
+		}
+	}
+	if count == 0 {
+		t.Fatal("no audio reference previews")
+	}
+}

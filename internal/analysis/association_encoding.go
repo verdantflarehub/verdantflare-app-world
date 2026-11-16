@@ -211,7 +211,7 @@ func associationChecklist(b Bundle, encoding string) string {
 	return out
 }
 func omittedAssociationEntities(b Bundle, f AssociationRequest, call string, native []byte) ([]string, error) {
-	schema, err := associationSchema()
+	schema, err := associationSchema(b.Source.Kind)
 	if err != nil {
 		return nil, err
 	}

@@ -67,7 +67,7 @@ func (s *Service) PrepareVideoAnalysis(ctx context.Context, p Principal, taskID 
 		return analysis.Task{}, err
 	}
 	defer material.Close()
-	plan, err := analysis.PlanVideo(material.Info().Source)
+	plan, err := analysis.PlanSource(material.Info().Source)
 	if err != nil {
 		return analysis.Task{}, err
 	}
@@ -147,7 +147,7 @@ func (s *Service) analysisSource(ctx context.Context, p Principal, source Analys
 			if e != nil {
 				return File{}, v, e
 			}
-			if v.ContentRef != file.Content || v.OrganizationID != p.OrganizationID || v.MIME != "video/mp4" || v.Size < 1 || v.Size > analysis.MaxMediaBytes {
+			if v.ContentRef != file.Content || v.OrganizationID != p.OrganizationID || !slices.Contains([]string{"video/mp4", "audio/wav", "audio/mpeg"}, v.MIME) || v.Size < 1 || v.Size > analysis.MaxMediaBytes {
 				return File{}, v, ErrInvalid
 			}
 			return file, v, nil
@@ -164,7 +164,7 @@ func (s *Service) stageAnalysisSource(ctx context.Context, p Principal, source A
 	if !ok {
 		return nil, ErrDependency
 	}
-	return processor.Stage(ctx, version.SHA256, version.Size, func(dst io.Writer) error {
+	return processor.StageMIME(ctx, version.MIME, version.SHA256, version.Size, func(dst io.Writer) error {
 		return downloader.Download(ctx, p, file.Content, Access{WorldDraftID: source.DraftID, WorldDraftRevisionID: source.RevisionID}, dst, analysis.MaxMediaBytes)
 	})
 }

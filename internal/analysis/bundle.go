@@ -64,7 +64,7 @@ func Assemble(task Task, records []StepRecord) (Bundle, error) {
 			return Bundle{}, ErrInvalid
 		}
 	}
-	plan, err := PlanVideo(task.Plan.Source)
+	plan, err := PlanSource(task.Plan.Source)
 	if err != nil || canonicalHash(task.Plan) != canonicalHash(plan) || len(records) != len(plan.Steps) {
 		return Bundle{}, ErrInvalid
 	}

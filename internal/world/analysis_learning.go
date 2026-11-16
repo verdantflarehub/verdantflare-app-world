@@ -176,8 +176,12 @@ func assembleAnalysisLearning(m analysis.LearningMaterial) ([]byte, error) {
 		}
 		candidates[r.Key] = pos
 	}
+	mediaKind := "video"
+	if b.Source.Kind == "audio" {
+		mediaKind = "audio"
+	}
 	original := learningLocalRef("source", "original")
-	sources := []any{contentObject{"key": "original", "title": "原始作品", "media_kind": "video", "role": "original", "acquisition_state": "ready", "content": DraftSourceRef{Kind: "world_draft", DraftID: b.DraftID, RevisionID: b.RevisionID, FileID: b.FileID, Purpose: "analysis_source"}}}
+	sources := []any{contentObject{"key": "original", "title": "原始作品", "media_kind": mediaKind, "role": "original", "acquisition_state": "ready", "content": DraftSourceRef{Kind: "world_draft", DraftID: b.DraftID, RevisionID: b.RevisionID, FileID: b.FileID, Purpose: "analysis_source"}}}
 	for i, text := range a.chunks {
 		sources = append(sources, contentObject{"key": learningArchiveKey(i), "title": fmt.Sprintf("拆解证据与处理记录 %d", i+1), "media_kind": "text", "role": "extracted", "acquisition_state": "ready", "content": contentObject{"kind": "inline", "text": text}})
 	}
@@ -191,6 +195,9 @@ func assembleAnalysisLearning(m analysis.LearningMaterial) ([]byte, error) {
 			}
 		}
 		state, note := "complete", "固定观察步骤已处理；不代表逐帧测量或人工内容审核。"
+		if kind == "visual" && b.Source.Kind == "audio" {
+			state, note = "not_applicable", "原件为独立音频；未推断画面。"
+		}
 		if kind == "audio" && !b.Source.HasAudio {
 			state, note = "not_applicable", "原件无音轨；未从画面推断声音。"
 		}

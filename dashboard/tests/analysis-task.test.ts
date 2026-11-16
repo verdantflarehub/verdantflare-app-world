@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createAnalysisSubmission, readSubmit, readTask, readAvailability, promptTargets, shouldPoll, taskLabel, type AnalysisTask } from '../src/platform/analysis-task.ts'
+import { createAnalysisSubmission, analysisSourceAvailable, analysisFormatLabel, readSubmit, readTask, readAvailability, promptTargets, shouldPoll, taskLabel, type AnalysisTask } from '../src/platform/analysis-task.ts'
 import { createDraftAPI } from '../src/platform/draft-client.ts'
 import type { AppSDK,Context,Json,Lifecycle } from '../src/platform/types.ts'
 const id=(n:number)=>'01900000-0000-7000-8000-'+n.toString(16).padStart(12,'0')
@@ -62,4 +62,18 @@ test('a saved response must point to an actual fixed learning revision of the sa
  const revision={kind:'revision',draft_id:id(20),revision_id:id(21),head_revision_id:id(22),created_at:t.created_at,manifest_ref:ref,manifest:{schema_version:1,kind:'world-draft',draft_id:id(20),purpose:'learning',name:'Learning',subjects:[],files:[],domain_documents:[],source_refs:[],asset_refs:[],run_refs:[{service_id:'world',run_id:'analysis-v1:'+id(4)}]}}
  t.learning={task_id:id(4),state:'saved',revision};assert.equal(readTask(t).learning?.revision?.revision_id,id(21))
  revision.manifest.run_refs[0].run_id='analysis-v1:'+id(5);assert.throws(()=>readTask(t))
+})
+
+test('source picker follows current audio capabilities and does not invent support from a filename',()=>{
+ const audio={enabled:true,models:['gemini-3.1-pro-preview'],input_mime_types:['audio/wav','audio/mpeg'],max_media_bytes:48<<20}
+ assert.equal(analysisFormatLabel(audio),'WAV、MP3')
+ assert.equal(analysisFormatLabel({...audio,enabled:false}),'暂无可用格式')
+ assert.equal(analysisSourceAvailable('song.MP3',audio),true)
+ assert.equal(analysisSourceAvailable('voice.wav',audio),true)
+ assert.equal(analysisSourceAvailable('film.mp4',audio),false)
+ assert.equal(analysisSourceAvailable('link.mp3.txt',audio),false)
+ assert.equal(analysisSourceAvailable('song.ogg',audio),false)
+ assert.equal(analysisSourceAvailable('song.mp3',null),false)
+ assert.equal(analysisSourceAvailable('song.mp3',{...audio,enabled:false}),false)
+ assert.equal(analysisSourceAvailable('film.mp4',{...audio,input_mime_types:[...audio.input_mime_types,'video/mp4']}),true)
 })

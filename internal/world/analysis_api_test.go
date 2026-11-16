@@ -94,7 +94,7 @@ func (c *capabilityReader) Capabilities(context.Context, string) (analysis.Capab
 }
 func TestAnalysisAdmissionCapabilityProjection(t *testing.T) {
 	p := Principal{OrganizationID: newID(), SubjectID: newID(), RequestID: newID()}
-	for _, name := range []string{"disabled", "runtime-off", "missing-audio", "small-input", "empty-models", "unavailable", "enabled"} {
+	for _, name := range []string{"disabled", "runtime-off", "missing-audio", "small-input", "empty-models", "unavailable", "audio-only", "enabled"} {
 		t.Run(name, func(t *testing.T) {
 			c := &capabilityReader{value: analysis.Capabilities{State: "enabled", Models: []string{"gemini-3.1-pro-preview"}, MIME: []string{"video/mp4", "audio/wav"}, MaxMediaBytes: analysis.MaxMediaBytes}}
 			enabled := true
@@ -103,6 +103,8 @@ func TestAnalysisAdmissionCapabilityProjection(t *testing.T) {
 				c.value.State = "disabled"
 			case "runtime-off":
 				enabled = false
+			case "audio-only":
+				c.value.MIME = []string{"audio/wav"}
 			case "missing-audio":
 				c.value.MIME = []string{"video/mp4"}
 			case "small-input":
@@ -127,8 +129,11 @@ func TestAnalysisAdmissionCapabilityProjection(t *testing.T) {
 				t.Fatal(err)
 			}
 			v := value.(AnalysisAvailability)
-			if v.Enabled != (name == "enabled") {
+			if v.Enabled != (name == "enabled" || name == "audio-only") {
 				t.Fatal("incorrect admission", v)
+			}
+			if name == "audio-only" && (len(v.InputMIME) != 2 || v.InputMIME[0] != "audio/wav" || v.InputMIME[1] != "audio/mpeg") {
+				t.Fatal("audio capability incorrectly depends on video", v)
 			}
 			if name == "runtime-off" && c.calls != 0 {
 				t.Fatal("disabled runtime queried provider")

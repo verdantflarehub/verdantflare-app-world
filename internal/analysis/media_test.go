@@ -102,3 +102,50 @@ func TestWAVVerifiesRealPCMShapeAndExactSamples(t *testing.T) {
 		t.Fatal("truncated data accepted")
 	}
 }
+
+func TestAudioProbeRequiresOneAudioTrackAndIgnoresCover(t *testing.T) {
+	for _, mime := range []string{"audio/wav", "audio/mpeg"} {
+		for _, tc := range []struct {
+			streams string
+			valid   bool
+		}{
+			{`[{"index":0,"codec_type":"audio"}]`, true},
+			{`[{"index":0,"codec_type":"audio"},{"index":1,"codec_type":"video","disposition":{"attached_pic":1}}]`, true},
+			{`[]`, false},
+			{`[{"index":0,"codec_type":"video"}]`, false},
+			{`[{"index":0,"codec_type":"audio"},{"index":1,"codec_type":"video"}]`, false},
+			{`[{"index":0,"codec_type":"audio"},{"index":1,"codec_type":"audio"}]`, false},
+			{`[{"index":0,"codec_type":"audio"},{"index":0,"codec_type":"video","disposition":{"attached_pic":1}}]`, false},
+		} {
+			body := []byte(`{"format":{"duration":"60.0001"},"streams":` + tc.streams + `}`)
+			v, err := ParseProbeMIME(body, sourceHash, mime)
+			if (err == nil) != tc.valid {
+				t.Fatal(mime, tc, err)
+			}
+			if tc.valid && (v.Source.Kind != "audio" || !v.Source.HasAudio || v.VideoStream != -1 || v.Source.DurationMS != 60001) {
+				t.Fatal(v)
+			}
+		}
+	}
+	if _, err := ParseProbeMIME([]byte(`{}`), sourceHash, "audio/ogg"); !errors.Is(err, ErrMediaUnsupported) {
+		t.Fatal(err)
+	}
+}
+
+func TestAudioStageRejectsUnsupportedMIMEBeforeReading(t *testing.T) {
+	p := Preparer{FFprobe: "must-not-execute", FFmpeg: "must-not-execute", TempRoot: t.TempDir()}
+	_, err := p.StageMIME(t.Context(), "audio/ogg", sourceHash, 1, func(io.Writer) error { t.Fatal("unsupported source downloaded"); return nil })
+	if !errors.Is(err, ErrMediaUnsupported) {
+		t.Fatal(err)
+	}
+	for _, mime := range []string{"audio/wav", "audio/mpeg"} {
+		_, err := p.StageMIME(t.Context(), mime, sourceHash, 1, func(w io.Writer) error { _, e := w.Write([]byte("wrong")); return e })
+		if !errors.Is(err, ErrMediaInvalid) {
+			t.Fatal(err)
+		}
+		entries, err := os.ReadDir(p.TempRoot)
+		if err != nil || len(entries) != 0 {
+			t.Fatal("failed audio staging leaked files", err)
+		}
+	}
+}

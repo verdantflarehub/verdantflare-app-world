@@ -43,6 +43,10 @@ func assembleAnalysisLearningVersion(m analysis.LearningMaterial, task analysis.
 		"assembly_version": "2", "adapter_revision": learningCurationAdapterRevision,
 		"plan_sha256": planHash,
 	}
+	mediaKind := "video"
+	if b.Source.Kind == "audio" {
+		mediaKind = "audio"
+	}
 	packages := map[string][]any{}
 	assessments := []any{}
 	for _, item := range listOf(doc["results"]) {
@@ -55,7 +59,7 @@ func assembleAnalysisLearningVersion(m analysis.LearningMaterial, task analysis.
 			ref := objectOf(source)
 			if str(ref["kind"]) == "source" && str(ref["key"]) == "original" {
 				previews = append(previews, contentObject{
-					"key": "original", "state": "ready", "media_kind": "video", "role": "original_reference",
+					"key": "original", "state": "ready", "media_kind": mediaKind, "role": "original_reference",
 					"note":     "完整原作参考；并非单独生成、裁切或重建的素材。",
 					"file_ref": objectOf(parsed.Sources["original"])["content"],
 					"locator":  contentObject{"kind": "whole"}, "sha256": b.Source.SHA256,

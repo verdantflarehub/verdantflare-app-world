@@ -27,6 +27,7 @@ func testAnalysisBundle(t *testing.T, targets []analysis.PromptTarget, failPromp
 }
 
 type bundleOptions struct {
+	audio                           bool
 	assemblyVersion                 string
 	retryBatches                    bool
 	schemaRejections                bool
@@ -94,25 +95,33 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 	ref := ContentRef{testID(3), newID(), newID()}
 	fileID := newID()
 	hash := strings.Repeat("a", 64)
-	content.versions[ref] = ContentVersion{ContentRef: ref, OrganizationID: p.OrganizationID, Source: Source{Kind: "user_import", WorldDraftID: initial.DraftID}, MIME: "video/mp4", Size: 10, SHA256: hash}
+	mime, sourcePath := "video/mp4", "reference.mp4"
+	if options.audio {
+		mime, sourcePath = "audio/wav", "reference.wav"
+	}
+	content.versions[ref] = ContentVersion{ContentRef: ref, OrganizationID: p.OrganizationID, Source: Source{Kind: "user_import", WorldDraftID: initial.DraftID}, MIME: mime, Size: 10, SHA256: hash}
 	if options.writeSource != nil {
 		v := options.writeSource(t, p, initial.DraftID)
 		ref, hash = v.ContentRef, v.SHA256
 	}
 	manifest := initial.Manifest
-	manifest.Files = []File{{ID: fileID, Path: "reference.mp4", Role: "reference", Content: ref}}
+	manifest.Files = []File{{ID: fileID, Path: sourcePath, Role: "reference", Content: ref}}
 	raw, err = svc.WorldDraft(ctx, p, DraftRequest{Mode: "commit", DraftID: initial.DraftID, ExpectedRevisionID: initial.RevisionID, CommitID: newID(), Manifest: &manifest})
 	if err != nil {
 		t.Fatal(err)
 	}
 	source := raw.(DraftRevision)
-	plan, err := analysis.PlanVideo(analysis.Source{SHA256: hash, DurationMS: 45000})
+	metadata := analysis.Source{SHA256: hash, DurationMS: 45000}
+	if options.audio {
+		metadata.Kind, metadata.HasAudio = "audio", true
+	}
+	plan, err := analysis.PlanSource(metadata)
 	if err != nil {
 		t.Fatal(err)
 	}
 	task := analysis.Task{AssemblyVersion: options.assemblyVersion, PipelineVersion: options.pipeline, OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: newID(), DraftID: source.DraftID, RevisionID: source.RevisionID, FileID: fileID, Plan: plan, PromptTargets: targets, IncludeTypedResults: options.typed, SaveLearning: options.saveLearning}
 	step := plan.Steps[0]
-	prepared := analysis.Prepared{SourceHash: hash, MediaHash: hash, MIME: "video/mp4", Range: step.Input}
+	prepared := analysis.Prepared{SourceHash: hash, MediaHash: hash, MIME: mime, Range: step.Input}
 	request, err := analysis.Freeze(task.TaskID, "gemini-3.1-pro-preview", "", "1.00", step, prepared, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -144,6 +153,14 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 		"composition": "Synthetic wide shot", "camera_motion": "Static", "subject_motion": "None", "graphic_motion": "None", "lighting": "Synthetic light", "entity_keys": []string{},
 		"beats": []any{map[string]any{"start_ms": 0, "end_ms": 45000, "description": "Synthetic still frame"}}, "visible_text": []any{},
 	}}}
+	if options.audio {
+		doc = map[string]any{"start_ms": 0, "end_ms": 45000,
+			"intervals":     []any{map[string]any{"start_ms": 0, "end_ms": 45000, "kind": "mixed", "description": "Synthetic audio fixture"}},
+			"speech":        []any{map[string]any{"start_ms": 0, "end_ms": 45000, "speaker_key": "voice1", "text": "Test sentence", "language": "English", "intelligibility": "clear"}},
+			"speakers":      []any{map[string]any{"key": "voice1", "description": "Synthetic speaker"}},
+			"music":         []any{map[string]any{"start_ms": 0, "end_ms": 45000, "description": "Synthetic music", "rhythm": "Unmeasured", "instruments": "Unknown", "vocal": "Speech", "basis": "heard"}},
+			"sound_effects": []any{}, "uncertainties": []any{}}
+	}
 	text, err := json.Marshal(doc)
 	if err != nil {
 		t.Fatal(err)
@@ -153,9 +170,13 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	inputBinding := map[string]any{"media": map[string]any{"mime_type": prepared.MIME, "sha256": hash}, "provider_file_integrity_verified": true, "response_schema_sha256": schemaHash}
+	if !options.audio {
+		inputBinding["video_range"] = step.Input
+	}
 	native, err := json.Marshal(map[string]any{"schema_version": 1, "call_id": callID, "task_id": task.TaskID, "model_id": request.ModelID, "media": "analysis", "operation": "analyze", "state": "completed", "accepted": true, "analysis": map[string]any{
 		"text": string(text), "document": doc, "model_id": request.ModelID, "finish_reason": "STOP", "response_schema_verified": true,
-		"input": map[string]any{"media": map[string]any{"mime_type": prepared.MIME, "sha256": hash}, "provider_file_integrity_verified": true, "response_schema_sha256": schemaHash, "video_range": step.Input},
+		"input": inputBinding,
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -171,7 +192,11 @@ func testAnalysisBundleOptions(t *testing.T, options bundleOptions) {
 		t.Fatal("persist observation", err)
 	}
 	bundle, err := svc.AnalysisBundle(ctx, p, task.TaskID)
-	if err != nil || len(bundle.Nodes) != 10 || bundle.Stage != "association_input" || bundle.RevisionID != source.RevisionID {
+	expectedNodes := 10
+	if options.audio {
+		expectedNodes = 4
+	}
+	if err != nil || len(bundle.Nodes) != expectedNodes || bundle.Stage != "association_input" || bundle.RevisionID != source.RevisionID {
 		t.Fatal("fixed bundle", err)
 	}
 	// Editing the collection head must not redirect the existing analysis.

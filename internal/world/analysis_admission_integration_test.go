@@ -371,3 +371,79 @@ func TestAnalysisBudgetIncludesAllFourPhases(t *testing.T) {
 		t.Fatal("failed call refunded without settlement")
 	}
 }
+
+func TestAudioAdmissionFrozenPlanAndRestart(t *testing.T) {
+	for _, mime := range []string{"audio/wav", "audio/mpeg"} {
+		t.Run(mime, func(t *testing.T) {
+			svc, p, r, artifact := admissionFixture(t)
+			// Metadata/receipt fixtures isolate persistence from real media decoding.
+			for ref, v := range artifact.versions {
+				v.MIME = mime
+				artifact.versions[ref] = v
+			}
+			svc.analysis.Channel.(*capabilityReader).value.MIME = []string{"audio/wav"}
+			ctx := t.Context()
+			if _, err := svc.WorldAnalyze(ctx, p, r); err != nil {
+				t.Fatal("audio-only admission", err)
+			}
+			_, v, err := svc.analysisSource(ctx, p, *r.Source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan, err := analysis.PlanSource(analysis.Source{Kind: "audio", SHA256: v.SHA256, DurationMS: 60001, HasAudio: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			task := analysis.Task{AssemblyVersion: "2", PipelineVersion: 2, OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: r.TaskID, DraftID: r.Source.DraftID, RevisionID: r.Source.RevisionID, FileID: r.Source.FileID, Plan: plan, PromptTargets: r.PromptTargets, IncludeTypedResults: true, SaveLearning: true, TotalBudget: r.BudgetLimit}
+			requests := []analysis.FrozenRequest{}
+			for _, step := range plan.Steps {
+				f, err := analysis.Freeze(r.TaskID, r.ModelID, "", r.BudgetPerCall, step, analysis.Prepared{SourceHash: v.SHA256, MediaHash: v.SHA256, MIME: "audio/wav", Range: step.Input}, v.Size)
+				if err != nil {
+					t.Fatal(err)
+				}
+				requests = append(requests, f)
+			}
+			store := analysis.PGStore{DB: svc.db}
+			if err := store.Create(ctx, task, requests); err != nil {
+				t.Fatal("persist audio plan", err)
+			}
+			loaded, err := store.Task(ctx, p.OrganizationID, p.SubjectID, r.TaskID)
+			if err != nil || loaded.Plan.Version != 2 || loaded.Plan.Source != plan.Source || len(loaded.Plan.Steps) != 2 {
+				t.Fatal("restore audio plan", err)
+			}
+			for i, step := range loaded.Plan.Steps {
+				row, err := store.Load(ctx, p.OrganizationID, p.SubjectID, r.TaskID, step.Key)
+				if err != nil || row.Request.Digest() != requests[i].Digest() {
+					t.Fatal("frozen audio request changed", err)
+				}
+			}
+			restarted, err := NewService(ctx, svc.db, artifact, integrationProject{}, 1, map[string]coordination.Peer{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = restarted.ConfigureAnalysis(AnalysisRuntime{}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = restarted.WorldAnalyze(ctx, p, r); err != nil {
+				t.Fatal("lost response replay with admission off", err)
+			}
+			settings := AnalysisExecution{AssemblyVersion: "2", PipelineVersion: 2, ModelID: r.ModelID, BudgetPerStep: r.BudgetPerCall, PromptTargets: r.PromptTargets, IncludeTypedResults: true, SaveLearning: true, TotalBudget: r.BudgetLimit}
+			if _, err = restarted.PrepareVideoAnalysis(ctx, p, r.TaskID, *r.Source, settings, analysis.Preparer{}); err != nil {
+				t.Fatal("replay attempted media decoding", err)
+			}
+			bad := task
+			bad.Plan.Version = 1
+			if err = store.Create(ctx, bad, requests); !errors.Is(err, analysis.ErrInvalid) {
+				t.Fatal("audio version mismatch accepted", err)
+			}
+			if artifact.downloads != 0 {
+				t.Fatal("replay downloaded media")
+			}
+			guest := p
+			guest.SubjectID = newID()
+			if _, err = restarted.WorldAnalyze(ctx, guest, AnalyzeRequest{Mode: "get", TaskID: r.TaskID}); err == nil {
+				t.Fatal("private audio task leaked")
+			}
+		})
+	}
+}

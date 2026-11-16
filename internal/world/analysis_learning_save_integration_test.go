@@ -264,3 +264,34 @@ func verifyAnalysisSaveConflict(t *testing.T, svc *Service, p Principal, b analy
 		t.Fatal("conflict hidden", progress, err)
 	}
 }
+
+func TestAudioLearningV2SaveRecoveryAndFixedRead(t *testing.T) {
+	testAnalysisBundleOptions(t, bundleOptions{audio: true, pipeline: 2, assemblyVersion: "2", typed: true, saveLearning: true,
+		targets: []analysis.PromptTarget{{Key: "audio", RequestedLabel: "Audio reference", TaskType: "audio", InputMode: "text", Guidance: "Retain heard evidence and unknowns"}},
+		verifySave: func(t *testing.T, svc *Service, p Principal, b analysis.Bundle) {
+			verifyAnalysisLearningSave(t, svc, p, b, svc.content.(*analysisSaveTestArtifact), true)
+			raw, err := svc.AnalysisLearningDocument(t.Context(), p, b.TaskID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			doc, err := ValidateLearningContent(raw, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if str(objectOf(doc.Sources["original"])["media_kind"]) != "audio" {
+				t.Fatal("saved source lost audio identity")
+			}
+			kinds := map[string]bool{}
+			for _, item := range listOf(doc.Document["results"]) {
+				kinds[str(objectOf(item)["type_key"])] = true
+			}
+			if !kinds["sound_cue"] || !kinds["music_structure"] || !kinds["prompt"] {
+				t.Fatal("missing audio results", kinds)
+			}
+			for _, kind := range []string{"character", "scene", "prop", "shot"} {
+				if kinds[kind] {
+					t.Fatal("fabricated visual result", kind)
+				}
+			}
+		}})
+}

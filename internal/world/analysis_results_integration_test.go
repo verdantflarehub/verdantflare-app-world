@@ -66,6 +66,19 @@ func (c *resultChannelFixture) SubmitResults(_ context.Context, _ string, f anal
 		case "shot":
 			timeRange := map[string]any{"kind": "time", "start_tick": scope.Range.StartMS, "end_tick": scope.Range.EndMS, "timebase_num": 1, "timebase_den": 1000}
 			item.Payloads = []map[string]any{{"segment_kind": "edit_shot", "scope": timeRange, "composition": "Synthetic wide frame", "camera_motion": "Static", "subject_motion": "Still", "graphic_motion": "None", "action_beats": []any{map[string]any{"scope": timeRange, "action": "Synthetic still frame"}}}}
+		case "sound_cue":
+			soundKind := "dialogue"
+			if strings.HasPrefix(scope.Key, "voice.") {
+				soundKind = "voice_reference"
+			}
+			payload := map[string]any{"sound_kind": soundKind, "description": "Synthetic heard speech"}
+			if scope.Range != nil {
+				payload["scope"] = map[string]any{"kind": "time", "start_tick": scope.Range.StartMS, "end_tick": scope.Range.EndMS, "timebase_num": 1, "timebase_den": 1000}
+			}
+			item.Payloads = []map[string]any{payload}
+		case "music_structure":
+			timeRange := map[string]any{"kind": "time", "start_tick": scope.Range.StartMS, "end_tick": scope.Range.EndMS, "timebase_num": 1, "timebase_den": 1000}
+			item.Payloads = []map[string]any{{"section_kind": "Synthetic section", "scope": timeRange, "instrument_layers": []any{}}}
 		case "script_unit":
 			item.State = "insufficient_evidence"
 			item.MissingInputs = []string{"No narrative evidence in synthetic source"}

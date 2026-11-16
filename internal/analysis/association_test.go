@@ -260,7 +260,7 @@ func associationNativeFixture(t *testing.T, b Bundle, a Association) (Associatio
 		t.Fatal(err)
 	}
 	call := uuid.NewString()
-	schema, _ := associationSchema()
+	schema, _ := associationSchema(b.Source.Kind)
 	return f, call, map[string]any{"schema_version": 1, "call_id": call, "task_id": f.TaskID, "model_id": f.ModelID, "media": "analysis", "operation": "analyze", "state": "completed", "accepted": true, "analysis": map[string]any{
 		"text": string(associationBytes(t, a)), "document": a, "model_id": f.ModelID, "finish_reason": "STOP", "response_schema_verified": true, "input": map[string]any{"source_text_sha256": f.TextHash, "response_schema_sha256": canonicalHash(schema), "media": nil, "video_range": nil},
 	}}

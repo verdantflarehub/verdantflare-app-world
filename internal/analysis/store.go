@@ -59,7 +59,7 @@ func (s PGStore) Create(ctx context.Context, t Task, requests []FrozenRequest) e
 			return ErrInvalid
 		}
 	}
-	expected, err := PlanVideo(t.Plan.Source)
+	expected, err := PlanSource(t.Plan.Source)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func (s PGStore) Task(ctx context.Context, org, owner, id string) (Task, error) 
 	if len(t.PromptTargets) == 0 {
 		t.PromptTargets = nil
 	}
-	expected, err := PlanVideo(t.Plan.Source)
+	expected, err := PlanSource(t.Plan.Source)
 	if err != nil || canonicalHash(t.Plan) != canonicalHash(expected) {
 		return t, ErrInvalid
 	}

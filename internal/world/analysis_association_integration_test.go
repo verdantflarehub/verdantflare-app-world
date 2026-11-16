@@ -98,6 +98,9 @@ func verifyAssociationExecution(t *testing.T, svc *Service, p Principal, b analy
 	digest := sha256.Sum256(schemaBytes)
 	a := analysis.Association{Version: 1, BundleHash: b.SHA256, Entities: []analysis.AssociationGroup{}, Shots: []analysis.ShotGroup{}, Voices: []analysis.AssociationGroup{}, VoiceLinks: []analysis.VoiceLink{}, Boundaries: []analysis.BoundaryDecision{}, Uncertainties: []string{"Synthetic fixture only"}}
 	for _, n := range b.Nodes {
+		if n.Kind == "speakers" {
+			a.Voices = append(a.Voices, analysis.AssociationGroup{Key: "voice1", Members: []string{n.Key}, State: "single", Evidence: []string{n.Key}, Reason: "Synthetic voice", Description: "Synthetic speaker"})
+		}
 		if n.Kind == "shots" {
 			a.Shots = append(a.Shots, analysis.ShotGroup{Key: "single-shot", Members: []string{n.Key}, StartMS: n.Scope.StartMS, EndMS: n.Scope.EndMS, State: "single", Evidence: []string{n.Key}, Reason: "Synthetic fixed observation"})
 		}
@@ -118,7 +121,11 @@ func verifyAssociationExecution(t *testing.T, svc *Service, p Principal, b analy
 		t.Fatal("original completion not recovered", err)
 	}
 	got, err := svc.AnalysisAssociation(ctx, p, b.TaskID)
-	if err != nil || got.BundleHash != b.SHA256 || len(got.Shots) != 1 {
+	expectedShots := 1
+	if b.Source.Kind == "audio" {
+		expectedShots = 0
+	}
+	if err != nil || got.BundleHash != b.SHA256 || len(got.Shots) != expectedShots || len(got.Voices) != len(a.Voices) {
 		t.Fatal("fixed association unreadable", err)
 	}
 	progress, err := store.Progress(ctx, p.OrganizationID, p.SubjectID, b.TaskID)

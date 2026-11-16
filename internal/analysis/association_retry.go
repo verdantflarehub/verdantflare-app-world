@@ -42,7 +42,7 @@ func RetryAssociationRequest(b Bundle, old AssociationRecord, id string) (Associ
 	if n > 3 {
 		return AssociationRequest{}, ErrInvalid
 	}
-	schema, err := associationSchema()
+	schema, err := associationSchema(b.Source.Kind)
 	if err != nil {
 		return AssociationRequest{}, err
 	}

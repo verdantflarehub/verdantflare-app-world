@@ -31,6 +31,7 @@ type MediaInfo struct {
 type Preparer struct{ FFprobe, FFmpeg, TempRoot string }
 type Material struct {
 	dir, path string
+	mime      string
 	info      MediaInfo
 	processor Preparer
 }
@@ -38,6 +39,31 @@ type Material struct {
 // Stage accepts only a writer callback from the authenticated immutable reader.
 // Callers cannot pass a source path or URL to the media parser.
 func (p Preparer) Stage(ctx context.Context, hash string, size int64, download func(io.Writer) error) (*Material, error) {
+	return p.StageMIME(ctx, "video/mp4", hash, size, download)
+}
+
+// mediaInputOptions selects one local demuxer, never a caller-supplied format.
+func mediaInputOptions(mime string) ([]string, string, error) {
+	args := []string{"-protocol_whitelist", "file", "-format_whitelist"}
+	switch mime {
+	case "video/mp4":
+		return append(args, "mov", "-enable_drefs", "0"), ".mp4", nil
+	case "audio/wav":
+		return append(args, "wav"), ".wav", nil
+	case "audio/mpeg":
+		return append(args, "mp3"), ".mp3", nil
+	default:
+		return nil, "", ErrMediaUnsupported
+	}
+}
+
+// StageMIME uses MIME from the authorized fixed source metadata. The restricted
+// demuxer and actual stream layout must agree with that metadata.
+func (p Preparer) StageMIME(ctx context.Context, mime, hash string, size int64, download func(io.Writer) error) (*Material, error) {
+	inputOptions, extension, err := mediaInputOptions(mime)
+	if err != nil {
+		return nil, err
+	}
 	if !digestPattern.MatchString(hash) || size < 1 || size > MaxMediaBytes || download == nil || p.FFprobe == "" || p.FFmpeg == "" {
 		return nil, ErrInvalid
 	}
@@ -45,7 +71,7 @@ func (p Preparer) Stage(ctx context.Context, hash string, size int64, download f
 	if err != nil {
 		return nil, ErrUnavailable
 	}
-	m := &Material{dir: dir, path: filepath.Join(dir, "source.mp4"), processor: p}
+	m := &Material{dir: dir, path: filepath.Join(dir, "source"+extension), mime: mime, processor: p}
 	complete := false
 	defer func() {
 		if !complete {
@@ -70,11 +96,13 @@ func (p Preparer) Stage(ctx context.Context, hash string, size int64, download f
 	if err = ctx.Err(); err != nil {
 		return nil, err
 	}
-	data, err := runMedia(ctx, 30*time.Second, p.FFprobe, 64<<10, "-v", "error", "-protocol_whitelist", "file", "-format_whitelist", "mov", "-enable_drefs", "0", "-show_entries", "format=duration,start_time:stream=index,codec_type,duration:stream_disposition=attached_pic", "-of", "json", m.path)
+	probeArgs := append([]string{"-v", "error"}, inputOptions...)
+	probeArgs = append(probeArgs, "-show_entries", "format=duration,start_time:stream=index,codec_type,duration:stream_disposition=attached_pic", "-of", "json", m.path)
+	data, err := runMedia(ctx, 30*time.Second, p.FFprobe, 64<<10, probeArgs...)
 	if err != nil {
 		return nil, err
 	}
-	info, err := ParseProbe(data, hash)
+	info, err := ParseProbeMIME(data, hash, mime)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +129,9 @@ func (m *Material) Prepare(ctx context.Context, step Step) (Prepared, []byte, er
 	}
 	prepared := Prepared{SourceHash: step.SourceHash, Range: step.Input}
 	if step.Kind == "visual" {
+		if m.info.Source.Kind != "" || m.info.VideoStream < 0 {
+			return Prepared{}, nil, ErrMediaUnsupported
+		}
 		data, err := os.ReadFile(m.path)
 		if err != nil || int64(len(data)) > MaxMediaBytes || hashBytes(data) != step.SourceHash {
 			return Prepared{}, nil, ErrMediaInvalid
@@ -122,7 +153,13 @@ func (m *Material) Prepare(ctx context.Context, step Step) (Prepared, []byte, er
 	startSample := step.Core.StartMS * AudioSampleRate / 1000
 	endSample := step.Core.EndMS * AudioSampleRate / 1000
 	filter := fmt.Sprintf("aresample=48000:async=1:first_pts=0,apad,atrim=start_sample=%d:end_sample=%d,asetpts=N/SR/TB", startSample, endSample)
-	_, err = runMedia(ctx, 2*time.Minute, m.processor.FFmpeg, 64<<10, "-nostdin", "-hide_banner", "-v", "error", "-y", "-copyts", "-start_at_zero", "-protocol_whitelist", "file", "-format_whitelist", "mov", "-enable_drefs", "0", "-i", m.path, "-map", fmt.Sprintf("0:%d", *m.info.AudioStream), "-vn", "-sn", "-dn", "-af", filter, "-ac", "2", "-ar", "48000", "-c:a", "pcm_s16le", "-map_metadata", "-1", "-fflags", "+bitexact", "-flags:a", "+bitexact", "-threads", "1", "-f", "wav", path)
+	inputOptions, _, err := mediaInputOptions(m.mime)
+	if err != nil {
+		return Prepared{}, nil, err
+	}
+	args := append([]string{"-nostdin", "-hide_banner", "-v", "error", "-y", "-copyts", "-start_at_zero"}, inputOptions...)
+	args = append(args, "-i", m.path, "-map", fmt.Sprintf("0:%d", *m.info.AudioStream), "-vn", "-sn", "-dn", "-af", filter, "-ac", "2", "-ar", "48000", "-c:a", "pcm_s16le", "-map_metadata", "-1", "-fflags", "+bitexact", "-flags:a", "+bitexact", "-threads", "1", "-f", "wav", path)
+	_, err = runMedia(ctx, 2*time.Minute, m.processor.FFmpeg, 64<<10, args...)
 	if err != nil {
 		return Prepared{}, nil, err
 	}
@@ -146,6 +183,13 @@ func (m *Material) Prepare(ctx context.Context, step Step) (Prepared, []byte, er
 // ParseProbe normalizes container time, never trusting source request claims or
 // model output. Attached cover images are ignored; ambiguous real tracks fail.
 func ParseProbe(data []byte, hash string) (MediaInfo, error) {
+	return ParseProbeMIME(data, hash, "video/mp4")
+}
+
+func ParseProbeMIME(data []byte, hash, mime string) (MediaInfo, error) {
+	if _, _, err := mediaInputOptions(mime); err != nil {
+		return MediaInfo{}, err
+	}
 	var v struct {
 		Streams []struct {
 			Index       int    `json:"index"`
@@ -197,8 +241,15 @@ func ParseProbe(data []byte, hash string) (MediaInfo, error) {
 			out.Source.HasAudio = true
 		}
 	}
-	if out.VideoStream < 0 {
-		return MediaInfo{}, ErrMediaUnsupported
+	if mime == "video/mp4" {
+		if out.VideoStream < 0 {
+			return MediaInfo{}, ErrMediaUnsupported
+		}
+	} else {
+		if out.VideoStream >= 0 || out.AudioStream == nil {
+			return MediaInfo{}, ErrMediaUnsupported
+		}
+		out.Source.Kind = "audio"
 	}
 	return out, nil
 }

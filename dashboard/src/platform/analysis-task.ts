@@ -23,7 +23,7 @@ export const promptTargets:PromptTarget[]=[
  {key:'sd25',requested_label:'SD2.5',task_type:'video',input_mode:'reference-to-video',adaptation_guidance:'保留用户模型标签 SD2.5，整理参考素材、主体、动作和时序；实际模型标识与输入兼容性待解析，不猜测参数。'},
 ]
 export const stageLabels:Record<string,string>={
- planned:'等待分析',observing:'分析画面与声音',observations_ready:'画面与声音分析已保存',associating:'整理人物、场景与镜头关系',associations_ready:'关联整理已保存',preparing_prompts:'准备模型提示词',producing_prompts:'整理模型提示词',prompts_ready:'模型提示词已保存',preparing_results:'整理分类成果',producing_results:'整理分类成果',results_ready:'分类成果已保存',results_need_evidence:'成果仍有证据待补齐',saving_learning:'保存学习成果',learning_saved:'学习成果已保存',learning_saved_need_evidence:'已保存，部分内容缺少证据',learning_save_failed:'成果保存需要处理',needs_attention:'需要处理',
+ planned:'等待分析',observing:'分析原作内容',observations_ready:'原作内容分析已保存',associating:'整理观察内容的关联',associations_ready:'关联整理已保存',preparing_prompts:'准备模型提示词',producing_prompts:'整理模型提示词',prompts_ready:'模型提示词已保存',preparing_results:'整理分类成果',producing_results:'整理分类成果',results_ready:'分类成果已保存',results_need_evidence:'成果仍有证据待补齐',saving_learning:'保存学习成果',learning_saved:'学习成果已保存',learning_saved_need_evidence:'已保存，部分内容缺少证据',learning_save_failed:'成果保存需要处理',needs_attention:'需要处理',
 }
 function fail():never{throw Error('拆解记录不完整或与原请求不一致。')}
 const amount=/^(0|[1-9]\d{0,8})(\.\d{1,8})?$/
@@ -72,4 +72,17 @@ export function createAnalysisSubmission(sdk:AppSDK,storage:PublicationStorage){
   return resume()
  }
  return {pending,start,resume,dispose:api.dispose}
+}
+
+// Filename filtering is only a picker hint; the service verifies immutable MIME
+// metadata, bytes and track layout before admitting any observation calls.
+export function analysisSourceAvailable(path:string, availability:AnalysisAvailability|null):boolean {
+ const extension=path.split('.').pop()?.toLowerCase()
+ const mime=extension==='mp4'?'video/mp4':extension==='wav'?'audio/wav':extension==='mp3'?'audio/mpeg':''
+ return !!mime&&!!availability?.enabled&&availability.input_mime_types.includes(mime)
+}
+
+export function analysisFormatLabel(availability:AnalysisAvailability|null):string {
+ const labels:Record<string,string>={'video/mp4':'MP4','audio/wav':'WAV','audio/mpeg':'MP3'}
+ return availability?.enabled ? availability.input_mime_types.map(m=>labels[m]).filter(Boolean).join('、')||'暂无可用格式' : '暂无可用格式'
 }

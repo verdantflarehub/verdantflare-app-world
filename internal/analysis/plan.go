@@ -31,6 +31,7 @@ func (r Range) Valid() bool { return r.StartMS >= 0 && r.EndMS > r.StartMS && r.
 // Source metadata is obtained from the pinned Artifact bytes, not a model or
 // request claim. The World service remains responsible for source ownership.
 type Source struct {
+	Kind       string `json:"kind,omitempty"`
 	SHA256     string `json:"sha256"`
 	DurationMS int64  `json:"duration_ms"`
 	HasAudio   bool   `json:"has_audio"`
@@ -55,11 +56,34 @@ type Plan struct {
 // Visual context may overlap; core ranges never do. An audio-free source has
 // no audio calls, rather than invented silence/transcription from video frames.
 func PlanVideo(source Source) (Plan, error) {
+	if source.Kind != "" {
+		return Plan{}, ErrInvalid
+	}
+	return planSource(source, 1, []string{"visual", "audio"})
+}
+
+// PlanSource reconstructs a frozen plan from trusted source metadata. Empty kind
+// retains the historical video encoding; audio never invents visual steps.
+func PlanSource(source Source) (Plan, error) {
+	switch source.Kind {
+	case "":
+		return PlanVideo(source)
+	case "audio":
+		if !source.HasAudio {
+			return Plan{}, ErrInvalid
+		}
+		return planSource(source, 2, []string{"audio"})
+	default:
+		return Plan{}, ErrInvalid
+	}
+}
+
+func planSource(source Source, version int, kinds []string) (Plan, error) {
 	if !digestPattern.MatchString(source.SHA256) || source.DurationMS < 1 || source.DurationMS > 86400000 {
 		return Plan{}, ErrInvalid
 	}
-	plan := Plan{Version: 1, Source: source, Steps: []Step{}}
-	for _, kind := range []string{"visual", "audio"} {
+	plan := Plan{Version: version, Source: source, Steps: []Step{}}
+	for _, kind := range kinds {
 		if kind == "audio" && !source.HasAudio {
 			continue
 		}

@@ -174,6 +174,16 @@ func verifyQualityPipeline(t *testing.T, svc *Service, p Principal, b analysis.B
 			break
 		}
 		if !worked {
+			if a, e := svc.AnalysisAssociation(ctx, p, b.TaskID); e == nil {
+				if records, e := store.ResultRecords(ctx, p.OrganizationID, p.SubjectID, b.TaskID); e == nil {
+					for _, r := range records {
+						if r.State == "failed" {
+							_, e := analysis.ResultDraftsFromNative(b, a, r.Request, r.CallID, r.Result)
+							t.Log("failed synthetic result", r.Request.Batch.Key, e)
+						}
+					}
+				}
+			}
 			t.Fatal("pipeline stalled", progress)
 		}
 		if i == 59 {

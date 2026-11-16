@@ -98,7 +98,7 @@ func analysisAPIError(err error) error {
 	return err
 }
 func (s *Service) analysisAvailability(ctx context.Context, p Principal) (AnalysisAvailability, error) {
-	v := AnalysisAvailability{Models: []string{}, InputMIME: []string{"video/mp4"}, MaxMediaBytes: analysis.MaxMediaBytes}
+	v := AnalysisAvailability{Models: []string{}, InputMIME: []string{}, MaxMediaBytes: analysis.MaxMediaBytes}
 	if s.analysis == nil || !s.analysis.Enabled || s.analysis.Channel == nil {
 		return v, nil
 	}
@@ -108,10 +108,17 @@ func (s *Service) analysisAvailability(ctx context.Context, p Principal) (Analys
 	if err != nil {
 		return v, analysisAPIError(err)
 	}
-	if remote.State != "enabled" || !slices.Contains(remote.MIME, "video/mp4") || !slices.Contains(remote.MIME, "audio/wav") || remote.MaxMediaBytes < analysis.MaxMediaBytes {
+	if remote.State != "enabled" || !slices.Contains(remote.MIME, "audio/wav") || remote.MaxMediaBytes < analysis.MaxMediaBytes {
 		return v, nil
 	}
-	v.Enabled = len(remote.Models) > 0
+	if len(remote.Models) == 0 {
+		return v, nil
+	}
+	if slices.Contains(remote.MIME, "video/mp4") {
+		v.InputMIME = append(v.InputMIME, "video/mp4")
+	}
+	v.InputMIME = append(v.InputMIME, "audio/wav", "audio/mpeg")
+	v.Enabled = true
 	v.Models = append([]string{}, remote.Models...)
 	return v, nil
 }
@@ -202,6 +209,9 @@ func (s *Service) WorldAnalyze(ctx context.Context, p Principal, input AnalyzeRe
 		_, version, e := s.analysisSource(ctx, p, *r.Source)
 		if e != nil {
 			return nil, e
+		}
+		if !slices.Contains(available.InputMIME, version.MIME) {
+			return nil, ErrDependency
 		}
 		e = store.CreateSubmission(ctx, analysis.Submission{AssemblyVersion: "2", PipelineVersion: 2, OrganizationID: p.OrganizationID, OwnerID: p.SubjectID, TaskID: r.TaskID, DraftID: r.Source.DraftID, RevisionID: r.Source.RevisionID, FileID: r.Source.FileID, SourceHash: version.SHA256, Hash: hash, Request: data})
 		if e != nil {
