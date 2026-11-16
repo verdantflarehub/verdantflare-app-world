@@ -34,6 +34,14 @@ const editorKey='world.collection-editor.v1:'+scope
 function persistEditor(){try{sessionStorage.setItem(editorKey,JSON.stringify({newForm,edits:[...edits]}));return true}catch{saveError.value='暂时无法保留草稿，请复制内容或继续保存。';return false}}
 function restoreEditor(){try{const raw=sessionStorage.getItem(editorKey);if(!raw)return;const value=object(JSON.parse(raw));const valid=(v:unknown):v is CollectionForm=>!!v&&typeof v==='object'&&['name','text','url'].every(k=>typeof (v as Record<string,unknown>)[k]==='string');if(valid(value.newForm))newForm={...value.newForm};if(Array.isArray(value.edits))for(const e of value.edits){if(Array.isArray(e)&&isID(e[0])&&valid(e[1]))edits.set(e[0],{...e[1]})}}catch{saveError.value='未能读取本次会话的草稿，原记录仍保留。'}}
 restoreEditor()
+// Keep the latest input across a browser refresh, not only the last explicit
+// close. Pending saves retain their immutable recovery record instead.
+watch(form,()=>{
+ if(!alive||hidden||publicationIdentity(appSDK.context.get())!==identity||!dialog.value?.isOpen()||pending.value||saving.value)return
+ if(editing.value&&editBase)edits.set(editBase.revision_id,{...form.value})
+ else newForm={...form.value}
+ persistEditor()
+},{deep:true,flush:'sync'})
 function finishNavigation(){const path=queuedNavigation;queuedNavigation='';if(path)void router.push(path)}
 function requestClose(){if(!pending.value&&JSON.stringify(form.value)!==initialForm){closePrompt.value=true;return}close()}
 function discardEditor(){if(pending.value)return;if(editing.value&&editBase)edits.delete(editBase.revision_id);else newForm={name:'',text:'',url:''};if(!persistEditor())return;closePrompt.value=false;dialog.value?.close();dashboardHost.setDirty(false);finishNavigation()}
@@ -93,7 +101,7 @@ function open(item:DraftItem){void router.push({path:'/collections/'+item.draft_
 function capture(edit=false){
   editing.value=edit;editBase=edit?selected.value||undefined:undefined;saveError.value='';pendingRead()
   queuedNavigation='';form.value=pending.value?{...pending.value.form}:edit&&editor.value?{...(edits.get(selected.value!.revision_id)||{...editor.value,name:selected.value!.manifest.name})}:{...newForm}
-  initialForm=JSON.stringify(form.value);closePrompt.value=false
+  initialForm=JSON.stringify(pending.value?form.value:edit&&editor.value?{...editor.value,name:selected.value!.manifest.name}:{name:'',text:'',url:''});closePrompt.value=false
   opener.value=globalThis.document.activeElement as HTMLElement
   dialog.value?.showModal();dashboardHost.setDirty(true)
 }
