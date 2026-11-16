@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useHost } from '../platform/host'
 import { createReadClient } from '../platform/client'
 import { publicationIdentity } from '../platform/publication-client'
@@ -16,6 +16,7 @@ import WorldTrail, {type TrailItem} from './WorldTrail.vue'
 import ResultContext from './ResultContext.vue'
 const emit=defineEmits<{'new-project':[result:LearningResult,variant:string];'use-project':[]}>()
 const props=defineProps<{asset:AssetOpen;parents:TrailItem[]}>(),{appSDK}=useHost(),client=createReadClient(appSDK,'world')
+const packageSource=computed(()=>{const entry=props.asset.manifest.domain_documents?.find(d=>d.document_type==='reference-learning');return entry?{kind:'asset',asset_id:props.asset.asset_id,asset_version_id:props.asset.asset_version_id,file_id:entry.file_id,purpose:'learning_source'}:undefined})
 provideReferenceMedia()
 const document=ref<LearningDocument|null>(null),loading=ref(false),error=ref('')
 const identity=publicationIdentity(appSDK.context.get())
@@ -36,7 +37,7 @@ void load()
 <WorldTrail v-if="!document" :items="[...parents,{label:asset.manifest.name}]"/><slot v-if="!document"/><div v-if="loading" class="state" role="status">正在读取固定版本的成果正文…</div>
 <div v-else-if="error" class="state error" role="alert"><p>{{error}}</p><button class="btn" @click="load">重新读取正文</button></div>
 <div v-else-if="!document" class="state">这份资产没有类型化成果正文，已保存文件见下方清单。</div>
-<template v-else><ResultBrowser :document="document" :results="businessOrder(document.results)" :code="r=>resultCode(r,document!)" :parents="parents" :label="asset.manifest.name" :audition="asset.manifest.asset_type==='sound'">
+<template v-else><ResultBrowser :package-source="packageSource" :document="document" :results="businessOrder(document.results)" :code="r=>resultCode(r,document!)" :parents="parents" :label="asset.manifest.name" :audition="asset.manifest.asset_type==='sound'">
 <template #intro><header><h2>{{asset.manifest.name}}</h2><p>共 {{document.results.length}} 项 · 当前资产的固定版本</p></header><slot/></template>
 <template #thumbnail="{result}"><ResultReferenceMedia v-if="['character','scene','prop','shot'].includes(result.type_key)" :result="result" :document="document!" thumbnail/></template>
 <template #default="{result}">

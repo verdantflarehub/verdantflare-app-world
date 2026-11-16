@@ -1,7 +1,7 @@
 {
   "name": "@verdantflare/app-world-dashboard",
   "private": true,
-  "version": "0.1.64",
+  "version": "0.1.65",
   "type": "module",
   "scripts": {
     "typecheck": "vue-tsc --noEmit",
@@ -9,13 +9,15 @@
     "build": "vite build && node scripts/prepare-dashboard.mjs world"
   },
   "dependencies": {
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
     "vue": "3.5.30",
     "vue-router": "4.6.4"
   },
   "devDependencies": {
-    "vite": "7.3.1",
     "@vitejs/plugin-vue": "6.0.4",
     "typescript": "5.9.3",
+    "vite": "7.3.1",
     "vue-tsc": "3.2.5"
   },
   "packageManager": "pnpm@9.15.9"

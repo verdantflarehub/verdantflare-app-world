@@ -295,6 +295,40 @@ func testDraftPersistenceRecoveryIsolationAndCAS(t *testing.T, learningDocument 
 	if _, err = svc.WorldDraft(ctx, guest, DraftRequest{Mode: "get", DraftID: saved.DraftID, RevisionID: saved.RevisionID}); !errors.Is(err, ErrForbidden) {
 		t.Fatal("asset grant exposed draft", err)
 	}
+	// Package resolution must preserve the same persisted draft and asset ACLs.
+	// Populate real-byte metadata omitted by this legacy Artifact stand-in.
+	version := content.versions[validRef]
+	version.Size = int64(len(content.bytes[validRef]))
+	version.SHA256 = analysisDocumentHash(content.bytes[validRef])
+	content.versions[validRef] = version
+	draftReference := DraftSourceRef{Kind: "world_draft", DraftID: saved.DraftID, RevisionID: saved.RevisionID, FileID: testID(102), Purpose: "learning_source"}
+	assetReference := DraftSourceRef{Kind: "asset", AssetID: asset.AssetID, AssetVersionID: asset.VersionID, FileID: testID(102), Purpose: "learning_source"}
+	for _, candidate := range []struct {
+		actor Principal
+		ref   DraftSourceRef
+	}{{p, draftReference}, {p, assetReference}, {guest, assetReference}} {
+		result, err := svc.WorldDraft(ctx, candidate.actor, DraftRequest{Mode: "resolve_reference", Reference: &candidate.ref})
+		if err != nil {
+			t.Fatal("authorized persisted reference unavailable", err)
+		}
+		resolved := result.(PackageReference)
+		if resolved.Reference != candidate.ref || resolved.Content != validRef || resolved.Size != version.Size || resolved.SHA256 != version.SHA256 {
+			t.Fatal("resolved wrong fixed file", resolved)
+		}
+	}
+	for _, candidate := range []struct {
+		actor Principal
+		ref   DraftSourceRef
+	}{{guest, draftReference}, {foreign, draftReference}, {foreign, assetReference}} {
+		if _, err := svc.WorldDraft(ctx, candidate.actor, DraftRequest{Mode: "resolve_reference", Reference: &candidate.ref}); !errors.Is(err, ErrForbidden) {
+			t.Fatal("package resolver widened persisted authority", err)
+		}
+	}
+	privateSibling := assetReference
+	privateSibling.FileID = testID(82)
+	if _, err := svc.WorldDraft(ctx, guest, DraftRequest{Mode: "resolve_reference", Reference: &privateSibling}); !errors.Is(err, ErrNotFound) {
+		t.Fatal("package resolver exposed an unselected sibling file", err)
+	}
 	closure, err := svc.ReferencesWithGrants(ctx, guest, AssetRef{AssetID: asset.AssetID, VersionID: asset.VersionID, Purpose: "prompt"})
 	if err != nil || len(closure.Refs) != 2 || len(closure.Grants) != 1 || closure.Grants[0].ResourceID != asset.AssetID {
 		t.Fatal("consumer closure includes private draft", err)

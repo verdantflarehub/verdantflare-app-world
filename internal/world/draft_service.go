@@ -84,6 +84,8 @@ func (s *Service) WorldDraft(ctx context.Context, p Principal, input DraftReques
 		return nil, err
 	}
 	switch r.Mode {
+	case "resolve_reference":
+		return s.resolvePackageReference(ctx, p, *r.Reference)
 	case "get":
 		return s.getDraft(ctx, p, r.DraftID, r.RevisionID)
 	case "list":

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { resultConfiguration, type LearningDocument, type LearningResult } from '../platform/learning-results'
 import type { DraftRevision } from '../platform/draft-model'
 import ResultFields from './ResultFields.vue'
@@ -12,13 +12,14 @@ import ResultBrowser from './ResultBrowser.vue'
 import AnalysisPrompt from './AnalysisPrompt.vue'
 import ResultContext from './ResultContext.vue'
 const props=defineProps<{document:LearningDocument;revision:DraftRevision;sourceName?:string}>()
+const packageSource=computed(()=>{const entry=props.revision.manifest.domain_documents.find(d=>d.document_type==='reference-learning');return entry?{kind:'world_draft',draft_id:props.revision.draft_id,revision_id:props.revision.revision_id,file_id:entry.file_id,purpose:'learning_source'}:undefined})
 provideReferenceMedia()
 const copyText=ref(''),copied=ref(false)
 async function copy(text:string){copyText.value=text;copied.value=false;try{await navigator.clipboard.writeText(text);copied.value=true}catch{/* Manual selectable copy remains available. */}}
 function config(r:LearningResult){return resultConfiguration(r,props.document,{world_draft_id:props.revision.draft_id,world_draft_revision_id:props.revision.revision_id,result_key:r.key})}
 </script>
 <template><section aria-label="已保存的学习成果" class="results">
-<ResultBrowser :document="document" :results="businessOrder(document.results)" :code="r=>resultCode(r,document!)">
+<ResultBrowser :package-source="packageSource" :document="document" :results="businessOrder(document.results)" :code="r=>resultCode(r,document!)">
 <template #intro><div class="section-head"><div><h2>拆解成果</h2><p v-if="sourceName" class="source-name">{{sourceName}}</p><p class="muted">{{document.results.length}} 项参考内容 · 查看画面、试听与创作方法</p></div></div><p class="muted">原作品与拆解内容保持只读，复制参考后在项目中创作。</p></template>
 <template #thumbnail="{result}"><ResultReferenceMedia v-if="['character','scene','prop','shot'].includes(result.type_key)" :result="result" :document="document" thumbnail/></template>
 <template #default="{result}">

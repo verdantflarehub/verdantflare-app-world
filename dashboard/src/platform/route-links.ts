@@ -38,7 +38,9 @@ export function canonicalRoute(domain: Domain, path: string): string {
     const collectionDetail = url.pathname.startsWith('/collections/') && uuid.test(url.pathname.slice('/collections/'.length))
     const resultDetail = resultPath.test(url.pathname)
     const referenceDetail = /^\/(pose|costume)\/asset\/[0-9a-f-]{36}$/.test(url.pathname) && uuid.test(url.pathname.split('/')[3]) && uuid.test(url.searchParams.get('version') || '')
-    if (resultDetail && (resultRouteBase(url.pathname)==='/learn' ? !uuid.test(url.searchParams.get('task')||'') : !uuid.test(url.searchParams.get('asset')||'') || !uuid.test(url.searchParams.get('version')||''))) invalid()
+    const learningPage = url.pathname === '/learn' || resultDetail && resultRouteBase(url.pathname) === '/learn'
+    if (learningPage && url.searchParams.has('learning') && (!uuid.test(url.searchParams.get('learning') || '') || !uuid.test(url.searchParams.get('revision') || '') || url.searchParams.has('task') || url.searchParams.has('draft'))) invalid()
+    if (resultDetail && (resultRouteBase(url.pathname)==='/learn' ? !uuid.test(url.searchParams.get('task')||'') && !url.searchParams.has('learning') : !uuid.test(url.searchParams.get('asset')||'') || !uuid.test(url.searchParams.get('version')||''))) invalid()
     if ((!['/', '/world', '/projects', '/publish', '/collections', '/learn', '/character', '/pose', '/costume', '/scene', '/sound', '/music', '/shot', '/script', '/knowledge'].includes(url.pathname) && !collectionDetail && !reviewDetail && !resultDetail && !referenceDetail) || (mode && mode !== 'world') || (url.pathname === '/projects' && mode !== 'world')) invalid()
     if (['/', '/world', '/projects'].includes(url.pathname)) url.pathname = '/'
   }

@@ -111,22 +111,23 @@ type DraftManifest struct {
 	RunRefs         []RunRef         `json:"run_refs"`
 }
 type DraftRequest struct {
-	LifecycleState           string         `json:"lifecycle_state,omitempty"`
-	OperationID              string         `json:"operation_id,omitempty"`
-	ExpectedLifecycleVersion *int64         `json:"expected_lifecycle_version,omitempty"`
-	Mode                     string         `json:"mode"`
-	CommitID                 string         `json:"commit_id,omitempty"`
-	DraftID                  string         `json:"draft_id,omitempty"`
-	RevisionID               string         `json:"revision_id,omitempty"`
-	ExpectedRevisionID       string         `json:"expected_revision_id,omitempty"`
-	Name                     string         `json:"name,omitempty"`
-	Purpose                  string         `json:"purpose,omitempty"`
-	Subjects                 *[]string      `json:"subjects,omitempty"`
-	Manifest                 *DraftManifest `json:"manifest,omitempty"`
-	Query                    string         `json:"q,omitempty"`
-	Subject                  string         `json:"subject,omitempty"`
-	Cursor                   string         `json:"cursor,omitempty"`
-	Limit                    int            `json:"limit,omitempty"`
+	Reference                *DraftSourceRef `json:"reference,omitempty"`
+	LifecycleState           string          `json:"lifecycle_state,omitempty"`
+	OperationID              string          `json:"operation_id,omitempty"`
+	ExpectedLifecycleVersion *int64          `json:"expected_lifecycle_version,omitempty"`
+	Mode                     string          `json:"mode"`
+	CommitID                 string          `json:"commit_id,omitempty"`
+	DraftID                  string          `json:"draft_id,omitempty"`
+	RevisionID               string          `json:"revision_id,omitempty"`
+	ExpectedRevisionID       string          `json:"expected_revision_id,omitempty"`
+	Name                     string          `json:"name,omitempty"`
+	Purpose                  string          `json:"purpose,omitempty"`
+	Subjects                 *[]string       `json:"subjects,omitempty"`
+	Manifest                 *DraftManifest  `json:"manifest,omitempty"`
+	Query                    string          `json:"q,omitempty"`
+	Subject                  string          `json:"subject,omitempty"`
+	Cursor                   string          `json:"cursor,omitempty"`
+	Limit                    int             `json:"limit,omitempty"`
 }
 type DraftRevision struct {
 	Lifecycle      *DraftLifecycle `json:"lifecycle,omitempty"`

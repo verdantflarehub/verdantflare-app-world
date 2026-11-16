@@ -426,6 +426,22 @@
             "maximum": 9007199254740991
           }
         }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "reference"
+        ],
+        "properties": {
+          "mode": {
+            "const": "resolve_reference"
+          },
+          "reference": {
+            "$ref": "world-draft-manifest.schema.json#/$defs/sourceRef"
+          }
+        }
       }
     ]
   },
@@ -1196,6 +1212,42 @@
           },
           "lifecycle": {
             "$ref": "#/$defs/lifecycle"
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "reference",
+          "content_ref",
+          "mime",
+          "size",
+          "sha256"
+        ],
+        "properties": {
+          "kind": {
+            "const": "reference"
+          },
+          "reference": {
+            "$ref": "world-draft-manifest.schema.json#/$defs/sourceRef"
+          },
+          "content_ref": {
+            "$ref": "content-ref.schema.json"
+          },
+          "mime": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
           }
         }
       }

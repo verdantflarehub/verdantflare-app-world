@@ -206,7 +206,7 @@ func TestDraftHTTPAndMCPShareStrictModeValidation(t *testing.T) {
 	for _, tool := range reply.Result.Tools {
 		if tool.Name == "world.draft" {
 			found = true
-			if tool.InputSchema["type"] != "object" || len(listOf(tool.InputSchema["oneOf"])) != 7 {
+			if tool.InputSchema["type"] != "object" || len(listOf(tool.InputSchema["oneOf"])) != 8 {
 				t.Fatal("mode schema incomplete")
 			}
 		}

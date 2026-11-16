@@ -34,3 +34,11 @@ test('result detail is a child route with a fixed owning task or asset version',
   assert.deepEqual(catalogQuery('/character/item/hero',{}),{domain:'character'})
   for(const path of ['/learn/item/x','/character/item/x','/learn/item/x/y?task='+a,'/collections/item/x','/learn/item/%2f?task='+a])assert.throws(()=>canonicalRoute('world',path))
 })
+
+test('imported learning details preserve fixed work revisions and reject ambiguous ownership',()=>{
+  for(const base of ['/learn','/learn/item/prompt.123']){
+    const path=`${base}?learning=${a}&revision=${b}&result_type=prompt&result_page=2`
+    assert.equal(canonicalRoute('world',path),path)
+    for(const query of [`learning=${a}`,`learning=${a}&revision=latest`,`learning=invalid&revision=${b}`,`learning=${a}&revision=${b}&task=${a}`,`learning=${a}&revision=${b}&draft=${a}`])assert.throws(()=>canonicalRoute('world',`${base}?${query}`))
+  }
+})

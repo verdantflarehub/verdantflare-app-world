@@ -11,16 +11,21 @@ import { readLearningResults, type LearningDocument } from '../platform/learning
 import { sampleContentPath, readSampleBytes } from '../platform/prompt-samples'
 import WorldTrail from '../components/WorldTrail.vue'
 import AnalysisResults from '../components/AnalysisResults.vue'
+import LearningPackageDrawer from '../components/LearningPackageDrawer.vue'
+import { createPackageReferenceReader } from '../platform/package-reference'
 const { appSDK }=useHost(),api=createDraftAPI(appSDK),route=useRoute(),router=useRouter()
+const importPanel=ref<InstanceType<typeof LearningPackageDrawer>|null>(null)
 const identity=publicationIdentity(appSDK.context.get())
 const submission=createAnalysisSubmission(appSDK,{getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value),removeItem:key=>localStorage.removeItem(key)})
 const items=ref<DraftItem[]>([]),cursor=ref<string|null>(null),source=ref<DraftRevision|null>(null),document=ref<CollectionDocument|null>(null)
 const search=ref(''),loading=ref(false),loadingSource=ref(false),error=ref(''),serviceError=ref(''),taskError=ref('')
 const availability=ref<AnalysisAvailability|null>(null),model=ref(''),fileID=ref(''),targets=ref(promptTargets.map(t=>t.key)),budget=ref(''),perCall=ref(''),submitting=ref(false),pending=ref(false)
 const tasks=ref<AnalysisTask[]>([]),nextTask=ref(''),task=ref<AnalysisTask|null>(null),learning=ref<LearningDocument|null>(null),learningRevision=ref<DraftRevision|null>(null),loadingTask=ref(false)
+const learningItems=ref<DraftItem[]>([]),learningCursor=ref<string|null>(null),loadingLearning=ref(false),learningListError=ref('')
+const savedLearningItems=computed(()=>learningItems.value.filter(item=>!tasks.value.some(t=>t.learning?.revision?.draft_id===item.draft_id)))
 const mediaFiles=computed(()=>source.value?.manifest.files.filter(f=>/\.mp4$/i.test(f.path))||[])
 const canSubmit=computed(()=>availability.value?.enabled&&source.value&&source.value.lifecycle?.state!=='trashed'&&fileID.value&&model.value&&targets.value.length&&budget.value&&perCall.value&&!submitting.value&&!pending.value)
-let generation=0,selection=0,taskGeneration=0,alive=true,hidden=false,revoked=false,timer:ReturnType<typeof setTimeout>|undefined
+let generation=0,selection=0,taskGeneration=0,learningListGeneration=0,alive=true,hidden=false,revoked=false,timer:ReturnType<typeof setTimeout>|undefined
 const live=()=>alive&&!hidden&&!revoked
 function stopPolling(){if(timer)clearTimeout(timer);timer=undefined}
 function refreshPending(){try{pending.value=!!submission.pending()}catch(e){error.value=draftError(e);pending.value=true}}
@@ -62,6 +67,19 @@ async function listTasks(more=false){
  const rows=data.items.map(x=>readTask(x));tasks.value=[...new Map([...(more?tasks.value:[]),...rows].map(x=>[x.task_id,x])).values()];nextTask.value=String(data.next_before_task_id||'')
  }catch(e){if(live())taskError.value=draftError(e)}
 }
+async function listLearning(more=false){
+ if(!live()||more&&loadingLearning.value)return
+ const current=++learningListGeneration;loadingLearning.value=true;learningListError.value=''
+ if(!more){learningItems.value=[];learningCursor.value=null}
+ try{
+ const previous=more?learningCursor.value:null
+ const data=readDraftList(await api.request({mode:'list',purpose:'learning',limit:20,...(previous?{cursor:previous}:{})}),'learning')
+ if(!live()||current!==learningListGeneration)return
+ if(previous&&data.next_cursor===previous)throw Error('分页未继续，请刷新工作稿记录。')
+ learningItems.value=[...new Map([...(more?learningItems.value:[]),...data.items].map(item=>[item.draft_id,item])).values()];learningCursor.value=data.next_cursor
+ }catch(e){if(live()&&current===learningListGeneration)learningListError.value=draftError(e)}finally{if(live()&&current===learningListGeneration)loadingLearning.value=false}
+}
+function refreshRecords(){taskError.value='';void listTasks();void listLearning()}
 async function loadTask(){
  stopPolling();const id=route.query.task,current=++taskGeneration
  if(!live()||!id)return
@@ -83,6 +101,22 @@ async function loadTask(){
  if(shouldPoll(t))timer=setTimeout(()=>void loadTask(),5000)
  }catch(e){if(live()&&current===taskGeneration)taskError.value=draftError(e)}finally{if(live()&&current===taskGeneration)loadingTask.value=false}
 }
+async function loadImported(){
+ const current=++taskGeneration,draft=route.query.learning,revision=route.query.revision
+ if(!live())return
+ if(!isID(draft)||!isID(revision)){taskError.value='学习工作稿必须有固定版本。';return}
+ loadingTask.value=true;taskError.value=''
+ const reader=createPackageReferenceReader(appSDK)
+ try{
+ const opened=readDraft(await api.request({mode:'get',draft_id:draft,revision_id:revision}),draft,revision,'learning')
+ const entry=opened.manifest.domain_documents.find(d=>d.document_type==='reference-learning')
+ if(!entry)throw Error('这份工作稿没有学习正文。')
+ const read=await reader.read({kind:'world_draft',draft_id:draft,revision_id:revision,file_id:entry.file_id,purpose:'learning_source'},4*1024*1024)
+ const parsed=readLearningResults(new TextDecoder('utf-8',{fatal:true}).decode(read.bytes))
+ if(!live()||current!==taskGeneration)return
+ learning.value=parsed;learningRevision.value=opened
+ }catch(e){if(live()&&current===taskGeneration)taskError.value=draftError(e)}finally{reader.dispose();if(live()&&current===taskGeneration)loadingTask.value=false}
+}
 async function submit(resume=false){
  if(submitting.value)return
  submitting.value=true;error.value=''
@@ -94,17 +128,18 @@ async function submit(resume=false){
 }
 function choose(item:DraftItem){void router.push({path:'/learn',query:{draft:item.draft_id,revision:item.head_revision_id}})}
 function textOf(raw:Record<string,unknown>){const c=raw.content;return c&&typeof c==='object'&&'text'in c&&typeof c.text==='string'?c.text:''}
-function boot(){if(!live())return;refreshPending();void load();void capabilities();void listTasks();void select();if(route.query.task)void loadTask()}
-watch([()=>route.query.draft,()=>route.query.revision,()=>route.query.task],()=>{stopPolling();taskGeneration++;task.value=null;learning.value=null;learningRevision.value=null;taskError.value='';void select();if(route.query.task)void loadTask()})
-const stop=appSDK.lifecycle.subscribe(event=>{if(event==='hidden'||event==='dispose'){hidden=true;generation++;selection++;taskGeneration++;stopPolling();loading.value=false;loadingSource.value=false;loadingTask.value=false}if(event==='active'){hidden=false;submitting.value=false;boot()}})
-const stopContext=appSDK.context.subscribe(()=>{if(publicationIdentity(appSDK.context.get())===identity)return;revoked=true;generation++;selection++;taskGeneration++;stopPolling();items.value=[];tasks.value=[];task.value=null;source.value=null;document.value=null;learning.value=null;learningRevision.value=null;error.value='会话已变化，请重新打开数字世界。'})
-onBeforeUnmount(()=>{alive=false;generation++;selection++;taskGeneration++;stopPolling();api.dispose();submission.dispose();stop();stopContext()})
+function boot(){if(!live())return;refreshPending();if(route.query.learning){void loadImported();return}void load();void capabilities();void listTasks();void listLearning();void select();if(route.query.task)void loadTask()}
+watch([()=>route.query.draft,()=>route.query.revision,()=>route.query.task,()=>route.query.learning],(_values,previous)=>{stopPolling();taskGeneration++;task.value=null;learning.value=null;learningRevision.value=null;taskError.value='';if(route.query.learning){void loadImported();return}if(!route.query.task&&(previous[2]||previous[3])){boot();return}void select();if(route.query.task)void loadTask()})
+const stop=appSDK.lifecycle.subscribe(event=>{if(event==='hidden'||event==='dispose'){hidden=true;generation++;selection++;taskGeneration++;learningListGeneration++;loadingLearning.value=false;stopPolling();loading.value=false;loadingSource.value=false;loadingTask.value=false}if(event==='active'){hidden=false;submitting.value=false;boot()}})
+const stopContext=appSDK.context.subscribe(()=>{if(publicationIdentity(appSDK.context.get())===identity)return;revoked=true;generation++;selection++;taskGeneration++;learningListGeneration++;learningItems.value=[];learningCursor.value=null;loadingLearning.value=false;stopPolling();items.value=[];tasks.value=[];task.value=null;source.value=null;document.value=null;learning.value=null;learningRevision.value=null;error.value='会话已变化，请重新打开数字世界。'})
+onBeforeUnmount(()=>{alive=false;generation++;selection++;taskGeneration++;learningListGeneration++;stopPolling();api.dispose();submission.dispose();stop();stopContext()})
 boot()
 </script>
-<template><main class="main"><WorldTrail v-if="!learning" :items="route.query.task ? [{label:'数字世界',to:'/'},{label:'拆解作品',to:'/learn'},{label:task?.name||'拆解记录'}] : [{label:'数字世界',to:'/'},{label:'拆解作品'}]"/><header v-if="!learning" class="heading"><div class="heading-left"><div class="eyebrow">WORLD · LEARN</div><h1>拆解作品</h1><p>完整分析一次，留下可以参考、复制和复用的创作成果。</p></div><div class="actions"><RouterLink class="btn" to="/collections">收录内容</RouterLink></div></header>
+<template><main class="main"><WorldTrail v-if="!learning" :items="route.query.task ? [{label:'数字世界',to:'/'},{label:'拆解作品',to:'/learn'},{label:task?.name||'拆解记录'}] : [{label:'数字世界',to:'/'},{label:'拆解作品'}]"/><header v-if="!learning" class="heading"><div class="heading-left"><div class="eyebrow">WORLD · LEARN</div><h1>拆解作品</h1><p>完整分析一次，留下可以参考、复制和复用的创作成果。</p></div><div class="actions"><button class="btn" @click="importPanel?.showImport()">导入成果包</button><RouterLink class="btn" to="/collections">收录内容</RouterLink></div></header>
 <p v-if="error" class="error" role="alert">{{error}}</p>
 <section v-if="pending" class="panel"><h2>上次提交尚未确认</h2><p>恢复原任务，不会另建一次拆解。</p><button class="btn primary" :disabled="submitting" @click="submit(true)">找回原提交</button></section>
-<template v-if="route.query.task"><section v-if="!learning" class="panel"><div class="section-head"><h2>{{task?.name||'拆解记录'}}</h2></div><p v-if="loadingTask&&!task" role="status">正在读取原拆解任务…</p><p v-if="taskError" class="error" role="alert">{{taskError}} <button class="btn" :disabled="loadingTask" @click="loadTask">重新读取</button></p>
+<template v-if="route.query.learning"><section v-if="!learning" class="panel"><h2>学习工作稿</h2><p v-if="loadingTask" role="status">正在读取固定工作修订…</p><p v-if="taskError" class="error" role="alert">{{taskError}}</p><button v-if="taskError" class="btn" @click="loadImported">重新读取</button></section><AnalysisResults v-if="learning&&learningRevision" :document="learning" :revision="learningRevision" :source-name="learningRevision.manifest.name"/></template>
+<template v-else-if="route.query.task"><section v-if="!learning" class="panel"><div class="section-head"><h2>{{task?.name||'拆解记录'}}</h2></div><p v-if="loadingTask&&!task" role="status">正在读取原拆解任务…</p><p v-if="taskError" class="error" role="alert">{{taskError}} <button class="btn" :disabled="loadingTask" @click="loadTask">重新读取</button></p>
 <template v-if="task"><p class="progress" role="status">{{taskLabel(task)}}</p><p class="muted">任务已留在数字世界。离开页面不会停止后台处理，返回后可继续查看。</p><div v-if="task.progress" class="dimensions"><span>画面与声音：{{task.progress.observation_ready}} 项已保存</span><span>提示词：{{task.progress.prompt_ready}} / {{task.progress.prompt_total}} 批</span><span>分类成果：{{task.progress.result_ready}} / {{task.progress.result_total}} 批</span></div><p v-if="task.error_code==='SOURCE_UNAVAILABLE'" class="error">来源文件无法处理，请回到收录内容核对原件。原任务与失败原因已保留。</p><p class="muted">分析模型：{{task.model_id}} · 预算占用 {{task.budget.reserved}} / {{task.budget.limit}}（渠道计价单位，非实际结算）</p><RouterLink class="btn" :to="{path:'/collections/'+task.source.draft_id,query:{revision:task.source.revision_id}}">查看原作品</RouterLink></template></section>
 <section v-if="learning&&learningRevision"><AnalysisResults :document="learning" :revision="learningRevision" :source-name="task?.name"/></section></template>
 <div v-else class="learn-layout"><section class="panel"><div class="section-head"><h2>选择已收录的作品</h2><span class="muted">无需项目</span></div><form class="searchbar" @submit.prevent="load()"><input v-model="search" maxlength="256" type="search" aria-label="搜索收录内容" placeholder="搜索已收录的名称或标签"><button class="btn" type="submit" :disabled="loading">搜索</button></form><p v-if="loading&&!items.length" class="muted" role="status">正在读取收录内容…</p><p v-else-if="!items.length&&!error" class="empty">还没有匹配内容，可先去收录作品。</p>
@@ -113,12 +148,14 @@ boot()
 <section class="panel"><h2>一次拆解，自动整理所有适用成果</h2><div class="dimensions"><span v-for="name in ['人物与关系','场景与道具','镜头与运镜','音乐与声音','剧作与节奏','提示词与方法']" :key="name">{{name}}</span></div><p class="muted">结果包含来源证据、可复制的提示词与分类内容。缺少证据的部分会标明；工程文件与生成效果只展示实际产出。</p>
 <p v-if="serviceError" class="error" role="alert">{{serviceError}} <button class="btn" @click="capabilities">重新检查可用模型</button></p><p v-else-if="!availability" class="muted">正在检查分析服务…</p><p v-else-if="!availability.enabled" class="muted">当前分析服务未开放新任务，已有任务仍可找回。</p>
 <form v-if="availability?.enabled" @submit.prevent="submit()"><div class="settings"><label>分析模型<select v-model="model" required><option v-for="m in availability.models" :key="m" :value="m">{{m}}</option></select></label><label>整次预算上限<input v-model="budget" inputmode="decimal" placeholder="填写本次总上限" required></label><label>单次调用上限<input v-model="perCall" inputmode="decimal" placeholder="不超过总预算" required></label></div><p class="muted">金额采用渠道计价单位。整次上限约束所有分析调用，预算用尽会保留已有结果并停止新调用。</p><fieldset><legend>整理哪些模型的提示词</legend><label v-for="target in promptTargets" :key="target.key" class="check"><input v-model="targets" type="checkbox" :value="target.key">{{target.requested_label}}</label></fieldset><p class="muted">提示词目标与分析模型分开；实际目标模型版本与生成效果在成果中单独标注。</p><button class="btn primary" :disabled="!canSubmit" type="submit">{{submitting?'正在提交…':'开始完整拆解'}}</button><p class="muted">当前支持 MP4，原件最多 {{Math.floor(availability.max_media_bytes/1024/1024)}} MiB。提交后自动处理并保存到数字世界。</p></form></section></div>
-<section v-if="!route.query.task" class="panel"><div class="section-head"><h2>我的拆解记录</h2><button class="btn" @click="taskError='';listTasks()">刷新记录</button></div><p v-if="taskError&&!route.query.task" class="error" role="alert">{{taskError}}</p><p v-if="!tasks.length" class="muted">提交后的任务会留在这里，随时回来查看。</p><div class="task-list"><RouterLink v-for="t in tasks" :key="t.task_id" :to="{path:'/learn',query:{task:t.task_id}}"><strong>{{t.name}}</strong><span>{{taskLabel(t)}}</span></RouterLink></div><button v-if="nextTask" class="btn" @click="listTasks(true)">更多记录</button></section>
-</main></template>
+<section v-if="!route.query.task&&!route.query.learning" class="panel"><div class="section-head"><h2>我的拆解记录</h2><button class="btn" @click="refreshRecords">刷新记录</button></div><p v-if="taskError&&!route.query.task" class="error" role="alert">{{taskError}}</p><p v-if="!tasks.length" class="muted">提交后的任务会留在这里，随时回来查看。</p><div class="task-list"><RouterLink v-for="t in tasks" :key="t.task_id" :to="{path:'/learn',query:{task:t.task_id}}"><strong>{{t.name}}</strong><span>{{taskLabel(t)}}</span></RouterLink></div><button v-if="nextTask" class="btn" @click="listTasks(true)">更多记录</button>
+<h3>学习工作稿</h3><p class="muted">导入保存的成果也留在这里。打开时固定当前列出的修订，不会重新拆解或自动入库。</p><p v-if="loadingLearning" class="muted" role="status">正在读取学习工作稿…</p><p v-if="learningListError" class="error" role="alert">{{learningListError}} <button class="btn" :disabled="loadingLearning" @click="listLearning()">重试读取工作稿</button></p><p v-else-if="!loadingLearning&&!savedLearningItems.length" class="muted">暂无其他学习工作稿；拆解任务的成果可从上方记录打开。</p>
+<div class="task-list" aria-label="学习工作稿列表"><template v-for="item in savedLearningItems" :key="item.draft_id"><RouterLink v-if="item.has_content" :to="{path:'/learn',query:{learning:item.draft_id,revision:item.head_revision_id}}"><strong>{{item.name}}</strong><span>查看保存的工作稿 →</span></RouterLink><div v-else class="unfinished-draft"><strong>{{item.name}}</strong><span>尚未保存学习正文；未确认的导入请从“导入成果包”恢复。</span></div></template></div><button v-if="learningCursor" class="btn" :disabled="loadingLearning" @click="listLearning(true)">更多学习工作稿</button></section>
+<LearningPackageDrawer ref="importPanel" @saved="listLearning()"/></main></template>
 <style scoped>
 .learn-layout{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);gap:24px;align-items:start}.learn-layout>.panel{min-width:0}.learn-layout .settings{grid-template-columns:1fr 1fr}.learn-layout .settings>label:first-child{grid-column:1/-1}@media(max-width:1100px){.learn-layout{grid-template-columns:1fr}}
 
-.eyebrow{color:var(--accent);font-size:11px;letter-spacing:.12em}.actions{display:flex;flex-wrap:wrap;gap:10px}.panel{padding:26px;border:1px solid var(--line);border-radius:12px;background:var(--shell-panel);margin-bottom:20px;color:var(--ink)}h2{font-size:18px}h3{font-size:16px}.section-head{display:flex;justify-content:space-between;align-items:center;gap:16px}.muted,.option span{font-size:12px;color:var(--muted);line-height:1.8}.searchbar{display:flex;gap:12px;margin:22px 0}input,select{padding:11px 12px;border:1px solid var(--line);border-radius:8px;color:var(--ink);background:var(--shell-button);font:inherit;max-width:100%;box-sizing:border-box}.searchbar input{width:min(500px,100%)}.picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:18px}.option{text-align:left;padding:18px;border:1px solid var(--line);border-radius:9px;background:var(--shell-button);display:grid;gap:8px}.option.selected{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}.preview{border:1px solid var(--line);border-radius:8px;padding:22px;margin-top:24px}.preview p{margin:12px 0}.preview pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.8;margin:20px 0}.dimensions{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0}.dimensions span{padding:9px 12px;background:var(--shell-button);border:1px solid var(--line);border-radius:8px;font-size:13px}.error{color:var(--danger);line-height:1.8}.empty{padding:30px 0;color:var(--muted)}.settings{display:grid;grid-template-columns:2fr 1fr 1fr;gap:18px;margin:26px 0 12px}label{display:grid;gap:8px;font-size:12px}fieldset{border:0;padding:0;margin:22px 0;display:flex;gap:20px;flex-wrap:wrap}legend{font-size:13px;margin-bottom:14px}.check{display:flex;align-items:center;gap:8px}.task-list{display:grid;gap:10px;margin:18px 0}.task-list a{display:flex;justify-content:space-between;gap:16px;padding:16px;border:1px solid var(--line);border-radius:8px;color:var(--ink);text-decoration:none}.task-list span{color:var(--muted);font-size:12px}.progress{color:var(--accent);font-size:20px;margin:24px 0}.btn:disabled{opacity:.5;cursor:not-allowed}@media(max-width:800px){.picker,.settings{grid-template-columns:1fr}.panel{padding:20px}.section-head,.task-list a{align-items:start;flex-direction:column}}
+.eyebrow{color:var(--accent);font-size:11px;letter-spacing:.12em}.actions{display:flex;flex-wrap:wrap;gap:10px}.panel{padding:26px;border:1px solid var(--line);border-radius:12px;background:var(--shell-panel);margin-bottom:20px;color:var(--ink)}h2{font-size:18px}h3{font-size:16px}.section-head{display:flex;justify-content:space-between;align-items:center;gap:16px}.muted,.option span{font-size:12px;color:var(--muted);line-height:1.8}.searchbar{display:flex;gap:12px;margin:22px 0}input,select{padding:11px 12px;border:1px solid var(--line);border-radius:8px;color:var(--ink);background:var(--shell-button);font:inherit;max-width:100%;box-sizing:border-box}.searchbar input{width:min(500px,100%)}.picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:18px}.option{text-align:left;padding:18px;border:1px solid var(--line);border-radius:9px;background:var(--shell-button);display:grid;gap:8px}.option.selected{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}.preview{border:1px solid var(--line);border-radius:8px;padding:22px;margin-top:24px}.preview p{margin:12px 0}.preview pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.8;margin:20px 0}.dimensions{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0}.dimensions span{padding:9px 12px;background:var(--shell-button);border:1px solid var(--line);border-radius:8px;font-size:13px}.error{color:var(--danger);line-height:1.8}.empty{padding:30px 0;color:var(--muted)}.settings{display:grid;grid-template-columns:2fr 1fr 1fr;gap:18px;margin:26px 0 12px}label{display:grid;gap:8px;font-size:12px}fieldset{border:0;padding:0;margin:22px 0;display:flex;gap:20px;flex-wrap:wrap}legend{font-size:13px;margin-bottom:14px}.check{display:flex;align-items:center;gap:8px}.task-list{display:grid;gap:10px;margin:18px 0}.task-list a,.unfinished-draft{display:flex;justify-content:space-between;gap:16px;padding:16px;border:1px solid var(--line);border-radius:8px;color:var(--ink);text-decoration:none}.task-list strong,.task-list span{overflow-wrap:anywhere;min-width:0}.task-list span{color:var(--muted);font-size:12px}.progress{color:var(--accent);font-size:20px;margin:24px 0}.btn:disabled{opacity:.5;cursor:not-allowed}@media(max-width:800px){.picker,.settings{grid-template-columns:1fr}.panel{padding:20px}.section-head,.task-list a,.unfinished-draft{align-items:start;flex-direction:column}}
 .settings,.learn-layout .settings{grid-template-columns:repeat(2,minmax(0,1fr))}.settings>label{min-width:0}.settings input,.settings select{min-width:0;width:100%}.searchbar{flex-wrap:wrap}.searchbar input{min-width:0;flex:1 1 180px}.option{min-width:0;overflow-wrap:anywhere}
 @media(max-width:800px){.settings,.learn-layout .settings{grid-template-columns:minmax(0,1fr)}}
 </style>
