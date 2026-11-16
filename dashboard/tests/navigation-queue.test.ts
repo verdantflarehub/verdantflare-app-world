@@ -3,6 +3,39 @@ import assert from 'node:assert/strict'
 import { createNavigationQueue } from '../src/platform/navigation-queue.ts'
 const tick=()=>new Promise(resolve=>setImmediate(resolve))
 
+test('latest list is committed before detail when rapid filters coalesce',async()=>{
+ let host='/learn?q=previous',finish!:()=>void
+ const history=[host],calls:string[]=[]
+ const q=createNavigationQueue(()=>host,path=>{calls.push(path);return new Promise<void>(r=>{finish=()=>{host=path;history.push(path);r()}})},()=>assert.fail('unexpected rollback'))
+ q.request('/learn?q=intermediate')
+ q.request('/learn?q=latest')
+ q.request('/learn/item/latest?q=latest','/learn?q=latest')
+ assert.equal(q.staleEcho('/learn?q=intermediate'),true);finish();await tick()
+ assert.deepEqual(calls,['/learn?q=intermediate','/learn?q=latest'])
+ assert.equal(q.staleEcho('/learn?q=latest'),true);finish();await tick()
+ assert.equal(calls.at(-1),'/learn/item/latest?q=latest')
+ assert.equal(q.staleEcho('/learn/item/latest?q=latest'),false);finish();await tick()
+ assert.equal(history.at(-2),'/learn?q=latest');q.dispose()
+})
+
+test('external back cancels detail while its prerequisite is pending',async()=>{
+ let host='/learn',finish!:()=>void
+ const calls:string[]=[]
+ const q=createNavigationQueue(()=>host,path=>{calls.push(path);return new Promise<void>(r=>{finish=()=>{host=path;r()}})},()=>assert.fail('unexpected rollback'))
+ q.request('/learn/item/latest?q=latest','/learn?q=latest')
+ host='/';assert.equal(q.staleEcho('/'),false)
+ assert.equal(q.staleEcho('/learn?q=latest'),true);finish();await tick()
+ assert.deepEqual(calls,['/learn?q=latest','/'])
+ assert.equal(q.staleEcho('/'),false);finish();await tick();q.dispose()
+})
+
+test('denied prerequisite never opens its detail',async()=>{
+ const calls:string[]=[],rolled:string[]=[]
+ const q=createNavigationQueue(()=>'/learn',p=>{calls.push(p);return Promise.reject(Error('denied'))},p=>rolled.push(p))
+ q.request('/learn/item/result','/learn?q=result');await tick()
+ assert.deepEqual(calls,['/learn?q=result']);assert.deepEqual(rolled,['/learn']);q.dispose()
+})
+
 test('host supersession before its route echo cancels the queued detail',async()=>{
  let reject!:(e:Error)=>void
  const calls:string[]=[],rolled:string[]=[]

@@ -9,7 +9,7 @@ import PublicationPage from './pages/PublicationPage.vue'
 import ReferenceGallery from './pages/ReferenceGallery.vue'
 import ReferenceDetailPage from './pages/ReferenceDetailPage.vue'
 import { connectHost, disconnectHost } from './platform/host'
-import { canonicalRoute } from './platform/route-links'
+import { canonicalRoute, resultRouteBase } from './platform/route-links'
 import { createNavigationQueue } from './platform/navigation-queue'
 import './base.css'
 
@@ -62,10 +62,15 @@ async function mount() {
   })
   // Do not expose a detail page before its browser-history entry exists.
   // Otherwise an immediate Back operates on the previous list/filter entry.
-  const stopBefore = router.beforeEach(to => {
+  const stopBefore = router.beforeEach((to, from) => {
     if (disposed || hostPaths.has(to.fullPath) || !to.path.includes('/item/')) return
     if (canonicalRoute('world', sdk.navigation.get().path) === to.fullPath) return
-    navigation.request(to.fullPath)
+    // Preserve the latest list filters even if another filter request is in
+    // flight. Coalescing directly to the detail would make Back restore the
+    // previous search instead. Adjacent details need no extra list entry.
+    const list = !from.path.includes('/item/')
+      ? router.resolve({ path: resultRouteBase(to.path), query: to.query }).fullPath : undefined
+    navigation.request(to.fullPath, list)
     return false
   })
   const resize = new ResizeObserver(() => { if (!disposed) host.resize(Math.ceil(root.getBoundingClientRect().height)) })
