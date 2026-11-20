@@ -46,19 +46,20 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', escapeFullscreen, 
       <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
     </button>
     <button class="video-action fullscreen" type="button" aria-label="全屏预演" @click="fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button>
-    <input class="seek" type="range" min="0" max="100" step="0.1" :value="progress" aria-label="预演进度" @input="seek">
+    <input class="seek" :style="{'--progress':progress+'%'}" type="range" min="0" max="100" step="0.1" :value="progress" aria-label="预演进度" @input="seek">
     <p v-if="message" class="message" role="status">{{message}}</p>
   </div>
 </template>
 <style scoped>
 .quiet-video{position:relative;overflow:hidden;border-radius:12px;background:var(--shell-button)}
-video{display:block;width:100%;max-height:480px;object-fit:contain}
-.video-action{position:absolute;bottom:23px;width:36px;height:36px;display:grid;place-items:center;border:1px solid #ffffffb3;border-radius:50%;background:#ffffffd9;color:#233832;box-shadow:0 1px 6px #12251c1f;cursor:pointer;opacity:0;transition:opacity .15s}
+video{display:block;width:100%;height:auto;object-fit:contain}
+.video-action{position:absolute;bottom:22px;width:36px;height:36px;display:grid;place-items:center;border:1px solid #ffffffb3;border-radius:50%;background:#ffffffd9;color:#233832;box-shadow:0 1px 6px #12251c1f;cursor:pointer;opacity:0;transition:opacity .15s}
 .video-action svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.toggle{left:12px}.toggle svg:first-child{fill:none}.fullscreen{right:12px}
-.seek{position:absolute;bottom:3px;left:12px;width:calc(100% - 24px);height:14px;margin:0;accent-color:var(--accent);opacity:0;cursor:pointer}
+.seek{position:absolute;bottom:0;left:12px;width:calc(100% - 24px);height:22px;margin:0;appearance:none;-webkit-appearance:none;background:transparent;opacity:0;cursor:pointer}
 .quiet-video:hover .video-action,.quiet-video:focus-within .video-action,.paused .video-action,.quiet-video:hover .seek,.quiet-video:focus-within .seek,.paused .seek{opacity:1}
+.seek::-webkit-slider-runnable-track{height:3px;border-radius:3px;background:linear-gradient(to right,var(--accent) var(--progress),#9ba9a650 var(--progress))}.seek::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:9px;height:9px;border:0;border-radius:50%;margin-top:-3px;background:var(--accent)}.seek::-moz-range-track{height:3px;border-radius:3px;background:#9ba9a650}.seek::-moz-range-progress{height:3px;background:var(--accent)}.seek::-moz-range-thumb{width:9px;height:9px;border:0;background:var(--accent)}
 .video-action:focus-visible,.seek:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.message{position:absolute;top:8px;left:8px;padding:6px 10px;border-radius:8px;background:var(--panel);color:var(--text);font-size:12px}
-.quiet-video:fullscreen{display:flex;align-items:center;justify-content:center;border-radius:0}.quiet-video:fullscreen video{height:100%;max-height:100vh}
+.quiet-video:fullscreen{display:flex;align-items:center;justify-content:center;border-radius:0;background:var(--shell-panel)!important}.quiet-video:fullscreen video{width:100%;height:100%;max-height:100vh;background:var(--shell-panel)}
 @media(hover:none){.video-action,.seek{opacity:1}}
 @media(prefers-reduced-motion:reduce){.video-action{transition:none}}
 </style>

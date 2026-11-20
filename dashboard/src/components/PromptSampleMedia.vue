@@ -60,7 +60,7 @@ const stopContext = appSDK.context.subscribe(context => {
 onBeforeUnmount(() => { disposed = true; clear(); client.dispose(); stop(); stopContext() })
 void load(props.eager)
 </script>
-<template><div class="sample-media" :class="{thumbnail}">
+<template><div class="sample-media" :class="{thumbnail,previs}">
   <p v-if="loading" role="status">正在读取真实样例…</p>
   <img v-if="thumbnail && source && kind === 'image'" class="thumbnail-image" :src="source" alt="" @error="error='图片无法解码，请重新读取。'">
   <button v-else-if="source && kind === 'image'" class="sample-image" :aria-label="`放大：${title}`" @click="preview"><img :src="source" :alt="title" @error="error='图片无法解码，请重新读取。'"></button>
@@ -77,5 +77,5 @@ void load(props.eager)
 </div></template>
 <style scoped>
 .thumbnail{padding:0;height:152px;overflow:hidden;display:grid;place-items:center}.thumbnail-image{display:block;width:100%;height:152px;object-fit:contain}
-.sample-media{min-width:0;padding:12px 0}.sample-media p{font-size:12px;color:var(--muted);line-height:1.7}.sample-image{display:block;width:100%;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--shell-button);cursor:zoom-in}.sample-image img{display:block;width:100%;max-height:360px;object-fit:contain}video{display:block;width:100%;max-height:400px;border-radius:8px;background:var(--shell-button)}audio{width:100%}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:13px;line-height:1.8;padding:16px;background:var(--shell-button);border-radius:8px}
+.sample-media{min-width:0;padding:12px 0}.sample-media.previs{padding:0}.sample-media p{font-size:12px;color:var(--muted);line-height:1.7}.sample-image{display:block;width:100%;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--shell-button);cursor:zoom-in}.sample-image img{display:block;width:100%;max-height:360px;object-fit:contain}video{display:block;width:100%;max-height:400px;border-radius:8px;background:var(--shell-button)}audio{width:100%}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:13px;line-height:1.8;padding:16px;background:var(--shell-button);border-radius:8px}
 </style>
