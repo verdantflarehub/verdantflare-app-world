@@ -7,6 +7,7 @@ import { worldDomains, catalogTypes, catalogDomain, catalogQuery, assetDomain, a
 import { promptProjectTarget } from '../platform/prompt-project-target'
 import type { LearningResult } from '../platform/learning-results'
 import AssetResults from '../components/AssetResults.vue'
+import { rememberShotList, recallShotList, shotPath } from '../platform/shot-navigation'
 import { publicationIdentity, publicationPrincipal } from '../platform/publication-client'
 import { rememberPosition, recalledPosition } from '../platform/route-memory'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
@@ -121,6 +122,7 @@ const shortID = (value: string) => value ? `${value.slice(0, 8)}…` : '—'
 const message = (cause: unknown) => cause instanceof Error ? cause.message : '数字世界暂时不可用。'
 function rememberRoute(_to: unknown, from: {fullPath:string}) {
   rememberPosition(scrollScope, from.fullPath, dashboardHost.getScroll())
+  if(from.fullPath.split('?')[0]==='/shot'&&!route.query.asset)rememberShotList(identity,{path:from.fullPath,items:assets.value,cursor:cursor.value,scroll:dashboardHost.getScroll()})
 }
 onBeforeRouteUpdate(rememberRoute);onBeforeRouteLeave(rememberRoute)
 async function restore() { await nextTick(); if (alive && !hidden) dashboardHost.restoreScroll(recalledPosition(scrollScope, route.fullPath)) }
@@ -149,11 +151,11 @@ async function loadAsset() {
   detailLoading.value = true; error.value = ''
   try {
     const data = readAsset(await callTool('world.get', { asset_id: asset, asset_version_id: version }), asset, version)
-    if (alive && !hidden && generation === detailGeneration) selectedAsset.value = data
+    if (alive && !hidden && generation === detailGeneration) { if(data.manifest.asset_type==='shot'){await router.replace(shotPath({asset_id:data.asset_id,head_asset_version_id:data.asset_version_id}));return}selectedAsset.value = data }
   } catch (cause) { if (alive && generation === detailGeneration) error.value = message(cause) }
   finally { if (alive && generation === detailGeneration) { detailLoading.value = false; void restore() } }
 }
-function openAsset(item: AssetItem) { return router.push({ path: route.path, query: { ...route.query, asset: item.asset_id, version: item.head_asset_version_id } }) }
+function openAsset(item: AssetItem) { if(item.asset_type==='shot'){rememberShotList(identity,{path:route.fullPath,items:assets.value,cursor:cursor.value,scroll:dashboardHost.getScroll()});return router.push(shotPath(item))}return router.push({ path: route.path, query: { ...route.query, asset: item.asset_id, version: item.head_asset_version_id } }) }
 async function newProject(result:LearningResult,variant:string) {
   if (!alive || hidden || !selectedAsset.value) return
   navigationRequest?.abort(); const controller = new AbortController(); navigationRequest = controller
@@ -187,7 +189,8 @@ const unsubscribe = appSDK.lifecycle.subscribe(event => {
 })
 const stopContext = appSDK.context.subscribe(c => { if(publicationIdentity(c)===identity)return;listGeneration++;detailGeneration++;assets.value=[];selectedAsset.value=null;navigationRequest?.abort();hidden=true;error.value='会话已变化，请重新打开数字世界。' })
 onBeforeUnmount(() => { alive = false; listGeneration++; detailGeneration++; navigationRequest?.abort(); unsubscribe();stopContext() })
-void loadWorld()
+const rememberedShotList=route.path==='/shot'&&!detail.value?recallShotList(identity,route.fullPath):undefined
+if(rememberedShotList){assets.value=rememberedShotList.items;cursor.value=rememberedShotList.cursor;void nextTick(()=>dashboardHost.restoreScroll(rememberedShotList.scroll))}else void loadWorld()
 </script>
 
 <template>

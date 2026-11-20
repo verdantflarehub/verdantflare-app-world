@@ -18,3 +18,11 @@ test('missing variant, domain, files and invalid identity cannot fall back to an
  assert.throws(()=>promptProjectTarget(asset,result,'missing'))
  for(const change of [(a:AssetOpen)=>a.manifest.files=[],(a:AssetOpen)=>a.manifest.domain_documents=[],(a:AssetOpen)=>a.asset_version_id='latest']){const copy=structuredClone(asset);change(copy);assert.throws(()=>promptProjectTarget(copy,result,'image'))}
 })
+
+test('legacy Project prompt handoff resolves the same explicit body as the detail page',()=>{
+ const legacy=structuredClone(asset);legacy.manifest.schema_version=1;delete legacy.manifest.domain_documents
+ legacy.manifest.files[0].role='domain-json'
+ assert.equal(new URL(promptProjectTarget(legacy,result,'image').path,'https://host.invalid').searchParams.get('content_version'),id(5))
+ legacy.manifest.files.push({...legacy.manifest.files[0],file_id:id(9)})
+ assert.throws(()=>promptProjectTarget(legacy,result,'image'),/多份领域正文/)
+})

@@ -37,7 +37,7 @@ export function canonicalRoute(domain: Domain, path: string): string {
     const reviewDetail = /^\/scene\/[0-9a-f-]{36}\/versions\/[0-9a-f-]{36}\/review$/.test(url.pathname) && url.pathname.split('/').filter(Boolean).filter((_,i)=>i===1||i===3).every(v=>uuid.test(v))
     const collectionDetail = url.pathname.startsWith('/collections/') && uuid.test(url.pathname.slice('/collections/'.length))
     const resultDetail = resultPath.test(url.pathname)
-    const referenceDetail = /^\/(pose|costume)\/asset\/[0-9a-f-]{36}$/.test(url.pathname) && uuid.test(url.pathname.split('/')[3]) && uuid.test(url.searchParams.get('version') || '')
+    const referenceDetail = /^\/(pose|costume|shot)\/asset\/[0-9a-f-]{36}$/.test(url.pathname) && uuid.test(url.pathname.split('/')[3]) && uuid.test(url.searchParams.get('version') || '')
     const learningPage = url.pathname === '/learn' || resultDetail && resultRouteBase(url.pathname) === '/learn'
     if (learningPage && url.searchParams.has('learning') && (!uuid.test(url.searchParams.get('learning') || '') || !uuid.test(url.searchParams.get('revision') || '') || url.searchParams.has('task') || url.searchParams.has('draft'))) invalid()
     if (resultDetail && (resultRouteBase(url.pathname)==='/learn' ? !uuid.test(url.searchParams.get('task')||'') && !url.searchParams.has('learning') : !uuid.test(url.searchParams.get('asset')||'') || !uuid.test(url.searchParams.get('version')||''))) invalid()

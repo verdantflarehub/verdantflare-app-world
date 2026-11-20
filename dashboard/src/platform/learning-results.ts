@@ -1,5 +1,5 @@
 import { readSampleBytes, sampleContentPath, type SampleDownload } from './prompt-samples.ts'
-import type { AssetOpen } from './world-model.ts'
+import type { AssetOpen, AssetFile } from './world-model.ts'
 import { object, readCollectionDocument, type CollectionDocument } from './draft-model.ts'
 
 // Presentation only. Central Schema and service authorization remain authoritative.
@@ -95,10 +95,15 @@ export function filterResults(results:LearningResult[],type:string,query:string)
     ...(r.type_key==='prompt'&&r.type_version===1?promptVariants(r).flatMap(v=>[v.requested_label,v.model_id||'',v.model_version||'']):[])]
     .some(s=>s.toLocaleLowerCase().includes(q))))
 }
+export function learningFile(asset:AssetOpen):AssetFile|undefined {
+ const domain=asset.manifest.domain_documents?.find(d=>d.document_type==='reference-learning')
+ if(domain){const file=asset.manifest.files.find(f=>f.file_id===domain.file_id);if(!file)fail();return file}
+ const legacy=asset.manifest.schema_version===1?asset.manifest.files.filter(f=>f.role==='domain-json'):[]
+ if(legacy.length>1)throw Error('资产有多份领域正文，无法确定入口。')
+ return legacy[0]
+}
 export async function loadAssetResults(call:(name:string,args:Record<string,unknown>)=>Promise<unknown>,asset:AssetOpen,signal:AbortSignal=new AbortController().signal,readBytes:(read:SampleDownload,signal:AbortSignal)=>Promise<Blob>=readSampleBytes):Promise<LearningDocument|null>{
-  const domain=asset.manifest.domain_documents?.find(d=>d.document_type==='reference-learning')
-  if(!domain)return null
-  const file=asset.manifest.files.find(f=>f.file_id===domain.file_id);if(!file)fail()
+  const file=learningFile(asset);if(!file)return null
   const ref=file!.content_ref
   const response=object(await call('artifact.read',{mode:'download',content_ref:ref,access:{asset_id:asset.asset_id,asset_version_id:asset.asset_version_id}}))
   const version=object(response.version)

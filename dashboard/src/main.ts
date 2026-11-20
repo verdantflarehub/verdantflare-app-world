@@ -1,6 +1,7 @@
 import { createApp, h } from 'vue'
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 import Browser from './pages/WorldBrowser.vue'
+import ShotDetailPage from './pages/ShotDetailPage.vue'
 import SetReviewPage from './pages/SetReviewPage.vue'
 import { worldDomains } from './platform/world-catalog'
 import CollectionsPage from './pages/CollectionsPage.vue'
@@ -21,6 +22,7 @@ async function mount() {
     { path: '/', component: Browser },
     { path: '/scene/:assetId/versions/:assetVersionId/review', component: SetReviewPage },
     { path: '/item/:resultKey', component: Browser },
+    { path: '/shot/asset/:assetId', component: ShotDetailPage },
     ...(['pose', 'costume'] as const).flatMap(kind => [
       { path: '/' + kind, component: ReferenceGallery, props: { kind } },
       { path: '/' + kind + '/asset/:assetId', component: ReferenceDetailPage, props: { kind } },
@@ -63,13 +65,15 @@ async function mount() {
   // Do not expose a detail page before its browser-history entry exists.
   // Otherwise an immediate Back operates on the previous list/filter entry.
   const stopBefore = router.beforeEach((to, from) => {
-    if (disposed || hostPaths.has(to.fullPath) || !to.path.includes('/item/')) return
+    const shotDetail = to.path.startsWith('/shot/asset/')
+    if (disposed || hostPaths.has(to.fullPath) || (!shotDetail && !to.path.includes('/item/'))) return
     if (canonicalRoute('world', sdk.navigation.get().path) === to.fullPath) return
     // Preserve the latest list filters even if another filter request is in
     // flight. Coalescing directly to the detail would make Back restore the
     // previous search instead. Adjacent details need no extra list entry.
-    const list = !from.path.includes('/item/')
-      ? router.resolve({ path: resultRouteBase(to.path), query: to.query }).fullPath : undefined
+    const list = shotDetail
+      ? (!from.path.startsWith('/shot/asset/') ? from.fullPath : undefined)
+      : !from.path.includes('/item/') ? router.resolve({ path: resultRouteBase(to.path), query: to.query }).fullPath : undefined
     navigation.request(to.fullPath, list)
     return false
   })

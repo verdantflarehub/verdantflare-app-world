@@ -56,3 +56,17 @@ test('asset body reads the selected content under asset access, never its origin
  const legacy=structuredClone(asset);legacy.manifest.domain_documents=[]
  assert.equal(await loadAssetResults(async()=>{throw Error('must not probe arbitrary files')},legacy),null)
 })
+
+test('Project assets read only a unique explicit domain-json file and reject ambiguity', async()=>{
+ const project=structuredClone(asset);project.manifest.schema_version=1;delete project.manifest.domain_documents
+ project.manifest.files[0].role='domain-json'
+ const body=await loadAssetResults(async(name,args)=>{
+  assert.equal(name,'artifact.read');assert.deepEqual(args.access,{asset_id:id(1),asset_version_id:id(2)})
+  return {mode:'download',version:downloadVersion,content_path:downloadPath}
+ },project,new AbortController().signal,readFixture)
+ assert.equal(body?.results.length,1)
+ project.manifest.files.push({...project.manifest.files[0],file_id:id(80)})
+ await assert.rejects(loadAssetResults(async()=>{throw Error('must not read')},project),/多份领域正文/)
+ project.manifest.files=[{...project.manifest.files[0],role:'reference',path:'learning.json'}]
+ assert.equal(await loadAssetResults(async()=>{throw Error('must not guess filename')},project),null)
+})
