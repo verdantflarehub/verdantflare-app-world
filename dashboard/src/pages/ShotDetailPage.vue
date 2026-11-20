@@ -108,8 +108,11 @@ async function download(file:AssetFile){
  try{const r=await sampleDownload(client.call,asset.value,{kind:'file',file_id:file.file_id});if(valid(current))downloads.value={...downloads.value,[file.file_id]:r.path}}
  catch{if(valid(current))notice.value='工程文件暂时无法读取，可重试。'}
 }
+let fullscreenGuardUntil=0
+function fullscreenChanged(){fullscreenGuardUntil=Date.now()+500}
 function keys(e:KeyboardEvent){
- if(hidden||revoked||e.altKey||e.ctrlKey||e.metaKey||(e.target as HTMLElement)?.closest('input,textarea,select,video,button,[contenteditable=true]'))return
+ if(e.defaultPrevented||window.document.fullscreenElement||Date.now()<fullscreenGuardUntil)return
+ if(hidden||revoked||e.altKey||e.ctrlKey||e.metaKey||(e.target as HTMLElement)?.closest('input,textarea,select,video,button,.quiet-video,[contenteditable=true]'))return
  if(e.key==='ArrowLeft'&&index.value>0){e.preventDefault();void adjacent(-1)}
  if(e.key==='ArrowRight'&&canNext.value){e.preventDefault();void adjacent(1)}
  if(e.key==='Escape')void router.push(list.value?.path||'/shot')
@@ -117,7 +120,8 @@ function keys(e:KeyboardEvent){
 const stop=appSDK.lifecycle.subscribe(e=>{if(e==='hidden'||e==='dispose'){hidden=true;epoch++;controller.abort();loading.value=false;paging.value=false;busy.value=false}if(e==='active'){hidden=false;void load()}})
 const stopContext=appSDK.context.subscribe(c=>{if(publicationIdentity(c)===identity)return;revoked=true;epoch++;controller.abort();asset.value=undefined;document.value=null;list.value=undefined;loading.value=false;error.value='会话已变化，请重新打开镜头。'})
 window.addEventListener('keydown',keys)
-onBeforeUnmount(()=>{alive=false;epoch++;controller.abort();stop();stopContext();client.dispose();window.removeEventListener('keydown',keys)})
+window.document.addEventListener('fullscreenchange',fullscreenChanged)
+onBeforeUnmount(()=>{alive=false;epoch++;controller.abort();stop();stopContext();client.dispose();window.removeEventListener('keydown',keys);window.document.removeEventListener('fullscreenchange',fullscreenChanged)})
 watch(()=>[assetID.value,versionID.value],()=>void load(),{immediate:true})
 </script>
 <template>
@@ -129,7 +133,7 @@ watch(()=>[assetID.value,versionID.value],()=>void load(),{immediate:true})
  <header class="head"><div><h1>{{asset.manifest.name}}</h1><p>镜头 · 运镜与构图 · 固定版本</p></div><div class="actions"><span v-if="index>=0" class="pager"><button class="btn" :disabled="index<=0||paging" @click="adjacent(-1)">‹ 上一个</button><span>{{index+1}} / {{list?.items.length}}{{list?.cursor?'+':''}}</span><button class="btn" :disabled="!canNext||paging" @click="adjacent(1)">下一个 ›</button></span><button class="btn primary" :disabled="busy" @click="use">选择项目并引用此版本</button></div></header>
  <p v-if="notice" class="notice" role="status">{{notice}}</p>
  <div class="layout"><section class="primary-content">
- <section class="stage" aria-label="本镜头实际预演"><h2>实际预演</h2><template v-if="production&&document"><PromptSampleMedia v-for="(clip,i) in production.clips" :key="`${asset.asset_version_id}:${i}`" :asset="asset" :document="document" :reference="clip" :title="asset.manifest.name+' · 实际预演'" eager/><p class="hint">本镜头实际制作的预演，复制运镜时可更换主体与场景。</p></template><div v-else class="state">此固定版本尚未提供制作预演。可参考下方说明或引用已有文件。</div></section>
+ <section class="stage" aria-label="本镜头实际预演"><h2>实际预演</h2><template v-if="production&&document"><PromptSampleMedia v-for="(clip,i) in production.clips" :key="`${asset.asset_version_id}:${i}`" :asset="asset" :document="document" :reference="clip" :title="asset.manifest.name+' · 实际预演'" eager previs/><p class="hint">本镜头实际制作的预演，复制运镜时可更换主体与场景。</p></template><div v-else class="state">此固定版本尚未提供制作预演。可参考下方说明或引用已有文件。</div></section>
  <section v-if="reading" class="panel"><h2>运镜说明</h2><div v-for="section in reading.sections" :key="section.title" class="reading"><h3>{{section.title}}</h3><p v-for="line in section.lines" :key="line">{{line}}</p></div><div class="actions"><button class="btn" @click="reference()">复制参考说明</button><button class="btn" @click="reference(true)">复制给智能体</button></div><textarea v-if="manual" :value="manual" readonly rows="7" aria-label="可复制的镜头参考"/></section>
  <section v-for="prompt in prompts" :key="asset.asset_version_id+prompt.key" class="panel"><h2>提示词与复用</h2><PromptResult :result="prompt" :asset="asset" :document="document!" initial-variant="motion-text" @new-project="v=>create(prompt,v)"/></section>
  <section v-if="!document" class="panel"><h2>镜头内容尚未齐备</h2><p>当前版本没有可读取的镜头正文，已保存文件见下方清单。</p></section>

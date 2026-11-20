@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from 'vue'
+import QuietVideo from './QuietVideo.vue'
 import { closeSamplePreview, openSamplePreview } from '../platform/sample-preview'
 import { useHost } from '../platform/host'
 import { createReadClient } from '../platform/client'
@@ -7,7 +8,7 @@ import { publicationIdentity } from '../platform/publication-client'
 import type { AssetOpen } from '../platform/world-model'
 import type { LearningDocument } from '../platform/learning-results'
 import { sampleFileReference, sampleDownload, sampleKind, readSampleBytes, type SampleDownload } from '../platform/prompt-samples'
-const props = defineProps<{ asset: AssetOpen; document: LearningDocument; reference: unknown; title: string; thumbnail?: boolean; eager?: boolean }>()
+const props = defineProps<{ asset: AssetOpen; document: LearningDocument; reference: unknown; title: string; thumbnail?: boolean; eager?: boolean; previs?: boolean }>()
 const { appSDK } = useHost(), client = createReadClient(appSDK, 'world')
 const identity = publicationIdentity(appSDK.context.get()), source = ref(''), text = ref(''), error = ref(''), loading = ref(false)
 const kind = ref(''), ready = ref(false), metadata = ref<SampleDownload>()
@@ -63,6 +64,7 @@ void load(props.eager)
   <p v-if="loading" role="status">正在读取真实样例…</p>
   <img v-if="thumbnail && source && kind === 'image'" class="thumbnail-image" :src="source" alt="" @error="error='图片无法解码，请重新读取。'">
   <button v-else-if="source && kind === 'image'" class="sample-image" :aria-label="`放大：${title}`" @click="preview"><img :src="source" :alt="title" @error="error='图片无法解码，请重新读取。'"></button>
+  <QuietVideo v-else-if="source && kind === 'video' && previs" :source="source" :title="title" @error="error='当前浏览器无法播放此视频。'"/>
   <video v-else-if="source && kind === 'video'" :src="source" controls playsinline preload="metadata" @error="error='当前浏览器无法播放此视频。'"/>
   <audio v-else-if="source && kind === 'audio'" :src="source" controls preload="metadata" @error="error='当前浏览器无法播放此音频。'"/>
   <pre v-else-if="ready && kind === 'text'">{{text}}</pre>
